@@ -243,11 +243,12 @@ button:focus{outline:none;}
 
 <div class="toolbar">
     <div class="import-row">
-        <input type="file" id="fileIn" accept=".csv,.ods,.xlsx" style="display:none;">
-        <button class="btn-import" onclick="document.getElementById('fileIn').click()">📂 Importar</button>
-        <button class="btn-sm" style="background:#2196f3;" onclick="openNew()">➕</button>
-        <button class="btn-sm" style="background:#333;color:#aaa;" onclick="limpar()">🗑️</button>
-    </div>
+    <input type="file" id="fileIn" accept=".csv,.ods,.xlsx" style="display:none;">
+    <button class="btn-import" onclick="document.getElementById('fileIn').click()">📂 Importar</button>
+    <button class="btn-sm" style="background:#2196f3;" onclick="openNew()">➕</button>
+    <button class="btn-sm" style="background:#9c27b0;" onclick="abrirHistorico()">🗄️</button>
+    <button class="btn-sm" style="background:#333;color:#aaa;" onclick="limpar()">🗑️</button>
+</div>
     <div class="file-info" id="fInfo">Nenhum arquivo</div>
 
     <div class="stats-row" id="sr">
