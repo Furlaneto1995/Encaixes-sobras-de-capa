@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Encaixes</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+button{outline:none;}
+button:focus{outline:none;}
+        body{
+            font-family:'Segoe UI',Tahoma,sans-serif;
+            background:#1a1a2e;color:#e0e0e0;
+            min-height:100vh;display:flex;flex-direction:column;
+            position:fixed;width:100%;height:100%;overflow:hidden;
+        }
+
+        .header{
+            background:linear-gradient(135deg,#16213e,#0f3460);
+            padding:10px 12px;text-align:center;
+            border-bottom:3px solid #e94560;flex-shrink:0;
+        }
+        .header h1{font-size:1.2em;color:#e94560;}
+        .header p{color:#a0a0b0;font-size:0.68em;margin-top:2px;}
+
+        .toolbar{flex-shrink:0;padding:8px 12px;display:flex;flex-direction:column;gap:6px;}
+
+        .import-row{display:flex;gap:6px;align-items:center;}
+        .btn-import{
+            background:linear-gradient(135deg,#e94560,#c23152);
+            color:#fff;border:none;padding:9px 14px;border-radius:8px;
+            font-size:0.85em;cursor:pointer;flex:1;
+        }
+        .btn-import:active{transform:scale(0.97);}
+        .btn-sm{border:none;padding:9px 11px;border-radius:8px;font-size:0.8em;cursor:pointer;color:#fff;}
+        .btn-sm:active{transform:scale(0.95);}
+
+        .file-info{color:#a0a0b0;font-size:0.7em;text-align:center;}
+
+        .stats-row{display:none;gap:5px;justify-content:center;}
+        .stats-row.visible{display:flex;}
+        .st-btn{
+            background:#16213e;padding:5px 6px;border-radius:6px;
+            text-align:center;border:2px solid #0f3460;flex:1;
+            cursor:pointer;
+        }
+        .st-btn:active{transform:scale(0.95);}
+        .st-btn.on{border-color:#e94560;}
+        .st-btn .num{font-size:1em;color:#e94560;font-weight:bold;}
+        .st-btn .lbl{font-size:0.55em;color:#a0a0b0;}
+
+        .prog-row{display:none;padding:0 2px;}
+        .prog-row.visible{display:block;}
+        .p-bar{width:100%;height:4px;background:#0f3460;border-radius:2px;overflow:hidden;}
+        .p-fill{height:100%;background:linear-gradient(90deg,#e94560,#00c853);border-radius:2px;transition:width 0.4s;width:0%;}
+        .p-txt{text-align:center;font-size:0.58em;color:#a0a0b0;margin-top:2px;}
+
+        .scroll-area{
+            flex:1;overflow-y:auto;padding:6px 10px 80px;
+            -webkit-overflow-scrolling:touch;
+        }
+
+        /* OP CARD */
+        .op-card{
+            background:#16213e;border-radius:8px;
+            border:1px solid #252545;margin-bottom:6px;overflow:hidden;
+        }
+        .op-card.all-ok{border-color:#00c853;}
+
+        .op-head{
+            display:flex;align-items:center;justify-content:space-between;
+            padding:8px 10px;background:#0f3460;gap:6px;
+        }
+        .op-head-left{flex:1;min-width:0;}
+        .op-title-row{display:flex;align-items:center;gap:6px;}
+        .op-title{font-size:0.92em;font-weight:bold;color:#e94560;}
+        .op-tag{font-size:0.55em;color:#2196f3;font-weight:bold;vertical-align:middle;}
+        .op-legend{font-size:0.55em;color:#666;margin-top:2px;font-style:italic;}
+        .op-key{font-size:0.65em;color:#aaa;margin-top:1px;word-break:break-all;font-family:monospace;}
+
+        .op-head-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+
+        .badge{font-size:0.6em;padding:2px 7px;border-radius:10px;font-weight:bold;white-space:nowrap;}
+        .b-ok{background:#00c853;color:#fff;}
+        .b-pend{background:#e94560;color:#fff;}
+
+        .btn-del-op{
+            width:24px;height:24px;border-radius:4px;border:1px solid #ff1744;
+            background:transparent;color:#ff1744;cursor:pointer;
+            font-size:0.7em;display:inline-flex;align-items:center;justify-content:center;
+        }
+        .btn-del-op:active{background:#ff1744;color:#fff;}
+
+        /* BOBINAS */
+        .bob-wrap{max-height:220px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+
+        .bob-row{
+            display:flex;align-items:center;padding:5px 10px;
+            gap:6px;border-bottom:1px solid #1e1e3a;
+        }
+        .bob-row:last-child{border-bottom:none;}
+        .bob-row.done{background:#0a2a1a;}
+
+        .bob-chk{
+            width:26px;height:26px;min-width:26px;border-radius:50%;
+            border:2px solid #555;background:transparent;cursor:pointer;
+            display:inline-flex;align-items:center;justify-content:center;
+            font-size:0.7em;color:#555;transition:all 0.2s;
+        }
+        .bob-chk:active{transform:scale(0.85);}
+        .bob-chk.done{border-color:#00c853;background:#00c853;color:#fff;}
+
+        .bob-mid{flex:1;display:flex;align-items:center;gap:4px;min-width:0;}
+        .bob-peso{font-size:0.78em;color:#e94560;font-weight:bold;white-space:nowrap;}
+        .bob-tag{font-size:0.55em;color:#2196f3;font-weight:bold;vertical-align:middle;}
+
+        .bob-mini{
+            width:24px;height:24px;min-width:24px;border-radius:3px;
+            object-fit:cover;border:1px solid #00c853;cursor:pointer;
+        }
+
+        .btn-del-bob{
+            width:20px;height:20px;min-width:20px;border-radius:3px;
+            border:1px solid #ff1744;background:transparent;color:#ff1744;
+            cursor:pointer;font-size:0.6em;display:inline-flex;
+            align-items:center;justify-content:center;
+        }
+        .btn-del-bob:active{background:#ff1744;color:#fff;}
+
+        .btn-add{
+            display:flex;align-items:center;justify-content:center;gap:4px;
+            width:100%;padding:5px;border:none;border-top:1px dashed #333;
+            background:transparent;color:#666;font-size:0.68em;cursor:pointer;
+        }
+        .btn-add:active{color:#e94560;}
+
+        .empty-msg{text-align:center;padding:40px 15px;color:#444;}
+        .empty-msg .icon{font-size:2.5em;margin-bottom:8px;}
+
+        /* FINALIZAR */
+        .fin-bar{
+            display:none;position:fixed;bottom:0;left:0;width:100%;
+            padding:10px 12px;background:linear-gradient(180deg,transparent,#1a1a2e 30%);z-index:200;
+        }
+        .fin-bar.visible{display:block;}
+        .btn-fin{
+            width:100%;padding:13px;border:none;border-radius:10px;
+            font-size:1em;font-weight:bold;cursor:pointer;color:#fff;
+            background:linear-gradient(135deg,#00c853,#00a844);
+            animation:glow 2s infinite;
+        }
+        @keyframes glow{
+            0%{box-shadow:0 0 5px rgba(0,200,83,0.3);}
+            50%{box-shadow:0 0 18px rgba(0,200,83,0.6);}
+            100%{box-shadow:0 0 5px rgba(0,200,83,0.3);}
+        }
+
+        /* MODAIS */
+        .modal{
+            display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+            z-index:1000;justify-content:center;align-items:center;
+        }
+        .modal.active{display:flex;}
+        .modal-bg{background:rgba(0,0,0,0.92);padding:15px;overflow-y:auto;}
+        .modal-full{background:#000;flex-direction:column;}
+
+        .m-box{
+            background:#16213e;border-radius:10px;padding:16px;
+            max-width:340px;width:100%;
+        }
+        .m-box h3{margin-bottom:10px;font-size:0.92em;}
+        .m-box label{font-size:0.68em;color:#888;display:block;margin-bottom:2px;margin-top:8px;}
+        .m-box input,.m-box select{
+            width:100%;padding:10px;border-radius:6px;border:1px solid #333;
+            background:#0f3460;color:#e0e0e0;font-size:1em;
+        }
+        .m-box input:focus,.m-box select:focus{outline:none;border-color:#2196f3;}
+        .m-acts{display:flex;gap:8px;margin-top:12px;}
+        .m-acts button{
+            flex:1;padding:11px;border:none;border-radius:8px;
+            font-size:0.82em;font-weight:bold;cursor:pointer;color:#fff;
+        }
+
+        /* CAM */
+        .cam-info{
+            padding:8px 10px;background:#16213e;border-bottom:1px solid #333;
+            font-size:0.72em;color:#a0a0b0;flex-shrink:0;
+        }
+        .cam-info strong{color:#e94560;}
+        .cam-view{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;}
+        .cam-view video,.cam-view img{width:100%;height:100%;object-fit:cover;}
+        .cam-btns{
+            display:flex;gap:6px;padding:8px 10px;background:#16213e;
+            border-top:1px solid #333;flex-shrink:0;
+        }
+        .cam-b{
+            flex:1;padding:12px;border:none;border-radius:8px;
+            font-size:0.85em;font-weight:bold;cursor:pointer;color:#fff;text-align:center;
+        }
+.cam-b:active{transform:scale(0.95);}
+.cam-b:focus{outline:none;}
+        .cg{background:#00c853;}.co{background:#ff9800;}.cr{background:#ff1744;}
+
+        /* FIN BOX */
+        .fin-box{
+            background:#16213e;border-radius:10px;padding:20px;
+            max-width:320px;width:100%;text-align:center;border:2px solid #00c853;
+        }
+        .fin-box .ic{font-size:2.5em;margin-bottom:6px;}
+        .fin-box h3{color:#00c853;margin-bottom:6px;}
+        .fin-box p{color:#a0a0b0;margin-bottom:15px;font-size:0.8em;}
+        .fin-acts{display:flex;flex-direction:column;gap:8px;}
+        .fin-acts button{
+            width:100%;padding:13px;border:none;border-radius:10px;
+            font-size:0.92em;font-weight:bold;cursor:pointer;color:#fff;
+        }
+
+        .ld{
+            display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+            background:rgba(0,0,0,0.9);z-index:3000;
+            justify-content:center;align-items:center;flex-direction:column;gap:10px;
+        }
+        .ld.active{display:flex;}
+        .ld-sp{width:40px;height:40px;border:4px solid #333;border-top:4px solid #e94560;border-radius:50%;animation:sp 1s linear infinite;}
+        @keyframes sp{to{transform:rotate(360deg);}}
+        .ld-tx{color:#e0e0e0;font-size:0.85em;}
+
+        .amp{
+            display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+            background:rgba(0,0,0,0.95);z-index:5000;
+            justify-content:center;align-items:center;cursor:pointer;
+        }
+        .amp.active{display:flex;}
+        .amp img{max-width:95%;max-height:95vh;object-fit:contain;border-radius:6px;}
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>📦 Encaixes</h1>
+    <p>Importar → Fotografar → Finalizar</p>
+</div>
+
+<div class="toolbar">
+    <div class="import-row">
+        <input type="file" id="fileIn" accept=".csv,.ods,.xlsx" style="display:none;">
+        <button class="btn-import" onclick="document.getElementById('fileIn').click()">📂 Importar</button>
+        <button class="btn-sm" style="background:#2196f3;" onclick="openNew()">➕</button>
+        <button class="btn-sm" style="background:#333;color:#aaa;" onclick="limpar()">🗑️</button>
+    </div>
+    <div class="file-info" id="fInfo">Nenhum arquivo</div>
+
+    <div class="stats-row" id="sr">
+        <div class="st-btn on" id="sAll" onclick="fil('all')"><div class="num" id="nAll">0</div><div class="lbl">Total</div></div>
+        <div class="st-btn" id="sPend" onclick="fil('pend')"><div class="num" id="nPend">0</div><div class="lbl">Pendentes</div></div>
+        <div class="st-btn" id="sOk" onclick="fil('ok')"><div class="num" id="nOk">0</div><div class="lbl">OK</div></div>
+    </div>
+
+    <div class="prog-row" id="pr">
+        <div class="p-bar"><div class="p-fill" id="pf"></div></div>
+        <div class="p-txt" id="pt">0%</div>
+    </div>
+</div>
+
+<div class="scroll-area" id="sa">
+    <div class="empty-msg" id="emp"><div class="icon">📂</div><p>Importe uma planilha</p></div>
+</div>
+
+<div class="fin-bar" id="fb">
+    <button class="btn-fin" onclick="askFin()">✅ Tudo pronto! Finalizar?</button>
+</div>
+
+<!-- CAM -->
+<div class="modal modal-full" id="cm">
+    <div class="cam-info" id="ci"></div>
+    <div class="cam-view"><video id="cv" autoplay playsinline></video><img id="cp" style="display:none;"></div>
+    <canvas id="cc" style="display:none;"></canvas>
+    <div class="cam-btns" id="cbt"></div>
+</div>
+
+<!-- ADD PESO -->
+<div class="modal modal-bg" id="amPeso">
+    <div class="m-box" style="border:2px solid #ff9800;">
+        <h3 style="color:#ff9800;">➕ Adicionar Bobina</h3>
+        <label>Peso (kg)</label>
+        <input type="number" id="addPeso" placeholder="150" step="0.1" inputmode="decimal">
+        <div class="m-acts">
+            <button style="background:#ff9800;" onclick="doAddPeso()">✅ Adicionar</button>
+            <button style="background:#ff1744;" onclick="xM('amPeso')">❌</button>
+        </div>
+    </div>
+</div>
+
+<!-- ADD NOVO -->
+<div class="modal modal-bg" id="amNew">
+    <div class="m-box" style="border:2px solid #2196f3;">
+        <h3 style="color:#2196f3;">➕ Novo Item</h3>
+        <label>OP / Encaixe</label>
+        <input type="text" id="nwEnc" placeholder="1074340" inputmode="numeric">
+        <label>Item</label>
+        <input type="text" id="nwItem" placeholder="1201059" inputmode="numeric">
+        <label>Versão</label>
+        <input type="text" id="nwVer" placeholder="2" inputmode="numeric">
+        <label>Largura (cm)</label>
+        <input type="number" id="nwLarg" placeholder="60" step="0.1" inputmode="decimal">
+        <label>Espessura (mu)</label>
+        <input type="number" id="nwEsp" placeholder="45" step="0.1" inputmode="decimal">
+        <label>Pigmento</label>
+        <select id="nwPig">
+            <option value="S">S - Pigmentado</option>
+            <option value="N">N - Transparente</option>
+        </select>
+
+        <div id="pesosContainer">
+            <div class="peso-row" style="display:flex;align-items:center;gap:6px;margin-top:8px;">
+                <div style="flex:1;">
+                    <label>Peso (kg)</label>
+                    <input type="number" class="peso-input" placeholder="200" step="0.1" inputmode="decimal">
+                </div>
+            </div>
+        </div>
+
+        <button onclick="addPesoRow()" style="
+            width:100%;margin-top:6px;padding:8px;border:1px dashed #00c853;
+            background:transparent;color:#00c853;border-radius:6px;
+            font-size:0.8em;cursor:pointer;display:flex;align-items:center;
+            justify-content:center;gap:4px;
+        ">➕ Adicionar mais uma bobina</button>
+
+        <div class="m-acts">
+            <button style="background:#ff1744;display:flex;align-items:center;justify-content:center;gap:4px;" onclick="xM('amNew')">❌ Cancelar</button>
+            <button style="background:#2196f3;" onclick="doAddNew()">✅ Criar</button>
+        </div>
+    </div>
+</div>
+
+<!-- FIN -->
+<div class="modal modal-bg" id="fm">
+    <div class="fin-box">
+        <div class="ic">🎉</div>
+        <h3>Tudo pronto!</h3>
+        <p>O que deseja fazer?</p>
+        <div class="fin-acts">
+            <button style="background:#2196f3;" onclick="doZIP('dl')">💾 Baixar ZIP</button>
+            <button style="background:#00c853;" onclick="shareFotos()">📤 Compartilhar Fotos</button>
+            <button style="background:#ff9800;" onclick="shareTexto()">📄 Compartilhar Relatório</button>
+<button style="background:#9c27b0;" onclick="salvarHistorico()">🗄️ Salvar no Histórico</button>
+            <button style="background:#ff1744;" onclick="xM('fm')">❌ Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div class="ld" id="lo"><div class="ld-sp"></div><div class="ld-tx" id="lt">Gerando...</div></div>
+<div class="amp" id="ao" onclick="xM('ao')"><img id="ai"></div>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script>
+var B=[],G=[],curB=null,curG=null,foto=null,strm=null,origNm='',filt='all';
+var LS='enc_v3';
+
+function mkChave(b){
+    return (b.item||'')+'|'+(b.ver||'')+'|'+(b.larg||'')+'|'+(b.esp||'')+'|'+(b.pig||'');
+}
+
+function mkChaveGrp(b){
+    return b.enc+'||'+b.item+'-'+b.ver+'-'+b.larg+'-'+b.esp+'-'+b.pig;
+}
+
+// SAVE/LOAD
+function save(){try{localStorage.setItem(LS,JSON.stringify({B:B,origNm:origNm}));}catch(e){}}
+
+function load(){
+    try{
+        var s=localStorage.getItem(LS);if(!s)return false;
+        var d=JSON.parse(s);if(!d.B||!d.B.length)return false;
+        B=d.B;origNm=d.origNm||'';
+        grp();build();
+        document.getElementById('fInfo').textContent='💾 Restaurado ('+B.length+')';
+        return true;
+    }catch(e){return false;}
+}
+
+function limpar(){
+    if(!confirm('Apagar tudo?'))return;
+    B=[];G=[];localStorage.removeItem(LS);
+    document.getElementById('sa').innerHTML='<div class="empty-msg"><div class="icon">📂</div><p>Importe uma planilha</p></div>';
+    document.getElementById('sr').classList.remove('visible');
+    document.getElementById('pr').classList.remove('visible');
+    document.getElementById('fb').classList.remove('visible');
+    document.getElementById('fInfo').textContent='Nenhum arquivo';
+}
+
+// IMPORT
+document.getElementById('fileIn').addEventListener('change',function(e){
+    var f=e.target.files[0];if(!f)return;
+    origNm=f.name.replace(/\.[^.]+$/,'');
+    document.getElementById('fInfo').textContent='📄 '+f.name;
+    var r=new FileReader();
+    if(f.name.endsWith('.csv')){
+        r.onload=function(ev){pCSV(ev.target.result);};r.readAsText(f,'UTF-8');
+    }else{
+        r.onload=function(ev){
+            var d=new Uint8Array(ev.target.result);
+            var wb=XLSX.read(d,{type:'array'});
+            pDat(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1}));
+        };r.readAsArrayBuffer(f);
+    }
+});
+
+function pCSV(t){
+    var ls=t.split('\n').filter(function(l){return l.trim()!=='';});
+    pDat(ls.map(function(l){
+        var s=l.indexOf(';')>-1?';':',';
+        return l.split(s).map(function(c){return c.trim().replace(/^"|"$/g,'');});
+    }));
+}
+
+function pDat(d){
+    if(d.length<2){alert('Vazio!');return;}
+    var h=d[0].map(function(c){return String(c).toUpperCase().trim();});
+    var ci={
+        enc:fc(h,['ENCAIXE','ENCAIXE_FINAL','OP']),
+        item:fc(h,['ITEM','CODIGO']),
+        ver:fc(h,['VERSAO','VERSÃO']),
+        chave:fc(h,['CHAVE_EXATA','CHAVE']),
+        qtde:fc(h,['QTDE_ESTOQUE','QTDE','QUANTIDADE','PESO'])
+    };
+    if(ci.enc===-1||ci.item===-1){alert('ENCAIXE e ITEM obrigatórios!');return;}
+
+    B=[];
+    for(var i=1;i<d.length;i++){
+        var r=d[i];if(!r||r.length===0)continue;
+        var enc=String(r[ci.enc]||'').trim();
+        if(enc==='')continue;
+
+        var chaveOrig=ci.chave>-1?String(r[ci.chave]||'').trim():'';
+        var item=ci.item>-1?String(r[ci.item]||'').trim():'';
+        var ver=ci.ver>-1?String(r[ci.ver]||'').trim():'';
+        var qtde=ci.qtde>-1?String(r[ci.qtde]||'').trim():'';
+
+        var larg='',esp='',pig='';
+        if(chaveOrig){
+            var parts=chaveOrig.split('-');
+            if(parts.length>=4){
+                larg=(parts[0]||'').trim();
+                esp=(parts[1]||'').trim();
+                pig=(parts[parts.length-1]||'').trim();
+            }else if(parts.length===3){
+                larg=(parts[0]||'').trim();
+                esp=(parts[1]||'').trim();
+                pig=(parts[2]||'').trim();
+            }
+        }
+
+        B.push({
+            id:B.length,enc:enc,item:item,ver:ver,
+            larg:larg,esp:esp,pig:pig,
+            qtde:qtde,foto:null,fotoNm:'',ok:false,manual:false
+        });
+    }
+    grp();build();save();
+}
+
+function fc(h,ns){for(var n=0;n<ns.length;n++){var i=h.indexOf(ns[n]);if(i>-1)return i;}return-1;}
+
+// GROUP
+function grp(){
+    var m={};G=[];
+    for(var i=0;i<B.length;i++){
+        var b=B[i];
+        var key=mkChaveGrp(b);
+        if(!m[key]){
+            m[key]={enc:b.enc,chave:mkChave(b),bs:[]};
+            G.push(m[key]);
+        }
+        m[key].bs.push(i);
+    }
+}
+
+// BUILD
+function build(){
+    var sa=document.getElementById('sa');sa.innerHTML='';
+    if(G.length===0){
+        sa.innerHTML='<div class="empty-msg"><div class="icon">📂</div><p>Importe uma planilha</p></div>';
+        updUI();return;
+    }
+    var any=false;
+    for(var o=0;o<G.length;o++){
+        var c=mkCard(o);if(c){sa.appendChild(c);any=true;}
+    }
+    if(!any){
+        sa.innerHTML='<div class="empty-msg"><div class="icon">'+(filt==='ok'?'✅':'⏳')+'</div><p>Nenhuma nesta categoria</p></div>';
+    }
+    updUI();
+}
+
+function showG(gi){
+    var g=G[gi],allOk=true,anyPend=false;
+    for(var i=0;i<g.bs.length;i++){
+        if(!B[g.bs[i]].ok){allOk=false;anyPend=true;}
+    }
+    if(filt==='all')return true;
+    if(filt==='ok')return allOk;
+    if(filt==='pend')return anyPend;
+    return true;
+}
+
+function mkCard(gi){
+    var g=G[gi];if(!showG(gi))return null;
+
+    var dn=0,todosManual=true;
+    for(var k=0;k<g.bs.length;k++){
+        if(B[g.bs[k]].ok)dn++;
+        if(!B[g.bs[k]].manual)todosManual=false;
+    }
+    var allOk=dn===g.bs.length;
+
+    var card=document.createElement('div');
+    card.className='op-card'+(allOk?' all-ok':'');
+    card.id='g-'+gi;
+
+    var bc=allOk?'b-ok':'b-pend';
+    var opTag=todosManual?' <span class="op-tag">[+]</span>':'';
+
+    var hd='<div class="op-head">'+
+        '<div class="op-head-left">'+
+            '<div class="op-title-row"><span class="op-title">OP '+g.enc+opTag+'</span></div>'+
+            '<div class="op-legend">Item | Versão | Largura | Espessura | Pigmento</div>'+
+            '<div class="op-key">'+g.chave+'</div>'+
+        '</div>'+
+        '<div class="op-head-right">'+
+            '<span class="badge '+bc+'">'+dn+'/'+g.bs.length+'</span>'+
+            '<button class="btn-del-op" data-g="'+gi+'" title="Excluir OP">🗑️</button>'+
+        '</div>'+
+        '</div>';
+
+    var bl='<div class="bob-wrap">';
+    for(var b=0;b<g.bs.length;b++){
+        var bi=g.bs[b],bob=B[bi];
+        if(filt==='ok'&&!bob.ok)continue;
+        if(filt==='pend'&&bob.ok)continue;
+
+        var rc='bob-row'+(bob.ok?' done':'');
+        var cc='bob-chk'+(bob.ok?' done':'');
+        var ci2=bob.ok?'✔':'📷';
+        var tag=bob.manual?' <span class="bob-tag">[+]</span>':'';
+        var mini=bob.foto?'<img src="'+bob.foto+'" class="bob-mini" data-b="'+bi+'">':'';
+
+        bl+='<div class="'+rc+'">'+
+            '<button class="'+cc+'" data-b="'+bi+'">'+ci2+'</button>'+
+            '<div class="bob-mid">'+
+                '<span class="bob-peso">'+bob.qtde+' kg'+tag+'</span>'+
+            '</div>'+
+            mini+
+            '<button class="btn-del-bob" data-b="'+bi+'" data-g="'+gi+'" title="Excluir">✖</button>'+
+            '</div>';
+    }
+    bl+='</div>';
+
+    var addB='<button class="btn-add" data-g="'+gi+'">➕ Adicionar bobina</button>';
+
+    card.innerHTML=hd+bl+addB;
+
+    // Events
+    card.querySelectorAll('.bob-chk').forEach(function(el){
+        el.addEventListener('click',function(){openCam(parseInt(this.getAttribute('data-b')));});
+    });
+    card.querySelectorAll('.bob-mini').forEach(function(el){
+        el.addEventListener('click',function(ev){
+            ev.stopPropagation();
+            document.getElementById('ai').src=B[parseInt(this.getAttribute('data-b'))].foto;
+            document.getElementById('ao').classList.add('active');
+        });
+    });
+    card.querySelector('.btn-add').addEventListener('click',function(){
+        openAddPeso(parseInt(this.getAttribute('data-g')));
+    });
+    card.querySelector('.btn-del-op').addEventListener('click',function(){
+        delOP(parseInt(this.getAttribute('data-g')));
+    });
+    card.querySelectorAll('.btn-del-bob').forEach(function(el){
+        el.addEventListener('click',function(){
+            delBob(parseInt(this.getAttribute('data-b')),parseInt(this.getAttribute('data-g')));
+        });
+    });
+
+    return card;
+}
+
+// DELETE
+function delOP(gi){
+    if(!confirm('Excluir esta OP inteira?'))return;
+    var g=G[gi];
+    for(var i=g.bs.length-1;i>=0;i--){
+        B.splice(g.bs[i],1);
+    }
+    reindex();grp();save();build();
+}
+
+function delBob(bi,gi){
+    if(!confirm('Excluir esta bobina?'))return;
+    B.splice(bi,1);
+    reindex();grp();save();build();
+}
+
+function reindex(){
+    for(var i=0;i<B.length;i++){B[i].id=i;}
+}
+
+// UI
+function updUI(){
+    var t=B.length,ok=0;
+    for(var i=0;i<t;i++){if(B[i].ok)ok++;}
+    var p=t-ok,pct=t>0?Math.round((ok/t)*100):0;
+
+    document.getElementById('sr').classList.add('visible');
+    document.getElementById('pr').classList.add('visible');
+    document.getElementById('nAll').textContent=t;
+    document.getElementById('nPend').textContent=p;
+    document.getElementById('nOk').textContent=ok;
+    document.getElementById('pf').style.width=pct+'%';
+    document.getElementById('pt').textContent=pct+'% ('+ok+'/'+t+')';
+
+    var fb=document.getElementById('fb');
+    if(ok===t&&t>0)fb.classList.add('visible');
+    else fb.classList.remove('visible');
+
+    // Esconder share se não suporta
+    var shareBtn=document.getElementById('btnShare');
+    if(!navigator.share)shareBtn.style.display='none';
+}
+
+function fil(tipo){
+    filt=tipo;
+    document.getElementById('sAll').classList.toggle('on',tipo==='all');
+    document.getElementById('sPend').classList.toggle('on',tipo==='pend');
+    document.getElementById('sOk').classList.toggle('on',tipo==='ok');
+    build();
+}
+
+// CAMERA
+async function openCam(bi){
+    curB=bi;var b=B[bi];
+    document.getElementById('ci').innerHTML=
+        'OP <strong>'+b.enc+'</strong> | '+b.item+' / v'+b.ver+' | '+b.qtde+' kg';
+    document.getElementById('cv').style.display='block';
+    document.getElementById('cp').style.display='none';
+    camBt('cap');
+    document.getElementById('cm').classList.add('active');
+    try{
+        strm=await navigator.mediaDevices.getUserMedia({
+            video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}
+        });
+        document.getElementById('cv').srcObject=strm;
+    }catch(e){alert('Erro câmera.');xM('cm');}
+}
+
+function camBt(s){
+    var c=document.getElementById('cbt');
+    if(s==='cap'){
+        c.innerHTML='<button class="cam-b cr" onclick="xCam()">✖ Fechar</button>'+
+            '<button class="cam-b cg" onclick="snap()">📸 Capturar</button>';
+    }else{
+        c.innerHTML='<button class="cam-b cr" onclick="xCam()">✖ Fechar</button>'+
+            '<button class="cam-b co" onclick="redo()">🔄 Refazer</button>'+
+            '<button class="cam-b cg" onclick="conf()">✅ Confirmar</button>';
+    }
+}
+
+function snap(){
+    var vid=document.getElementById('cv'),can=document.getElementById('cc'),prev=document.getElementById('cp');
+    can.width=vid.videoWidth;can.height=vid.videoHeight;
+    var ctx=can.getContext('2d');ctx.drawImage(vid,0,0);
+    var b=B[curB];
+    var tx=b.item+' | OP '+b.enc+' | '+b.qtde+'kg | '+new Date().toLocaleString('pt-BR');
+    ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(0,can.height-32,can.width,32);
+    ctx.fillStyle='#fff';ctx.font='bold 13px Arial';ctx.fillText(tx,6,can.height-10);
+    foto=can.toDataURL('image/jpeg',0.8);
+    prev.src=foto;prev.style.display='block';vid.style.display='none';
+    camBt('prev');
+}
+
+function conf(){
+    var b=B[curB];
+    b.foto=foto;b.ok=true;
+    b.fotoNm='foto_'+b.item+'_OP'+b.enc+'_'+Date.now()+'.jpg';
+    xCam();save();build();
+}
+
+function redo(){
+    document.getElementById('cv').style.display='block';
+    document.getElementById('cp').style.display='none';
+    foto=null;camBt('cap');
+}
+
+function xCam(){
+    document.getElementById('cm').classList.remove('active');
+    if(strm){strm.getTracks().forEach(function(t){t.stop();});strm=null;}
+    foto=null;curB=null;
+}
+
+// ADD PESO
+function openAddPeso(gi){
+    curG=gi;
+    document.getElementById('addPeso').value='';
+    document.getElementById('amPeso').classList.add('active');
+    setTimeout(function(){document.getElementById('addPeso').focus();},100);
+}
+
+function doAddPeso(){
+    var peso=document.getElementById('addPeso').value.trim();
+    if(!peso){alert('Informe o peso!');return;}
+    var g=G[curG],ref=B[g.bs[0]];
+    B.push({
+        id:B.length,enc:g.enc,item:ref.item,ver:ref.ver,
+        larg:ref.larg,esp:ref.esp,pig:ref.pig,
+        qtde:peso,foto:null,fotoNm:'',ok:false,manual:true
+    });
+    g.bs.push(B.length-1);
+    xM('amPeso');save();build();
+}
+
+// ADD NOVO
+function openNew(){
+    ['nwEnc','nwItem','nwVer','nwLarg','nwEsp'].forEach(function(id){
+        document.getElementById(id).value='';
+    });
+    document.getElementById('nwPig').value='S';
+
+    // Resetar pesos - deixar só uma linha
+    var pc=document.getElementById('pesosContainer');
+    pc.innerHTML='<div class="peso-row" style="display:flex;align-items:center;gap:6px;margin-top:8px;">'+
+        '<div style="flex:1;"><label>Peso (kg)</label>'+
+        '<input type="number" class="peso-input" placeholder="200" step="0.1" inputmode="decimal"></div></div>';
+
+    document.getElementById('amNew').classList.add('active');
+    setTimeout(function(){document.getElementById('nwEnc').focus();},100);
+}
+
+function addPesoRow(){
+    var pc=document.getElementById('pesosContainer');
+    var count=pc.querySelectorAll('.peso-row').length+1;
+
+    var row=document.createElement('div');
+    row.className='peso-row';
+    row.style.cssText='display:flex;align-items:center;gap:6px;margin-top:6px;';
+
+    row.innerHTML='<div style="flex:1;"><label>Peso '+count+' (kg)</label>'+
+        '<input type="number" class="peso-input" placeholder="200" step="0.1" inputmode="decimal"></div>'+
+        '<button onclick="this.parentElement.remove()" style="'+
+        'width:28px;height:28px;border-radius:50%;border:1px solid #ff1744;'+
+        'background:transparent;color:#ff1744;cursor:pointer;font-size:0.7em;'+
+        'display:flex;align-items:center;justify-content:center;margin-top:14px;">✖</button>';
+
+    pc.appendChild(row);
+
+    // Focar no novo input
+    var inputs=row.querySelectorAll('input');
+    if(inputs.length)inputs[0].focus();
+}
+
+function doAddNew(){
+    var enc=document.getElementById('nwEnc').value.trim();
+    var item=document.getElementById('nwItem').value.trim();
+    var ver=document.getElementById('nwVer').value.trim();
+    var larg=document.getElementById('nwLarg').value.trim();
+    var esp=document.getElementById('nwEsp').value.trim();
+    var pig=document.getElementById('nwPig').value;
+
+    if(!enc||!item){alert('OP e Item são obrigatórios!');return;}
+
+    var inputs=document.querySelectorAll('#pesosContainer .peso-input');
+    var pesos=[];
+    for(var i=0;i<inputs.length;i++){
+        var v=inputs[i].value.trim();
+        if(v)pesos.push(v);
+    }
+
+    if(pesos.length===0){alert('Informe pelo menos um peso!');return;}
+
+    for(var p=0;p<pesos.length;p++){
+        B.push({
+            id:B.length,enc:enc,item:item,ver:ver,
+            larg:larg,esp:esp,pig:pig,
+            qtde:pesos[p],foto:null,fotoNm:'',ok:false,manual:true
+        });
+    }
+
+    grp();xM('amNew');save();build();
+}
+
+// MODAL
+function xM(id){document.getElementById(id).classList.remove('active');}
+
+// FIN
+function askFin(){document.getElementById('fm').classList.add('active');}
+
+async function doZIP(modo){
+    xM('fm');
+    var lo=document.getElementById('lo'),lt=document.getElementById('lt');
+    lo.classList.add('active');lt.textContent='Gerando...';
+
+    try{
+        var zip=new JSZip(),ff=zip.folder('fotos'),now=new Date(),dr=now.toLocaleString('pt-BR');
+
+        var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório</title>'+
+            '<style>body{font-family:Arial;padding:20px;background:#f5f5f5;}'+
+            'h1{color:#e94560;text-align:center;}.dt{text-align:center;color:#666;margin-bottom:20px;}'+
+            '.g{background:#fff;border-radius:10px;padding:15px;margin-bottom:12px;box-shadow:0 2px 5px rgba(0,0,0,0.1);}'+
+            '.g h2{color:#e94560;font-size:1.1em;margin-bottom:3px;}'+
+            '.g .mt{color:#888;font-size:0.8em;margin-bottom:8px;}'+
+            '.bb{display:flex;gap:10px;align-items:center;padding:6px 0;border-top:1px solid #eee;}'+
+            '.bb img{width:70px;height:70px;object-fit:cover;border-radius:5px;}'+
+            '.bb p{margin:1px 0;font-size:0.85em;}</style></head><body>'+
+            '<h1>📦 Relatório de Encaixes</h1><p class="dt">'+dr+'</p>';
+
+        for(var o=0;o<G.length;o++){
+            var g=G[o];
+            html+='<div class="g"><h2>OP '+g.enc+'</h2><div class="mt">🔑 '+g.chave+'</div>';
+            for(var b=0;b<g.bs.length;b++){
+                var bob=B[g.bs[b]];lt.textContent=bob.item+'...';
+                var img='';
+                if(bob.foto){
+                    var b64=bob.foto.split(',')[1];
+                    var nm=bob.fotoNm||('f_'+bob.item+'.jpg');
+                    ff.file(nm,b64,{base64:true});
+                    img='<img src="fotos/'+nm+'">';
+                }
+                html+='<div class="bb">'+img+'<div>'+
+                    '<p><strong>'+bob.item+' / v'+bob.ver+'</strong>'+(bob.manual?' [+]':'')+'</p>'+
+                    '<p>'+bob.qtde+' kg | '+bob.larg+'cm x '+bob.esp+'mu | Pig: '+bob.pig+'</p></div></div>';
+            }
+            html+='</div>';
+        }
+        html+='</body></html>';
+        zip.file('relatorio.html',html);
+
+        var csv='ENCAIXE;ITEM;VERSAO;LARGURA;ESPESSURA;PIGMENTO;PESO;FOTO;MANUAL\n';
+        for(var j=0;j<B.length;j++){
+            var d=B[j];
+            csv+=d.enc+';'+d.item+';'+d.ver+';'+d.larg+';'+d.esp+';'+d.pig+';'+d.qtde+';'+(d.fotoNm||'')+';'+(d.manual?'S':'N')+'\n';
+        }
+        zip.file('relatorio.csv',csv);
+
+        lt.textContent='Compactando...';
+        var blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+        var nz='Encaixes_'+origNm+'_'+now.toISOString().slice(0,10)+'.zip';
+
+        lo.classList.remove('active');
+
+        var link=document.createElement('a');
+        link.href=URL.createObjectURL(blob);
+        link.download=nz;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+        alert('✅ ZIP baixado!\n📁 '+nz);
+
+    }catch(err){
+        lo.classList.remove('active');
+        alert('❌ '+err.message);
+    }
+}
+
+async function shareFotos(){
+    xM('fm');
+    var lo=document.getElementById('lo'),lt=document.getElementById('lt');
+    lo.classList.add('active');lt.textContent='Preparando fotos...';
+
+    try{
+        var arquivos=[];
+
+        // Coletar fotos
+        for(var i=0;i<B.length;i++){
+            var b=B[i];
+            if(!b.foto)continue;
+            lt.textContent='Foto '+(i+1)+'...';
+            try{
+                var resp=await fetch(b.foto);
+                var blob=await resp.blob();
+                var nome=b.fotoNm||('foto_'+b.item+'_OP'+b.enc+'.jpg');
+                arquivos.push(new File([blob],nome,{type:'image/jpeg'}));
+            }catch(e){}
+        }
+
+        // Gerar CSV
+        lt.textContent='Gerando relatório...';
+        var csv='ENCAIXE;ITEM;VERSAO;LARGURA;ESPESSURA;PIGMENTO;PESO;MANUAL\n';
+        for(var j=0;j<B.length;j++){
+            var d=B[j];
+            csv+=d.enc+';'+d.item+';'+d.ver+';'+d.larg+';'+d.esp+';'+d.pig+';'+d.qtde+';'+(d.manual?'S':'N')+'\n';
+        }
+        var csvBlob=new Blob([csv],{type:'text/csv'});
+        var csvFile=new File([csvBlob],'relatorio_encaixes.csv',{type:'text/csv'});
+        arquivos.push(csvFile);
+
+        if(arquivos.length===0){
+            lo.classList.remove('active');
+            alert('Nenhuma foto para compartilhar!');
+            return;
+        }
+
+        // Montar texto resumo
+        var texto='📦 Relatório de Encaixes\n';
+        texto+='📅 '+new Date().toLocaleString('pt-BR')+'\n';
+        texto+='📷 '+(arquivos.length-1)+' fotos + relatório CSV\n\n';
+
+        for(var o=0;o<G.length;o++){
+            var g=G[o];
+            texto+='OP '+g.enc+' | '+g.chave+'\n';
+            for(var b2=0;b2<g.bs.length;b2++){
+                var bob=B[g.bs[b2]];
+                texto+='  '+(bob.ok?'✅':'⬜')+' '+bob.item+'/v'+bob.ver+' → '+bob.qtde+'kg'+(bob.manual?' [+]':'')+'\n';
+            }
+            texto+='\n';
+        }
+
+        lo.classList.remove('active');
+
+        // Tentar compartilhar tudo junto
+        if(navigator.share){
+            try{
+                await navigator.share({
+                    title:'Encaixes - '+(arquivos.length-1)+' fotos',
+                    text:texto,
+                    files:arquivos
+                });
+                return;
+            }catch(e){
+                if(e.name==='AbortError')return;
+
+                // Se falhou com tudo junto, tenta só as fotos sem CSV
+                try{
+                    var soFotos=arquivos.filter(function(a){return a.type==='image/jpeg';});
+                    await navigator.share({
+                        title:'Encaixes - Fotos',
+                        text:texto,
+                        files:soFotos
+                    });
+                    return;
+                }catch(e2){
+                    if(e2.name==='AbortError')return;
+                }
+            }
+        }
+
+        alert('Compartilhamento não disponível.\nUse o botão Baixar ZIP.');
+
+    }catch(err){
+        lo.classList.remove('active');
+        alert('❌ '+err.message);
+    }
+}
+
+async function shareTexto(){
+    xM('fm');
+
+    var texto='📦 RELATÓRIO DE ENCAIXES\n';
+    texto+='📅 '+new Date().toLocaleString('pt-BR')+'\n';
+    texto+='📷 Total: '+B.length+' bobinas\n';
+    texto+='═══════════════════\n\n';
+
+    for(var o=0;o<G.length;o++){
+        var g=G[o];
+        texto+='🔷 OP '+g.enc+'\n';
+        texto+='🔑 '+g.chave+'\n';
+
+        var pesoTotal=0;
+        for(var b=0;b<g.bs.length;b++){
+            var bob=B[g.bs[b]];
+            var peso=parseFloat(bob.qtde)||0;
+            pesoTotal+=peso;
+            texto+='  '+( bob.ok?'✅':'⬜')+' '+bob.item+' / v'+bob.ver+' → '+bob.qtde+'kg';
+            if(bob.manual)texto+=' [+]';
+            texto+='\n';
+        }
+        texto+='  📊 Total: '+pesoTotal.toFixed(1)+' kg\n';
+        texto+='───────────────────\n\n';
+    }
+
+    if(navigator.share){
+        try{
+            await navigator.share({
+                title:'Relatório de Encaixes',
+                text:texto
+            });
+            return;
+        }catch(e){
+            if(e.name==='AbortError')return;
+        }
+    }
+
+    // Fallback: copiar para área de transferência
+    try{
+        await navigator.clipboard.writeText(texto);
+        alert('✅ Relatório copiado!\n\nCole no WhatsApp, email ou onde quiser.');
+    }catch(e){
+        // Último fallback: prompt
+        prompt('Copie o relatório abaixo:',texto);
+    }
+}
+
+function baixar(blob,nome){
+    var link=document.createElement('a');
+    link.href=URL.createObjectURL(blob);
+    link.download=nome;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+    alert('✅ ZIP gerado!\n📁 '+nome);
+}
+
+document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'){xCam();xM('amPeso');xM('amNew');xM('fm');xM('ao');}
+});
+
+// Esconder share no PC
+if(!navigator.share){
+    document.addEventListener('DOMContentLoaded',function(){
+        var sb=document.getElementById('btnShare');
+        if(sb)sb.style.display='none';
+    });
+}
+// ========== FIREBASE ==========
+var firebaseConfig={
+    apiKey:"AIzaSyDPI04TBvJx1sebhAaMDYZ12k5WZ1ikoy8",
+    authDomain:"encaixe-sobras-de-capa.firebaseapp.com",
+    projectId:"encaixe-sobras-de-capa",
+    storageBucket:"encaixe-sobras-de-capa.firebasestorage.app",
+    messagingSenderId:"664379035552",
+    appId:"1:664379035552:web:5f13a79285409096e4dec5"
+};
+firebase.initializeApp(firebaseConfig);
+var db=firebase.firestore();
+
+async function salvarHistorico(){
+    var lo=document.getElementById('lo'),lt=document.getElementById('lt');
+    lo.classList.add('active');lt.textContent='Salvando histórico...';
+
+    var agora=new Date();
+    var dataStr=agora.toLocaleString('pt-BR');
+    var lote=agora.getTime().toString();
+    var total=B.length;
+    var salvos=0;
+
+    try{
+        var batch=db.batch();
+
+        for(var i=0;i<B.length;i++){
+            var b=B[i];
+            var ref=db.collection('encaixes').doc();
+            batch.set(ref,{
+                data:dataStr,
+                timestamp:firebase.firestore.FieldValue.serverTimestamp(),
+                lote:lote,
+                encaixe:b.enc||'',
+                item:b.item||'',
+                versao:b.ver||'',
+                chave:mkChave(b),
+                qtde:b.qtde||'',
+                manual:b.manual?'S':'N'
+            });
+            salvos++;
+
+            if(salvos%400===0){
+                lt.textContent='Salvando '+salvos+'/'+total+'...';
+                await batch.commit();
+                batch=db.batch();
+            }
+        }
+
+        if(salvos%400!==0){
+            await batch.commit();
+        }
+
+        lo.classList.remove('active');
+        alert('✅ Histórico salvo!\n\n📊 '+salvos+' registros enviados para o Firebase.');
+
+    }catch(err){
+        lo.classList.remove('active');
+        alert('❌ Erro ao salvar:\n'+err.message);
+    }
+}
+load();
+</script>
+
+</body>
+</html>
