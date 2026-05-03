@@ -5,330 +5,551 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Histórico de Encaixes</title>
     <style>
-        *{margin:0;padding:0;box-sizing:border-box;}
-        body{
-            font-family:'Segoe UI',Tahoma,sans-serif;
-            background:#1a1a2e;color:#e0e0e0;
-            min-height:100vh;display:flex;flex-direction:column;
-        }
-        button{outline:none;}
-        button:focus{outline:none;}
-
-        .header{
-            background:linear-gradient(135deg,#16213e,#0f3460);
-            padding:12px;text-align:center;
-            border-bottom:3px solid #9c27b0;flex-shrink:0;
-        }
-        .header h1{font-size:1.3em;color:#9c27b0;}
-        .header p{color:#a0a0b0;font-size:0.7em;margin-top:2px;}
-
-        .toolbar{
-            flex-shrink:0;padding:10px 12px;
-            display:flex;flex-direction:column;gap:8px;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        .filter-row{
-            display:flex;gap:6px;flex-wrap:wrap;
-        }
-        .filter-row input,.filter-row select{
-            flex:1;min-width:100px;padding:8px;border-radius:6px;
-            border:1px solid #333;background:#0f3460;color:#e0e0e0;
-            font-size:0.85em;
-        }
-        .filter-row input:focus,.filter-row select:focus{outline:none;border-color:#9c27b0;}
-
-        .action-row{
-            display:flex;gap:6px;
-        }
-        .btn{
-            flex:1;padding:10px;border:none;border-radius:8px;
-            font-size:0.82em;font-weight:bold;cursor:pointer;color:#fff;
-        }
-        .btn:active{transform:scale(0.97);}
-
-        .stats{
-            display:flex;gap:6px;padding:0 12px 8px;
-        }
-        .stat{
-            background:#16213e;padding:6px 10px;border-radius:6px;
-            text-align:center;border:1px solid #0f3460;flex:1;
-        }
-        .stat .num{font-size:1.1em;color:#9c27b0;font-weight:bold;}
-        .stat .lbl{font-size:0.55em;color:#a0a0b0;}
-
-        .scroll-area{
-            flex:1;overflow-y:auto;padding:6px 10px 20px;
-            -webkit-overflow-scrolling:touch;
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
-        .lote-card{
-            background:#16213e;border-radius:8px;
-            border:1px solid #252545;margin-bottom:8px;overflow:hidden;
+        button {
+            outline: none;
         }
 
-        .lote-head{
-            display:flex;align-items:center;justify-content:space-between;
-            padding:8px 10px;background:#0f3460;cursor:pointer;
-        }
-        .lote-head:active{background:#0d2d55;}
-        .lote-date{font-size:0.82em;color:#9c27b0;font-weight:bold;}
-        .lote-count{font-size:0.65em;color:#a0a0b0;}
-        .lote-badge{
-            font-size:0.6em;padding:2px 8px;border-radius:10px;
-            background:#9c27b0;color:#fff;font-weight:bold;
+        button:focus {
+            outline: none;
         }
 
-        .lote-body{display:none;max-height:300px;overflow-y:auto;}
-        .lote-body.open{display:block;}
-
-        .reg-row{
-            display:flex;align-items:center;padding:5px 10px;
-            gap:6px;border-bottom:1px solid #1e1e3a;font-size:0.75em;
-        }
-        .reg-row:last-child{border-bottom:none;}
-        .reg-op{color:#e94560;font-weight:bold;min-width:70px;}
-        .reg-item{color:#ccc;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        .reg-qtde{color:#00c853;font-weight:bold;white-space:nowrap;}
-        .reg-manual{font-size:0.6em;color:#2196f3;}
-
-        .empty{text-align:center;padding:40px;color:#555;}
-        .empty .icon{font-size:2.5em;margin-bottom:8px;}
-
-        .loading{
-            text-align:center;padding:40px;color:#9c27b0;
+        .header {
+            background: linear-gradient(135deg, #16213e, #0f3460);
+            padding: 12px;
+            text-align: center;
+            border-bottom: 3px solid #9c27b0;
+            flex-shrink: 0;
         }
 
-        .nav-link{
-            text-align:center;padding:10px;
+        .header h1 {
+            font-size: 1.3em;
+            color: #9c27b0;
         }
-        .nav-link a{
-            color:#e94560;text-decoration:none;font-size:0.8em;
+
+        .header p {
+            color: #a0a0b0;
+            font-size: 0.7em;
+            margin-top: 2px;
+        }
+
+        .toolbar {
+            flex-shrink: 0;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .filter-row input,
+        .filter-row select {
+            flex: 1;
+            min-width: 100px;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #333;
+            background: #0f3460;
+            color: #e0e0e0;
+            font-size: 0.85em;
+        }
+
+        .filter-row input:focus,
+        .filter-row select:focus {
+            outline: none;
+            border-color: #9c27b0;
+        }
+
+        .action-row {
+            display: flex;
+            gap: 6px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.82em;
+            font-weight: bold;
+            cursor: pointer;
+            color: #fff;
+            transition: transform 0.1s;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .stats {
+            display: flex;
+            gap: 6px;
+            padding: 0 12px 8px;
+        }
+
+        .stat {
+            background: #16213e;
+            padding: 6px 10px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid #0f3460;
+            flex: 1;
+        }
+
+        .stat .num {
+            font-size: 1.1em;
+            color: #9c27b0;
+            font-weight: bold;
+        }
+
+        .stat .lbl {
+            font-size: 0.55em;
+            color: #a0a0b0;
+        }
+
+        .scroll-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 6px 10px 20px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .lote-card {
+            background: #16213e;
+            border-radius: 8px;
+            border: 1px solid #252545;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+
+        .lote-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            background: #0f3460;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .lote-head:active {
+            background: #0d2d55;
+        }
+
+        .lote-date {
+            font-size: 0.82em;
+            color: #9c27b0;
+            font-weight: bold;
+        }
+
+        .lote-count {
+            font-size: 0.65em;
+            color: #a0a0b0;
+        }
+
+        .lote-badge {
+            font-size: 0.6em;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: #9c27b0;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .lote-body {
+            display: none;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .lote-body.open {
+            display: block;
+        }
+
+        .reg-row {
+            display: flex;
+            align-items: center;
+            padding: 5px 10px;
+            gap: 6px;
+            border-bottom: 1px solid #1e1e3a;
+            font-size: 0.75em;
+        }
+
+        .reg-row:last-child {
+            border-bottom: none;
+        }
+
+        .reg-op {
+            color: #e94560;
+            font-weight: bold;
+            min-width: 70px;
+        }
+
+        .reg-item {
+            color: #ccc;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .reg-qtde {
+            color: #00c853;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .reg-manual {
+            font-size: 0.6em;
+            color: #2196f3;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: #555;
+        }
+
+        .empty .icon {
+            font-size: 2.5em;
+            margin-bottom: 8px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #9c27b0;
+        }
+
+        .nav-link {
+            text-align: center;
+            padding: 10px;
+            flex-shrink: 0;
+        }
+
+        .nav-link a {
+            color: #e94560;
+            text-decoration: none;
+            font-size: 0.8em;
+        }
+
+        .nav-link a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <h1>🗄️ Histórico de Encaixes</h1>
-    <p>Consultar registros salvos no Firebase</p>
-</div>
-
-<div class="toolbar">
-    <div class="filter-row">
-        <input type="date" id="fData" title="Filtrar por data">
-        <input type="text" id="fOP" placeholder="🔍 OP" inputmode="numeric">
-        <input type="text" id="fItem" placeholder="🔍 Item" inputmode="numeric">
+    <div class="header">
+        <h1>🗄️ Histórico de Encaixes</h1>
+        <p>Consultar registros salvos no Firebase</p>
     </div>
-    <div class="action-row">
-        <button class="btn" style="background:#9c27b0;" onclick="buscar()">🔍 Buscar</button>
-        <button class="btn" style="background:#333;color:#aaa;" onclick="limparFiltros()">🗑️ Limpar</button>
-        <button class="btn" style="background:#2196f3;" onclick="exportarCSV()">📄 CSV</button>
+
+    <div class="toolbar">
+        <div class="filter-row">
+            <input type="date" id="fData" title="Filtrar por data">
+            <input type="text" id="fOP" placeholder="🔍 OP" inputmode="numeric">
+            <input type="text" id="fItem" placeholder="🔍 Item" inputmode="numeric">
+        </div>
+        <div class="action-row">
+            <button class="btn" style="background:#9c27b0;" onclick="buscar()">🔍 Buscar</button>
+            <button class="btn" style="background:#333;color:#aaa;" onclick="limparFiltros()">🗑️ Limpar</button>
+            <button class="btn" style="background:#2196f3;" onclick="exportarCSV()">📄 CSV</button>
+        </div>
     </div>
-</div>
 
-<div class="stats" id="statsArea" style="display:none;">
-    <div class="stat"><div class="num" id="stTotal">0</div><div class="lbl">Registros</div></div>
-    <div class="stat"><div class="num" id="stLotes">0</div><div class="lbl">Lotes</div></div>
-    <div class="stat"><div class="num" id="stOPs">0</div><div class="lbl">OPs</div></div>
-</div>
-
-<div class="scroll-area" id="sa">
-    <div class="empty" id="emptyMsg">
-        <div class="icon">🗄️</div>
-        <p>Clique em Buscar para carregar o histórico</p>
+    <div class="stats" id="statsArea" style="display:none;">
+        <div class="stat">
+            <div class="num" id="stTotal">0</div>
+            <div class="lbl">Registros</div>
+        </div>
+        <div class="stat">
+            <div class="num" id="stLotes">0</div>
+            <div class="lbl">Lotes</div>
+        </div>
+        <div class="stat">
+            <div class="num" id="stOPs">0</div>
+            <div class="lbl">OPs</div>
+        </div>
     </div>
-</div>
 
-<div class="nav-link">
-    <a href="index.html">← Voltar para Encaixes</a>
-</div>
+    <div class="scroll-area" id="scrollArea">
+        <div class="empty" id="emptyMsg">
+            <div class="icon">🗄️</div>
+            <p>Clique em Buscar para carregar o histórico</p>
+        </div>
+    </div>
 
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <div class="nav-link">
+        <a href="index.html">← Voltar para Encaixes</a>
+    </div>
 
-<script>
-firebase.initializeApp({
-    apiKey:"AIzaSyDPI04TBvJx1sebhAaMDYZ12k5WZ1ikoy8",
-    authDomain:"encaixe-sobras-de-capa.firebaseapp.com",
-    projectId:"encaixe-sobras-de-capa",
-    storageBucket:"encaixe-sobras-de-capa.firebasestorage.app",
-    messagingSenderId:"664379035552",
-    appId:"1:664379035552:web:5f13a79285409096e4dec5"
-});
-var db=firebase.firestore();
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
-var registros=[];
-
-async function buscar(){
-    var sa=document.getElementById('sa');
-    sa.innerHTML='<div class="loading">⏳ Carregando...</div>';
-
-    var fData=document.getElementById('fData').value;
-    var fOP=document.getElementById('fOP').value.trim();
-    var fItem=document.getElementById('fItem').value.trim();
-
-    try{
-        var query=db.collection('encaixes').orderBy('timestamp','desc');
-
-        if(fData){
-            var inicio=new Date(fData+'T00:00:00');
-            var fim=new Date(fData+'T23:59:59');
-            query=db.collection('encaixes')
-                .where('timestamp','>=',inicio)
-                .where('timestamp','<=',fim)
-                .orderBy('timestamp','desc');
-        }
-
-        var snap=await query.limit(2000).get();
-
-        registros=[];
-        snap.forEach(function(doc){
-            var d=doc.data();
-            registros.push({
-                id:doc.id,
-                data:d.data||'',
-                lote:d.lote||'',
-                encaixe:d.encaixe||'',
-                item:d.item||'',
-                versao:d.versao||'',
-                chave:d.chave||'',
-                qtde:d.qtde||'',
-                manual:d.manual||'N',
-                timestamp:d.timestamp
-            });
+    <script>
+        // ─── Inicialização Firebase ───
+        firebase.initializeApp({
+            apiKey: "AIzaSyDPI04TBvJx1sebhAaMDYZ12k5WZ1ikoy8",
+            authDomain: "encaixe-sobras-de-capa.firebaseapp.com",
+            projectId: "encaixe-sobras-de-capa",
+            storageBucket: "encaixe-sobras-de-capa.firebasestorage.app",
+            messagingSenderId: "664379035552",
+            appId: "1:664379035552:web:5f13a79285409096e4dec5"
         });
+        var db = firebase.firestore();
 
-        // Filtrar por OP e Item no client
-        if(fOP){
-            registros=registros.filter(function(r){
-                return r.encaixe.indexOf(fOP)>-1;
-            });
-        }
-        if(fItem){
-            registros=registros.filter(function(r){
-                return r.item.indexOf(fItem)>-1;
-            });
-        }
+        // ─── Dados carregados ───
+        var registros = [];
 
-        renderizar();
-
-    }catch(err){
-        sa.innerHTML='<div class="empty"><div class="icon">❌</div><p>Erro: '+err.message+'</p></div>';
-    }
-}
-
-function renderizar(){
-    var sa=document.getElementById('sa');
-    sa.innerHTML='';
-
-    if(registros.length===0){
-        sa.innerHTML='<div class="empty"><div class="icon">📭</div><p>Nenhum registro encontrado</p></div>';
-        document.getElementById('statsArea').style.display='none';
-        return;
-    }
-
-    // Agrupar por lote
-    var lotes={};
-    var ordemLotes=[];
-    var opsSet={};
-
-    for(var i=0;i<registros.length;i++){
-        var r=registros[i];
-        var loteKey=r.lote||r.data||i;
-        if(!lotes[loteKey]){
-            lotes[loteKey]={data:r.data,regs:[]};
-            ordemLotes.push(loteKey);
-        }
-        lotes[loteKey].regs.push(r);
-        opsSet[r.encaixe]=true;
-    }
-
-    // Stats
-    document.getElementById('statsArea').style.display='flex';
-    document.getElementById('stTotal').textContent=registros.length;
-    document.getElementById('stLotes').textContent=ordemLotes.length;
-    document.getElementById('stOPs').textContent=Object.keys(opsSet).length;
-
-    // Cards
-    for(var l=0;l<ordemLotes.length;l++){
-        var loteKey=ordemLotes[l];
-        var lote=lotes[loteKey];
-        var loteId='lote-'+l;
-
-        var card=document.createElement('div');
-        card.className='lote-card';
-
-        var pesoTotal=0;
-        for(var r2=0;r2<lote.regs.length;r2++){
-            pesoTotal+=parseFloat(lote.regs[r2].qtde)||0;
+        // ─── Função utilitária para escapar HTML (prevenir XSS) ───
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
         }
 
-        var head=document.createElement('div');
-        head.className='lote-head';
-        head.innerHTML=
-            '<div>'+
-                '<div class="lote-date">📅 '+lote.data+'</div>'+
-                '<div class="lote-count">'+lote.regs.length+' bobinas | '+pesoTotal.toFixed(1)+' kg</div>'+
-            '</div>'+
-            '<span class="lote-badge">'+lote.regs.length+'</span>';
+        // ─── Buscar registros ───
+        async function buscar() {
+            var scrollArea = document.getElementById('scrollArea');
+            scrollArea.innerHTML = '<div class="loading">⏳ Carregando...</div>';
 
-        head.setAttribute('data-target',loteId);
-        head.addEventListener('click',function(){
-            var target=this.getAttribute('data-target');
-            var body=document.getElementById(target);
-            body.classList.toggle('open');
-        });
+            var fData = document.getElementById('fData').value;
+            var fOP = document.getElementById('fOP').value.trim();
+            var fItem = document.getElementById('fItem').value.trim();
 
-        var body=document.createElement('div');
-        body.className='lote-body';
-        body.id=loteId;
+            try {
+                var query;
 
-        var bodyHTML='';
-        for(var r3=0;r3<lote.regs.length;r3++){
-            var reg=lote.regs[r3];
-            var manualTag=reg.manual==='S'?' <span class="reg-manual">[+]</span>':'';
-            bodyHTML+='<div class="reg-row">'+
-                '<span class="reg-op">OP '+reg.encaixe+'</span>'+
-                '<span class="reg-item">'+reg.item+'/v'+reg.versao+manualTag+'</span>'+
-                '<span class="reg-qtde">'+reg.qtde+' kg</span>'+
+                if (fData) {
+                    // ✅ CORREÇÃO: Usar timestamps com fuso horário explícito
+                    var partes = fData.split('-');
+                    var ano = parseInt(partes[0], 10);
+                    var mes = parseInt(partes[1], 10) - 1;
+                    var dia = parseInt(partes[2], 10);
+
+                    var inicio = new Date(ano, mes, dia, 0, 0, 0, 0);
+                    var fim = new Date(ano, mes, dia, 23, 59, 59, 999);
+
+                    query = db.collection('encaixes')
+                        .where('timestamp', '>=', inicio)
+                        .where('timestamp', '<=', fim)
+                        .orderBy('timestamp', 'desc');
+                } else {
+                    query = db.collection('encaixes')
+                        .orderBy('timestamp', 'desc');
+                }
+
+                var snap = await query.limit(2000).get();
+
+                registros = [];
+                snap.forEach(function (doc) {
+                    var d = doc.data();
+                    registros.push({
+                        id: doc.id,
+                        data: d.data || '',
+                        lote: d.lote || '',
+                        encaixe: d.encaixe || '',
+                        item: d.item || '',
+                        versao: d.versao || '',
+                        chave: d.chave || '',
+                        qtde: d.qtde || '',
+                        manual: d.manual || 'N',
+                        timestamp: d.timestamp || null
+                    });
+                });
+
+                // ✅ Filtrar por OP no client (comparação mais segura)
+                if (fOP) {
+                    registros = registros.filter(function (r) {
+                        return String(r.encaixe).indexOf(fOP) !== -1;
+                    });
+                }
+
+                // ✅ Filtrar por Item no client
+                if (fItem) {
+                    registros = registros.filter(function (r) {
+                        return String(r.item).indexOf(fItem) !== -1;
+                    });
+                }
+
+                renderizar();
+
+            } catch (err) {
+                console.error('Erro ao buscar:', err);
+                scrollArea.innerHTML =
+                    '<div class="empty">' +
+                    '<div class="icon">❌</div>' +
+                    '<p>Erro: ' + escapeHTML(err.message) + '</p>' +
+                    '</div>';
+            }
+        }
+
+        // ─── Renderizar resultados ───
+        function renderizar() {
+            var scrollArea = document.getElementById('scrollArea');
+            scrollArea.innerHTML = '';
+
+            if (registros.length === 0) {
+                scrollArea.innerHTML =
+                    '<div class="empty">' +
+                    '<div class="icon">📭</div>' +
+                    '<p>Nenhum registro encontrado</p>' +
+                    '</div>';
+                document.getElementById('statsArea').style.display = 'none';
+                return;
+            }
+
+            // Agrupar por lote
+            var lotes = {};
+            var ordemLotes = [];
+            var opsSet = {};
+
+            for (var i = 0; i < registros.length; i++) {
+                var r = registros[i];
+                var loteKey = r.lote || r.data || String(i);
+
+                if (!lotes[loteKey]) {
+                    lotes[loteKey] = { data: r.data, regs: [] };
+                    ordemLotes.push(loteKey);
+                }
+                lotes[loteKey].regs.push(r);
+                opsSet[r.encaixe] = true;
+            }
+
+            // Atualizar stats
+            document.getElementById('statsArea').style.display = 'flex';
+            document.getElementById('stTotal').textContent = registros.length;
+            document.getElementById('stLotes').textContent = ordemLotes.length;
+            document.getElementById('stOPs').textContent = Object.keys(opsSet).length;
+
+            // Criar cards
+            for (var l = 0; l < ordemLotes.length; l++) {
+                var loteKey = ordemLotes[l];
+                var lote = lotes[loteKey];
+                var loteId = 'lote-' + l;
+
+                var card = document.createElement('div');
+                card.className = 'lote-card';
+
+                // Calcular peso total
+                var pesoTotal = 0;
+                for (var r2 = 0; r2 < lote.regs.length; r2++) {
+                    pesoTotal += parseFloat(lote.regs[r2].qtde) || 0;
+                }
+
+                // Cabeçalho do lote
+                var head = document.createElement('div');
+                head.className = 'lote-head';
+                head.innerHTML =
+                    '<div>' +
+                    '<div class="lote-date">📅 ' + escapeHTML(lote.data) + '</div>' +
+                    '<div class="lote-count">' + lote.regs.length + ' bobinas | ' + pesoTotal.toFixed(1) + ' kg</div>' +
+                    '</div>' +
+                    '<span class="lote-badge">' + lote.regs.length + '</span>';
+
+                // ✅ CORREÇÃO: Usar closure (IIFE) para preservar referência
+                (function (targetId) {
+                    head.addEventListener('click', function () {
+                        var body = document.getElementById(targetId);
+                        if (body) {
+                            body.classList.toggle('open');
+                        }
+                    });
+                })(loteId);
+
+                // Corpo do lote
+                var body = document.createElement('div');
+                body.className = 'lote-body';
+                body.id = loteId;
+
+                var bodyHTML = '';
+                for (var r3 = 0; r3 < lote.regs.length; r3++) {
+                    var reg = lote.regs[r3];
+                    var manualTag = (reg.manual === 'S')
+                        ? ' <span class="reg-manual">[+]</span>'
+                        : '';
+
+                    bodyHTML +=
+                        '<div class="reg-row">' +
+                        '<span class="reg-op">OP ' + escapeHTML(reg.encaixe) + '</span>' +
+                        '<span class="reg-item">' + escapeHTML(reg.item) + '/v' + escapeHTML(reg.versao) + manualTag + '</span>' +
+                        '<span class="reg-qtde">' + escapeHTML(reg.qtde) + ' kg</span>' +
+                        '</div>';
+                }
+                body.innerHTML = bodyHTML;
+
+                card.appendChild(head);
+                card.appendChild(body);
+                scrollArea.appendChild(card);
+            }
+        }
+
+        // ─── Limpar filtros ───
+        function limparFiltros() {
+            document.getElementById('fData').value = '';
+            document.getElementById('fOP').value = '';
+            document.getElementById('fItem').value = '';
+            registros = [];
+            document.getElementById('scrollArea').innerHTML =
+                '<div class="empty">' +
+                '<div class="icon">🗄️</div>' +
+                '<p>Clique em Buscar para carregar</p>' +
                 '</div>';
+            document.getElementById('statsArea').style.display = 'none';
         }
-        body.innerHTML=bodyHTML;
 
-        card.appendChild(head);
-        card.appendChild(body);
-        sa.appendChild(card);
-    }
-}
+        // ─── Exportar CSV ───
+        function exportarCSV() {
+            if (registros.length === 0) {
+                alert('Nenhum dado para exportar.\nFaça uma busca primeiro.');
+                return;
+            }
 
-function limparFiltros(){
-    document.getElementById('fData').value='';
-    document.getElementById('fOP').value='';
-    document.getElementById('fItem').value='';
-    registros=[];
-    document.getElementById('sa').innerHTML='<div class="empty"><div class="icon">🗄️</div><p>Clique em Buscar para carregar</p></div>';
-    document.getElementById('statsArea').style.display='none';
-}
+            var csv = 'DATA;ENCAIXE;ITEM;VERSAO;CHAVE;QTDE;MANUAL\n';
+            for (var i = 0; i < registros.length; i++) {
+                var r = registros[i];
+                csv += r.data + ';' + r.encaixe + ';' + r.item + ';' +
+                    r.versao + ';' + r.chave + ';' + r.qtde + ';' + r.manual + '\n';
+            }
 
-function exportarCSV(){
-    if(registros.length===0){alert('Nenhum dado para exportar.\nFaça uma busca primeiro.');return;}
+            var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
 
-    var csv='DATA;ENCAIXE;ITEM;VERSAO;CHAVE;QTDE;MANUAL\n';
-    for(var i=0;i<registros.length;i++){
-        var r=registros[i];
-        csv+=r.data+';'+r.encaixe+';'+r.item+';'+r.versao+';'+r.chave+';'+r.qtde+';'+r.manual+'\n';
-    }
+            // ✅ CORREÇÃO: Salvar URL antes de manipular o link
+            var url = URL.createObjectURL(blob);
+            var link = document.createElement('a');
+            link.href = url;
+            link.download = 'historico_encaixes_' + new Date().toISOString().slice(0, 10) + '.csv';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);  // ✅ Usa a variável salva, não link.href
+        }
+    </script>
 
-    var blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
-    var link=document.createElement('a');
-    link.href=URL.createObjectURL(blob);
-    link.download='historico_encaixes_'+new Date().toISOString().slice(0,10)+'.csv';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(link.href);
-}
-</script>
-</div>
 </body>
 </html>
