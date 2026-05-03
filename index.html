@@ -416,9 +416,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <script>
-     if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js');
-  }
 var B=[],G=[],curB=null,curG=null,foto=null,strm=null,origNm='',filt='all';
 var estoque=[],fila=[];
 var LS='enc_v3';
@@ -804,5 +801,16 @@ document.addEventListener('DOMContentLoaded',function(){
     load();
 });
 </script>
+
+    <script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js') // Verifique se o nome do arquivo está correto
+        .then(reg => console.log('Service Worker registrado com sucesso!', reg))
+        .catch(err => console.log('Erro ao registrar Service Worker:', err));
+    });
+  }
+</script>
+    
 </body>
 </html>
