@@ -322,9 +322,9 @@
         // ─── Dados carregados ───
         var registros = [];
 
-        // ─── Função utilitária para escapar HTML (prevenir XSS) ───
+        // ─── Escapar HTML (prevenir XSS) ───
         function escapeHTML(str) {
-            if (!str) return '';
+            if (str === null || str === undefined) return '';
             return String(str)
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
@@ -338,61 +338,70 @@
             var scrollArea = document.getElementById('scrollArea');
             scrollArea.innerHTML = '<div class="loading">⏳ Carregando...</div>';
 
-            var fData = document.getElementById('fData').value;
-            var fOP = document.getElementById('fOP').value.trim();
-            var fItem = document.getElementById('fItem').value.trim();
+            var fData  = document.getElementById('fData').value;
+            var fOP    = document.getElementById('fOP').value.trim();
+            var fItem  = document.getElementById('fItem').value.trim();
 
             try {
-                var query;
-
-                if (fData) {
-                    // ✅ CORREÇÃO: Usar timestamps com fuso horário explícito
-                    var partes = fData.split('-');
-                    var ano = parseInt(partes[0], 10);
-                    var mes = parseInt(partes[1], 10) - 1;
-                    var dia = parseInt(partes[2], 10);
-
-                    var inicio = new Date(ano, mes, dia, 0, 0, 0, 0);
-                    var fim = new Date(ano, mes, dia, 23, 59, 59, 999);
-
-                    query = db.collection('encaixes')
-                        .where('timestamp', '>=', inicio)
-                        .where('timestamp', '<=', fim)
-                        .orderBy('timestamp', 'desc');
-                } else {
-                    query = db.collection('encaixes')
-                        .orderBy('timestamp', 'desc');
-                }
-
-                var snap = await query.limit(2000).get();
+                // ✅ Sempre busca sem índice composto; filtragem de data feita no client
+                var snap = await db.collection('encaixes')
+                    .orderBy('timestamp', 'desc')
+                    .limit(2000)
+                    .get();
 
                 registros = [];
-                snap.forEach(function (doc) {
+
+                snap.forEach(function(doc) {
                     var d = doc.data();
+
+                    // ✅ Converter Firestore Timestamp para Date quando necessário
+                    var ts = null;
+                    if (d.timestamp && typeof d.timestamp.toDate === 'function') {
+                        ts = d.timestamp.toDate();
+                    } else if (d.timestamp instanceof Date) {
+                        ts = d.timestamp;
+                    }
+
                     registros.push({
-                        id: doc.id,
-                        data: d.data || '',
-                        lote: d.lote || '',
-                        encaixe: d.encaixe || '',
-                        item: d.item || '',
-                        versao: d.versao || '',
-                        chave: d.chave || '',
-                        qtde: d.qtde || '',
-                        manual: d.manual || 'N',
-                        timestamp: d.timestamp || null
+                        id:        doc.id,
+                        data:      d.data      || '',
+                        lote:      d.lote      || '',
+                        encaixe:   d.encaixe   || '',
+                        item:      d.item      || '',
+                        versao:    d.versao    || '',
+                        chave:     d.chave     || '',
+                        qtde:      d.qtde      || '',
+                        manual:    d.manual    || 'N',
+                        timestamp: ts
                     });
                 });
 
-                // ✅ Filtrar por OP no client (comparação mais segura)
+                // ✅ Filtrar por data no client (evita índice composto no Firestore)
+                if (fData) {
+                    var partes = fData.split('-');
+                    var ano    = parseInt(partes[0], 10);
+                    var mes    = parseInt(partes[1], 10) - 1;
+                    var dia    = parseInt(partes[2], 10);
+
+                    var inicio = new Date(ano, mes, dia, 0,  0,  0,   0);
+                    var fim    = new Date(ano, mes, dia, 23, 59, 59, 999);
+
+                    registros = registros.filter(function(r) {
+                        if (!r.timestamp) return false;
+                        return r.timestamp >= inicio && r.timestamp <= fim;
+                    });
+                }
+
+                // ✅ Filtrar por OP no client
                 if (fOP) {
-                    registros = registros.filter(function (r) {
+                    registros = registros.filter(function(r) {
                         return String(r.encaixe).indexOf(fOP) !== -1;
                     });
                 }
 
                 // ✅ Filtrar por Item no client
                 if (fItem) {
-                    registros = registros.filter(function (r) {
+                    registros = registros.filter(function(r) {
                         return String(r.item).indexOf(fItem) !== -1;
                     });
                 }
@@ -424,72 +433,84 @@
                 return;
             }
 
-            // Agrupar por lote
-            var lotes = {};
+            // ✅ Agrupar por lote + data (chave composta evita mesclar lotes diferentes)
+            var lotes      = {};
             var ordemLotes = [];
-            var opsSet = {};
+            var opsSet     = {};
 
             for (var i = 0; i < registros.length; i++) {
                 var r = registros[i];
-                var loteKey = r.lote || r.data || String(i);
+
+                // Chave composta: lote_data — garante unicidade mesmo com lote vazio
+                var loteKey;
+                if (r.lote && r.data) {
+                    loteKey = r.lote + '_' + r.data;
+                } else if (r.lote) {
+                    loteKey = r.lote;
+                } else if (r.data) {
+                    loteKey = 'sem-lote_' + r.data;
+                } else {
+                    loteKey = 'reg_' + i;
+                }
 
                 if (!lotes[loteKey]) {
-                    lotes[loteKey] = { data: r.data, regs: [] };
+                    lotes[loteKey] = { data: r.data, lote: r.lote, regs: [] };
                     ordemLotes.push(loteKey);
                 }
+
                 lotes[loteKey].regs.push(r);
                 opsSet[r.encaixe] = true;
             }
 
-            // Atualizar stats
+            // ─── Atualizar stats ───
             document.getElementById('statsArea').style.display = 'flex';
-            document.getElementById('stTotal').textContent = registros.length;
-            document.getElementById('stLotes').textContent = ordemLotes.length;
-            document.getElementById('stOPs').textContent = Object.keys(opsSet).length;
+            document.getElementById('stTotal').textContent  = registros.length;
+            document.getElementById('stLotes').textContent  = ordemLotes.length;
+            document.getElementById('stOPs').textContent    = Object.keys(opsSet).length;
 
-            // Criar cards
+            // ─── Criar cards por lote ───
             for (var l = 0; l < ordemLotes.length; l++) {
-                var loteKey = ordemLotes[l];
-                var lote = lotes[loteKey];
-                var loteId = 'lote-' + l;
+                var key    = ordemLotes[l];
+                var lote   = lotes[key];
+                var loteId = 'lote-body-' + l;
 
                 var card = document.createElement('div');
                 card.className = 'lote-card';
 
-                // Calcular peso total
+                // Peso total do lote
                 var pesoTotal = 0;
-                for (var r2 = 0; r2 < lote.regs.length; r2++) {
-                    pesoTotal += parseFloat(lote.regs[r2].qtde) || 0;
+                for (var k = 0; k < lote.regs.length; k++) {
+                    pesoTotal += parseFloat(lote.regs[k].qtde) || 0;
                 }
 
-                // Cabeçalho do lote
+                // ─── Cabeçalho do card ───
                 var head = document.createElement('div');
                 head.className = 'lote-head';
                 head.innerHTML =
                     '<div>' +
                     '<div class="lote-date">📅 ' + escapeHTML(lote.data) + '</div>' +
-                    '<div class="lote-count">' + lote.regs.length + ' bobinas | ' + pesoTotal.toFixed(1) + ' kg</div>' +
+                    '<div class="lote-count">' +
+                        lote.regs.length + ' bobinas | ' + pesoTotal.toFixed(1) + ' kg' +
+                    '</div>' +
                     '</div>' +
                     '<span class="lote-badge">' + lote.regs.length + '</span>';
 
-                // ✅ CORREÇÃO: Usar closure (IIFE) para preservar referência
-                (function (targetId) {
-                    head.addEventListener('click', function () {
+                // ✅ IIFE para preservar o ID correto no closure do evento
+                (function(targetId) {
+                    head.addEventListener('click', function() {
                         var body = document.getElementById(targetId);
-                        if (body) {
-                            body.classList.toggle('open');
-                        }
+                        if (body) body.classList.toggle('open');
                     });
                 })(loteId);
 
-                // Corpo do lote
+                // ─── Corpo do card ───
                 var body = document.createElement('div');
                 body.className = 'lote-body';
                 body.id = loteId;
 
                 var bodyHTML = '';
-                for (var r3 = 0; r3 < lote.regs.length; r3++) {
-                    var reg = lote.regs[r3];
+                for (var j = 0; j < lote.regs.length; j++) {
+                    var reg = lote.regs[j];
                     var manualTag = (reg.manual === 'S')
                         ? ' <span class="reg-manual">[+]</span>'
                         : '';
@@ -497,7 +518,9 @@
                     bodyHTML +=
                         '<div class="reg-row">' +
                         '<span class="reg-op">OP ' + escapeHTML(reg.encaixe) + '</span>' +
-                        '<span class="reg-item">' + escapeHTML(reg.item) + '/v' + escapeHTML(reg.versao) + manualTag + '</span>' +
+                        '<span class="reg-item">' +
+                            escapeHTML(reg.item) + '/v' + escapeHTML(reg.versao) + manualTag +
+                        '</span>' +
                         '<span class="reg-qtde">' + escapeHTML(reg.qtde) + ' kg</span>' +
                         '</div>';
                 }
@@ -512,7 +535,7 @@
         // ─── Limpar filtros ───
         function limparFiltros() {
             document.getElementById('fData').value = '';
-            document.getElementById('fOP').value = '';
+            document.getElementById('fOP').value   = '';
             document.getElementById('fItem').value = '';
             registros = [];
             document.getElementById('scrollArea').innerHTML =
@@ -533,21 +556,29 @@
             var csv = 'DATA;ENCAIXE;ITEM;VERSAO;CHAVE;QTDE;MANUAL\n';
             for (var i = 0; i < registros.length; i++) {
                 var r = registros[i];
-                csv += r.data + ';' + r.encaixe + ';' + r.item + ';' +
-                    r.versao + ';' + r.chave + ';' + r.qtde + ';' + r.manual + '\n';
+                // ✅ Envolver campos em aspas para proteger ponto-e-vírgula dentro dos valores
+                csv +=
+                    '"' + r.data    + '";' +
+                    '"' + r.encaixe + '";' +
+                    '"' + r.item    + '";' +
+                    '"' + r.versao  + '";' +
+                    '"' + r.chave   + '";' +
+                    '"' + r.qtde    + '";' +
+                    '"' + r.manual  + '"\n';
             }
 
             var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            var url  = URL.createObjectURL(blob);
 
-            // ✅ CORREÇÃO: Salvar URL antes de manipular o link
-            var url = URL.createObjectURL(blob);
             var link = document.createElement('a');
-            link.href = url;
+            link.href     = url;
             link.download = 'historico_encaixes_' + new Date().toISOString().slice(0, 10) + '.csv';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            URL.revokeObjectURL(url);  // ✅ Usa a variável salva, não link.href
+
+            // ✅ Revogar após pequeno delay para garantir que o download iniciou
+            setTimeout(function() { URL.revokeObjectURL(url); }, 500);
         }
     </script>
 
