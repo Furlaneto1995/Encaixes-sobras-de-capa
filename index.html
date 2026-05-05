@@ -710,7 +710,6 @@
             <p>O que deseja fazer?</p>
             <div class="fin-acts">
     <button style="background:var(--verde);" onclick="shareFotos()">📸 Compartilhar Fotos</button>
-    <button style="background:var(--azul);" onclick="doZIP()">💾 Baixar ZIP</button>
     <button style="background:var(--amarelo);" onclick="shareTexto()">📄 Compartilhar Relatório</button>
     <button style="background:var(--roxo);" onclick="salvarHistorico()">🗄️ Salvar no Histórico</button>
     <button style="background:var(--vermelho);" onclick="xM('fm')">Cancelar</button>
@@ -945,7 +944,6 @@
 
     <!-- ========== SCRIPTS ========== -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
@@ -2747,115 +2745,6 @@ function confMostrar(key) {
     // ================================================================
     //                    FINALIZAR / EXPORTAR
     // ================================================================
-    async function doZIP() {
-    xM('fm');
-    var lo = document.getElementById('lo'), lt = document.getElementById('lt');
-    lo.classList.add('active'); lt.textContent = 'Gerando...';
-
-    try {
-        var zip = new JSZip(), now = new Date(), dr = now.toLocaleString('pt-BR');
-
-        // Organizar fotos por OP
-        var opFotos = {};
-        for (var i = 0; i < G.length; i++) {
-            var g = G[i];
-            var contFoto = 0;
-            for (var b = 0; b < g.bs.length; b++) {
-                var bob = B[g.bs[b]];
-                if (bob.foto) {
-                    contFoto++;
-                    if (!opFotos[g.enc]) opFotos[g.enc] = [];
-                    var sufixo = g.bs.length > 1 ? ' (' + contFoto + ')' : '';
-                    var nomeArq = g.enc + sufixo + '.jpg';
-                    opFotos[g.enc].push({ nome: nomeArq, foto: bob.foto });
-                }
-            }
-        }
-
-        // Adicionar fotos ao ZIP separadas por OP
-        for (var op in opFotos) {
-            var pastaOP = zip.folder('OP_' + op);
-            for (var f = 0; f < opFotos[op].length; f++) {
-                var item = opFotos[op][f];
-                var b64 = item.foto.split(',')[1];
-                pastaOP.file(item.nome, b64, { base64: true });
-            }
-        }
-
-        // Relatório HTML
-        var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório</title>' +
-            '<style>body{font-family:Arial;padding:20px;background:#f5f5f5;}h1{color:#2563eb;text-align:center;}' +
-            '.g{background:#fff;border-radius:12px;padding:15px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.1);}' +
-            '.g h2{color:#1a1a2e;font-size:1.1em;}.bb{display:flex;gap:10px;align-items:center;padding:6px 0;border-top:1px solid #eee;}' +
-            '.bb img{width:70px;height:70px;object-fit:cover;border-radius:6px;}</style></head><body>' +
-            '<h1>📦 Relatório</h1><p style="text-align:center;color:#888;">' + dr + '</p>';
-
-        for (var o = 0; o < G.length; o++) {
-            var g2 = G[o];
-            html += '<div class="g"><h2>OP ' + g2.enc + '</h2>';
-            var contHTML = 0;
-            for (var b2 = 0; b2 < g2.bs.length; b2++) {
-                var bob2 = B[g2.bs[b2]];
-                var img = '';
-                if (bob2.foto) {
-                    contHTML++;
-                    var sufixo2 = g2.bs.length > 1 ? ' (' + contHTML + ')' : '';
-                    var nm = g2.enc + sufixo2 + '.jpg';
-                    img = '<img src="OP_' + g2.enc + '/' + nm + '">';
-                }
-                html += '<div class="bb">' + img + '<div><p><strong>' + bob2.item + '/v' + bob2.ver + '</strong></p><p>' + bob2.qtde + 'kg</p></div></div>';
-            }
-            html += '</div>';
-        }
-
-        html += '</body></html>';
-        zip.file('relatorio.html', html);
-
-        // CSV
-        var csv = 'ENCAIXE;ITEM;VERSAO;LARGURA;ESPESSURA;PIGMENTO;PESO;MANUAL;FOTO\n';
-        for (var j = 0; j < B.length; j++) {
-            var d = B[j];
-            csv += d.enc + ';' + d.item + ';' + d.ver + ';' + d.larg + ';' + d.esp + ';' + d.pig + ';' + d.qtde + ';' + (d.manual ? 'S' : 'N') + ';' + (d.foto ? 'SIM' : 'NAO') + '\n';
-        }
-        zip.file('relatorio.csv', csv);
-
-        var blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
-        var nz = 'Encaixes_' + origNm + '_' + now.toISOString().slice(0, 10) + '.zip';
-
-        lo.classList.remove('active');
-
-        // Tentar compartilhar via WhatsApp/etc
-        if (navigator.share && navigator.canShare) {
-            var arquivo = new File([blob], nz, { type: 'application/zip' });
-            if (navigator.canShare({ files: [arquivo] })) {
-                try {
-                    await navigator.share({
-                        title: 'Encaixes - ' + now.toLocaleDateString('pt-BR'),
-                        text: '📦 ' + B.length + ' encaixes | ' + Object.keys(opFotos).length + ' OPs com foto',
-                        files: [arquivo]
-                    });
-                    return;
-                } catch (e) {
-                    if (e.name === 'AbortError') return;
-                }
-            }
-        }
-
-        // Fallback: download direto
-        var link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = nz;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(link.href);
-        alert('✅ ZIP baixado!');
-
-    } catch (err) {
-        lo.classList.remove('active');
-        alert('❌ ' + err.message);
-    }
-}
 
     async function shareFotos() {
     xM('fm');
@@ -3026,7 +2915,7 @@ function confMostrar(key) {
             }
         }
 
-        alert('❌ Compartilhamento não suportado.\nUse o ZIP.');
+        alert('❌ Compartilhamento não suportado neste dispositivo.');
     } catch (err) {
         lo.classList.remove('active');
         alert('❌ ' + err.message);
