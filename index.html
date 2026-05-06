@@ -172,8 +172,6 @@
         .conf-det { font-size: 0.68em; color: #888; margin-top: 2px; display: flex; gap: 8px; }
         .conf-peso { font-size: 0.9em; font-weight: 700; min-width: 50px; text-align: right; }
         .conf-status { min-width: 40px; text-align: center; font-size: 0.7em; font-weight: 600; padding: 3px 6px; border-radius: 8px; }
-
-        /* ========== TOAST ========== */
         .toast-container { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 8000; display: flex; flex-direction: column-reverse; gap: 8px; max-width: 340px; width: calc(100% - 32px); pointer-events: none; }
         .toast { padding: 12px 16px; border-radius: 12px; color: #fff; font-size: 0.82em; font-weight: 600; display: flex; align-items: center; gap: 8px; pointer-events: auto; box-shadow: 0 4px 14px rgba(0,0,0,0.2); animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards; cursor: pointer; }
         .toast-success { background: #10b981; }
@@ -186,8 +184,14 @@
         .toast .toast-action:active { background: rgba(255,255,255,0.4); }
         @keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
-
-        /* ========== TEMA ESCURO ========== */
+        .cam-view img.rotated-90 { transform: rotate(90deg); }
+        .cam-view img.rotated-180 { transform: rotate(180deg); }
+        .cam-view img.rotated-270 { transform: rotate(270deg); }
+        .bob-actions { display: flex; gap: 3px; flex-shrink: 0; }
+        .bob-act { width: 26px; height: 26px; min-width: 26px; border-radius: 6px; border: 1px solid #e0e0e0; background: #fff; cursor: pointer; font-size: 0.7em; display: inline-flex; align-items: center; justify-content: center; }
+        .bob-act:active { transform: scale(0.9); }
+        .bob-act-edit { color: #f59e0b; border-color: #fef3c7; }
+        .bob-act-split { color: #8b5cf6; border-color: #f3e8ff; }
         body.dark { background: #1a1a2e; color: #e0e0e0; }
         body.dark .header { background: #16213e; border-bottom-color: #2a2a4a; box-shadow: none; }
         body.dark .header h1 { color: #e0e0e0; }
@@ -251,7 +255,6 @@
         body.dark .conf-item { color: #e0e0e0; }
         body.dark .conf-peso { color: #e0e0e0; }
         body.dark .toast { box-shadow: 0 4px 14px rgba(0,0,0,0.5); }
-
         @media (min-width: 600px) {
             .toolbar { padding: 12px 24px; gap: 10px; }
             .import-row { gap: 10px; }
@@ -265,6 +268,15 @@
             .op-card { max-width: 700px; margin: 0 auto 10px; }
             .menu-panel { width: 320px; right: -320px; }
         }
+#confBusca, #confBuscaKg {
+    max-width: none !important;
+    min-width: 0 !important;
+}
+#confBuscaKg {
+    flex: 0.6 !important;
+}
+#confBusca { flex: 1.4 !important; min-width: 0 !important; max-width: none !important; }
+#confBuscaKg { flex: 0.6 !important; min-width: 0 !important; max-width: none !important; }
     </style>
 </head>
 
@@ -345,8 +357,8 @@
         <label>Peso (kg)</label>
         <input type="number" id="addPeso" placeholder="150" step="0.1" inputmode="decimal">
         <div class="m-acts">
-            <button style="background:#10b981;" onclick="doAddPeso()">✅ Adicionar</button>
             <button style="background:#ef4444;" onclick="xM('amPeso')">Cancelar</button>
+<button style="background:#10b981;" onclick="doAddPeso()">✅ Adicionar</button>
         </div>
     </div>
 </div>
@@ -374,13 +386,13 @@
     </div>
 </div>
 
+<!-- MELHORIA 3: Botão único fotos+relatório -->
 <div class="modal modal-bg" id="fm">
     <div class="fin-box">
         <div class="ic">🎉</div><h3>Tudo pronto!</h3><p>O que deseja fazer?</p>
         <div class="fin-acts">
-            <button style="background:var(--verde);" onclick="shareFotos()">📸 Compartilhar Fotos</button>
-            <button style="background:var(--amarelo);" onclick="shareTexto()">📄 Compartilhar Relatório</button>
             <button style="background:var(--vermelho);" onclick="xM('fm')">Cancelar</button>
+<button style="background:var(--verde);" onclick="shareFotos()">📸 Compartilhar Fotos + Relatório</button>
         </div>
     </div>
 </div>
@@ -440,12 +452,13 @@
     </div>
 </div>
 
+<!-- MELHORIA 5: Busca conferência com campos menores -->
 <div class="modal modal-full" id="confModal" style="background:#f0f2f5;">
     <div class="modal-head"><div class="modal-head-info"><h3>✅ Conferência</h3><p id="confSubtitle">Verificar bobinas do estoque</p></div><button class="btn-close" onclick="xM('confModal')">✖</button></div>
     <div style="padding:10px 14px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;align-items:center;">
-        <div style="display:flex;gap:6px;width:100%;max-width:400px;justify-content:center;">
-            <input type="text" id="confBusca" placeholder="🔍 Item" style="flex:1.4;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#fff;color:#333;font-size:0.85em;">
-            <input type="number" id="confBuscaKg" placeholder="⚖️ Kg" step="0.1" inputmode="decimal" style="flex:0.8;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#fff;color:#333;font-size:0.85em;">
+        <div style="display:flex;gap:6px;width:100%;max-width:400px;">
+            <input type="text" id="confBusca" placeholder="🔍 Item" style="flex:1;min-width:0;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#fff;color:#333;font-size:0.85em;">
+            <input type="number" id="confBuscaKg" placeholder="⚖️ Kg" step="0.1" inputmode="decimal" style="width:80px;min-width:0;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#fff;color:#333;font-size:0.85em;">
         </div>
     </div>
     <div style="display:flex;gap:4px;padding:0 14px 4px;flex-wrap:wrap;" id="confStats">
@@ -510,6 +523,8 @@ var estFiltros = { enc: true, sem: true, metal: true, oculto: true };
 var confFiltros = { enc: true, sem: true, ok: true, metal: true, oculto: true };
 var ultimosProblemasImportacaoEstoque = [];
 var undoStack = [];
+var fotoRotacao = 0;
+var estObservacoes = {}; // MELHORIA 8: observações persistentes
 
 // ================================================================
 //                    CORES E STATUS
@@ -640,11 +655,12 @@ function carregarTema() {
 }
 
 // ================================================================
-//                    CARREGAR CONFERÊNCIA
+//                    CARREGAR CONFERÊNCIA + OBSERVAÇÕES
 // ================================================================
 function carregarConferencia() {
     try { var s = localStorage.getItem('enc_conf'); if (s) confStatus = JSON.parse(s); } catch (e) {}
     try { var o = localStorage.getItem('enc_ocultos'); if (o) confOcultos = JSON.parse(o); } catch (e) {}
+    try { var obs = localStorage.getItem('enc_obs'); if (obs) estObservacoes = JSON.parse(obs); } catch (e) {}
 }
 
 // ================================================================
@@ -951,7 +967,12 @@ function mkCard(gi) {
         bl += '<div class="bob-row' + (bob.ok ? ' done' : '') + '"><button class="bob-chk' + (bob.ok ? ' done' : '') + '" data-b="' + bi + '">' + (bob.ok ? '✔' : '📷') + '</button>' +
             '<div class="bob-mid"><span class="bob-peso">' + bob.qtde + ' kg' + (bob.manual ? tagManual() : '') + '</span></div>' +
             (bob.foto ? '<img src="' + bob.foto + '" class="bob-mini" data-b="' + bi + '">' : '') +
-            '<button class="btn-del-bob" data-b="' + bi + '" data-g="' + gi + '">✖</button></div>';
+            '<div class="bob-actions">' +
+                '<button class="bob-act bob-act-edit" data-b="' + bi + '" data-g="' + gi + '" title="Editar peso">✏️</button>' +
+                '<button class="bob-act bob-act-split" data-b="' + bi + '" data-g="' + gi + '" title="Dividir bobina">✂️</button>' +
+                '<button class="btn-del-bob" data-b="' + bi + '" data-g="' + gi + '">✖</button>' +
+            '</div>' +
+            '</div>';
     }
     bl += '</div>';
     card.innerHTML = hd + bl + '<button class="btn-add" data-g="' + gi + '">➕ Adicionar bobina</button>';
@@ -966,6 +987,21 @@ function mkCard(gi) {
     card.querySelectorAll('.btn-del-op:not([data-dbg])').forEach(function(el) { el.addEventListener('click', function() { delOP(parseInt(this.getAttribute('data-g'))); }); });
     card.querySelectorAll('[data-dbg]').forEach(function(el) { el.addEventListener('click', function(ev) { ev.stopPropagation(); var g2 = G[parseInt(this.getAttribute('data-g'))]; debugarItem(B[g2.bs[0]].item); }); });
     card.querySelectorAll('.btn-del-bob').forEach(function(el) { el.addEventListener('click', function() { delBob(parseInt(this.getAttribute('data-b'))); }); });
+
+    // MELHORIA 2 FIX: Event listeners para editar e dividir
+    card.querySelectorAll('.bob-act-edit').forEach(function(el) {
+        el.addEventListener('click', function(ev) {
+            ev.stopPropagation();
+            editarPesoBob(parseInt(this.getAttribute('data-b')), parseInt(this.getAttribute('data-g')));
+        });
+    });
+    card.querySelectorAll('.bob-act-split').forEach(function(el) {
+        el.addEventListener('click', function(ev) {
+            ev.stopPropagation();
+            dividirBob(parseInt(this.getAttribute('data-b')), parseInt(this.getAttribute('data-g')));
+        });
+    });
+
     return card;
 }
 
@@ -1044,8 +1080,15 @@ async function openCam(bi) {
 
 function camBt(s) {
     var c = document.getElementById('cbt');
-    if (s === 'cap') c.innerHTML = '<button class="cam-b cr" onclick="xCam()">✖ Fechar</button><button class="cam-b cg" onclick="snap()">📸 Capturar</button>';
-    else c.innerHTML = '<button class="cam-b cr" onclick="xCam()">✖ Fechar</button><button class="cam-b co" onclick="redo()">🔄 Refazer</button><button class="cam-b cg" onclick="conf()">✅ Confirmar</button>';
+    if (s === 'cap') {
+        c.innerHTML = '<button class="cam-b cr" onclick="xCam()">✖ Fechar</button>' +
+            '<button class="cam-b cg" onclick="snap()">📸 Capturar</button>';
+    } else {
+        c.innerHTML = '<button class="cam-b cr" onclick="xCam()">✖ Fechar</button>' +
+            '<button class="cam-b co" onclick="redo()">🔄 Refazer</button>' +
+            '<button class="cam-b co" onclick="girarFoto()">↻ Girar</button>' +
+            '<button class="cam-b cg" onclick="conf()">✅ Confirmar</button>';
+    }
 }
 
 function snap() {
@@ -1055,20 +1098,65 @@ function snap() {
     var b = B[curB], tx = b.item + ' | OP ' + b.enc + ' | ' + b.qtde + 'kg | ' + new Date().toLocaleString('pt-BR');
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, can.height - 32, can.width, 32);
     ctx.fillStyle = '#fff'; ctx.font = 'bold 13px Arial'; ctx.fillText(tx, 6, can.height - 10);
-    foto = can.toDataURL('image/jpeg', 0.95); prev.src = foto; prev.style.display = 'block'; vid.style.display = 'none'; camBt('prev');
+    foto = can.toDataURL('image/jpeg', 0.95); prev.src = foto; prev.style.display = 'block'; vid.style.display = 'none';
+    fotoRotacao = 0;
+    camBt('prev');
 }
 
 function conf() {
-    var b = B[curB]; b.foto = foto; b.ok = true;
-    b.fotoNm = 'foto_' + b.item + '_OP' + b.enc + '_' + Date.now() + '.jpg';
-    toast(b.item + ' (' + b.qtde + 'kg) ✔', 'success', 2000);
-    xCam(); save(); build();
-    if (document.getElementById('fsView').classList.contains('active')) renderFS();
+    var b = B[curB];
+    if (fotoRotacao !== 0) {
+        var img = new Image();
+        img.onload = function() {
+            var can = document.getElementById('cc');
+            var ctx = can.getContext('2d');
+            if (fotoRotacao === 90 || fotoRotacao === 270) { can.width = img.height; can.height = img.width; }
+            else { can.width = img.width; can.height = img.height; }
+            ctx.save();
+            ctx.translate(can.width / 2, can.height / 2);
+            ctx.rotate(fotoRotacao * Math.PI / 180);
+            ctx.drawImage(img, -img.width / 2, -img.height / 2);
+            ctx.restore();
+            var tx = b.item + ' | OP ' + b.enc + ' | ' + b.qtde + 'kg | ' + new Date().toLocaleString('pt-BR');
+            ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, can.height - 32, can.width, 32);
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 13px Arial'; ctx.fillText(tx, 6, can.height - 10);
+            b.foto = can.toDataURL('image/jpeg', 0.95);
+            b.ok = true; b.fotoNm = 'foto_' + b.item + '_OP' + b.enc + '_' + Date.now() + '.jpg';
+            toast(b.item + ' (' + b.qtde + 'kg) ✔', 'success', 2000);
+            fotoRotacao = 0; xCam(); save(); build();
+            if (document.getElementById('fsView').classList.contains('active')) renderFS();
+        };
+        img.src = foto;
+    } else {
+        b.foto = foto; b.ok = true; b.fotoNm = 'foto_' + b.item + '_OP' + b.enc + '_' + Date.now() + '.jpg';
+        toast(b.item + ' (' + b.qtde + 'kg) ✔', 'success', 2000);
+        xCam(); save(); build();
+        if (document.getElementById('fsView').classList.contains('active')) renderFS();
+    }
 }
 
-function redo() { document.getElementById('cv').style.display = 'block'; document.getElementById('cp').style.display = 'none'; foto = null; camBt('cap'); }
+function girarFoto() {
+    fotoRotacao = (fotoRotacao + 90) % 360;
+    var prev = document.getElementById('cp');
+    prev.className = '';
+    if (fotoRotacao === 90) prev.className = 'rotated-90';
+    else if (fotoRotacao === 180) prev.className = 'rotated-180';
+    else if (fotoRotacao === 270) prev.className = 'rotated-270';
+}
 
-function xCam() { document.getElementById('cm').classList.remove('active'); if (strm) { strm.getTracks().forEach(function(t) { t.stop(); }); strm = null; } foto = null; curB = null; }
+function redo() {
+    document.getElementById('cv').style.display = 'block';
+    document.getElementById('cp').style.display = 'none';
+    document.getElementById('cp').className = '';
+    foto = null; fotoRotacao = 0; camBt('cap');
+}
+
+function xCam() {
+    document.getElementById('cm').classList.remove('active');
+    document.getElementById('cp').className = '';
+    if (strm) { strm.getTracks().forEach(function(t) { t.stop(); }); strm = null; }
+    foto = null; curB = null; fotoRotacao = 0;
+}
 
 // ================================================================
 //                    ADD PESO / ADD NOVO
@@ -1084,12 +1172,228 @@ function doAddPeso() {
     toast('Bobina ' + p + 'kg adicionada', 'success');
 }
 
-function openNew() {
-    ['nwEnc', 'nwItem', 'nwVer', 'nwLarg', 'nwEsp'].forEach(function(id) { document.getElementById(id).value = ''; });
-    document.getElementById('nwPig').value = 'S';
-    document.getElementById('pesosContainer').innerHTML = '<div class="peso-row" style="display:flex;align-items:center;gap:6px;margin-top:10px;"><div style="flex:1;"><label>Peso (kg)</label><input type="number" class="peso-input" placeholder="200" step="0.1" inputmode="decimal"></div></div>';
-    document.getElementById('amNew').classList.add('active');
-    setTimeout(function() { document.getElementById('nwEnc').focus(); }, 100);
+// ================================================================
+//                    EDITAR PESO BOBINA (ENCAIXES)
+// ================================================================
+function editarPesoBob(bi, gi) {
+    var bob = B[bi];
+    criarModal('editPesoModal',
+        '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:4px;">✏️ Editar peso</h3>' +
+        '<p style="font-size:0.75em;color:#888;margin-bottom:14px;">' + bob.item + ' | OP ' + bob.enc + ' | Atual: ' + bob.qtde + ' kg</p>' +
+        '<input type="number" id="editPesoInput" placeholder="Novo peso" step="0.1" inputmode="decimal" style="width:100%;padding:12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;">' +
+        '<div style="display:flex;gap:8px;margin-top:14px;">' +
+            '<button onclick="fecharModal(\'editPesoModal\')" style="padding:12px 16px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;cursor:pointer;">Cancelar</button>' +
+'<button onclick="salvarEditPeso(' + bi + ',' + gi + ')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">💾 Salvar</button>' +
+        '</div>'
+    );
+    setTimeout(function() {
+        var input = document.getElementById('editPesoInput');
+        if (input) { input.focus(); }
+    }, 100);
+}
+
+function salvarEditPeso(bi, gi) {
+    var input = document.getElementById('editPesoInput');
+    var novoPeso = input ? input.value.trim() : '';
+    if (!novoPeso || parseFloat(novoPeso) <= 0) {
+        if (input) { input.style.borderColor = '#ef4444'; input.focus(); }
+        return;
+    }
+    var bob = B[bi];
+    var pesoAntigo = bob.qtde;
+    var qtdeNum = parseFloat(pesoAntigo) || 0;
+    for (var i = 0; i < estoque.length; i++) {
+        var ic = getItemEstoque(estoque[i]);
+        var eq = parseFloat(estoque[i]['QTDE_ESTOQUE']) || 0;
+        if (ic === bob.item && Math.abs(eq - qtdeNum) < 0.5) {
+            estoque[i]['QTDE_ESTOQUE'] = novoPeso;
+            break;
+        }
+    }
+    bob.qtde = novoPeso;
+    fecharModal('editPesoModal');
+    save(); build(); atualizarInfo();
+    toast(bob.item + ': ' + pesoAntigo + 'kg → ' + novoPeso + 'kg', 'success');
+}
+
+// ================================================================
+//                    DIVIDIR BOBINA (ENCAIXES)
+// ================================================================
+function dividirBob(bi, gi) {
+    var bob = B[bi];
+    criarModal('splitBobModal',
+        '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:4px;">✂️ Dividir bobina</h3>' +
+        '<p style="font-size:0.75em;color:#888;margin-bottom:10px;">' + bob.item + ' | OP ' + bob.enc + ' | Total: ' + bob.qtde + ' kg</p>' +
+        '<div style="margin-bottom:10px;">' +
+            '<label style="font-size:0.7em;color:#888;">Quantidade de bobinas</label>' +
+            '<div style="display:flex;align-items:center;gap:8px;margin-top:4px;">' +
+                '<button onclick="splitMudarQtd(-1)" style="width:36px;height:36px;border-radius:8px;border:1px solid #e0e0e0;background:#fff;color:#ef4444;font-size:1.2em;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>' +
+                '<input type="number" id="splitQtd" value="2" min="2" max="20" style="width:50px;text-align:center;padding:8px;border-radius:8px;border:1px solid #e0e0e0;font-size:1em;font-weight:700;" readonly>' +
+                '<button onclick="splitMudarQtd(1)" style="width:36px;height:36px;border-radius:8px;border:1px solid #e0e0e0;background:#fff;color:#10b981;font-size:1.2em;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>' +
+                '<button onclick="splitDividirIgual(' + bi + ')" style="padding:8px 12px;border:none;border-radius:8px;background:#2563eb;color:#fff;font-size:0.75em;font-weight:600;cursor:pointer;">Dividir igual</button>' +
+'<button onclick="splitLimparCampos(' + bi + ')" style="padding:8px 12px;border:none;border-radius:8px;background:#e0e0e0;color:#888;font-size:0.75em;font-weight:600;cursor:pointer;">🗑️ Limpar</button>' +
+            '</div>' +
+        '</div>' +
+        '<div id="splitPesosContainer"></div>' +
+        '<div id="splitInfo" style="margin-top:8px;font-size:0.72em;color:#888;text-align:center;">Total original: ' + bob.qtde + ' kg</div>' +
+        '<div style="display:flex;gap:8px;margin-top:14px;">' +
+            '<button onclick="fecharModal(\'splitBobModal\')" style="padding:12px 16px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;cursor:pointer;">Cancelar</button>' +
+'<button onclick="salvarSplitBob(' + bi + ',' + gi + ')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#8b5cf6;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">✂️ Dividir</button>' +
+        '</div>'
+    );
+    splitGerarCampos(bi);
+}
+
+function splitMudarQtd(delta) {
+    var input = document.getElementById('splitQtd');
+    var val = parseInt(input.value) || 2;
+    val += delta;
+    if (val < 2) val = 2;
+    if (val > 20) val = 20;
+    input.value = val;
+    // Pega o bi do botão dividir
+    var btnDividir = document.querySelector('#splitBobModal button[onclick*="salvarSplitBob"]');
+    if (btnDividir) {
+        var match = btnDividir.getAttribute('onclick').match(/salvarSplitBob\((\d+)/);
+        if (match) splitGerarCampos(parseInt(match[1]));
+    }
+}
+
+function splitGerarCampos(bi) {
+    var bob = B[bi];
+    var qtd = parseInt(document.getElementById('splitQtd').value) || 2;
+    var container = document.getElementById('splitPesosContainer');
+    var total = parseFloat(bob.qtde) || 0;
+    var html = '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+    for (var i = 0; i < qtd; i++) {
+        html += '<div style="flex:1;min-width:70px;">' +
+            '<label style="font-size:0.65em;color:#888;">Bob ' + (i + 1) + ' (kg)</label>' +
+            '<input type="number" class="splitPesoInput" data-idx="' + i + '" placeholder="0" step="0.1" inputmode="decimal" ' +
+            'style="width:100%;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.85em;">' +
+        '</div>';
+    }
+    html += '</div>';
+    container.innerHTML = html;
+
+    // Listeners para atualizar info
+    var inputs = container.querySelectorAll('.splitPesoInput');
+    inputs.forEach(function(inp) {
+        inp.addEventListener('input', function() {
+            splitAtualizarInfo(total);
+        });
+    });
+
+    // Focus no primeiro
+    if (inputs.length > 0) setTimeout(function() { inputs[0].focus(); }, 50);
+}
+
+function splitDividirIgual(bi) {
+    var bob = B[bi];
+    var total = parseFloat(bob.qtde) || 0;
+    var qtd = parseInt(document.getElementById('splitQtd').value) || 2;
+    var pesoIgual = Math.floor(total / qtd);
+    var inputs = document.querySelectorAll('.splitPesoInput');
+    var soma = 0;
+    for (var i = 0; i < inputs.length; i++) {
+        if (i < inputs.length - 1) {
+            inputs[i].value = pesoIgual;
+            soma += pesoIgual;
+        } else {
+            inputs[i].value = total - soma;
+        }
+    }
+    splitAtualizarInfo(total);
+}
+
+function splitLimparCampos(bi) {
+    var bob = B[bi];
+    var total = parseFloat(bob.qtde) || 0;
+    var inputs = document.querySelectorAll('.splitPesoInput');
+    for (var i = 0; i < inputs.length; i++) {
+        inputs[i].value = '';
+        inputs[i].style.borderColor = '#e0e0e0';
+    }
+    document.getElementById('splitInfo').innerHTML = 'Total original: ' + Math.round(total) + ' kg';
+    if (inputs.length > 0) inputs[0].focus();
+}
+
+function splitAtualizarInfo(total) {
+    var inputs = document.querySelectorAll('.splitPesoInput');
+    var soma = 0;
+    var partes = [];
+    for (var i = 0; i < inputs.length; i++) {
+        var v = parseFloat(inputs[i].value) || 0;
+        soma += v;
+        if (v > 0) partes.push(Math.round(v) + 'kg');
+    }
+    var cor = Math.abs(soma - total) < 0.5 ? '#10b981' : '#ef4444';
+    var info = document.getElementById('splitInfo');
+    if (partes.length > 0) {
+        info.innerHTML = partes.join(' + ') + ' = <span style="color:' + cor + ';font-weight:700;">' + Math.round(soma) + 'kg</span>' +
+            (Math.abs(soma - total) >= 0.5 ? ' <span style="color:#ef4444;">(original: ' + Math.round(total) + 'kg)</span>' : ' ✅');
+    } else {
+        info.innerHTML = 'Total original: ' + Math.round(total) + ' kg';
+    }
+}
+
+function salvarSplitBob(bi, gi) {
+    var inputs = document.querySelectorAll('.splitPesoInput');
+    var pesos = [];
+    for (var i = 0; i < inputs.length; i++) {
+        var v = inputs[i].value.trim();
+        if (!v || parseFloat(v) <= 0) {
+            toast('Preencha todos os pesos!', 'error');
+            inputs[i].style.borderColor = '#ef4444';
+            inputs[i].focus();
+            return;
+        }
+        pesos.push(v);
+    }
+    if (pesos.length < 2) {
+        toast('Mínimo 2 bobinas!', 'error');
+        return;
+    }
+
+    var bob = B[bi];
+    var pesoOriginal = bob.qtde;
+
+    // Primeira bobina: atualiza a existente
+    bob.qtde = pesos[0];
+    bob.ok = false;
+    bob.foto = null;
+    bob.fotoNm = '';
+
+    // Atualiza no estoque
+    var qtdeNum = parseFloat(pesoOriginal) || 0;
+    for (var j = 0; j < estoque.length; j++) {
+        var ic = getItemEstoque(estoque[j]);
+        var eq = parseFloat(estoque[j]['QTDE_ESTOQUE']) || 0;
+        if (ic === bob.item && Math.abs(eq - qtdeNum) < 0.5) {
+            estoque[j]['QTDE_ESTOQUE'] = pesos[0];
+            break;
+        }
+    }
+
+    // Demais bobinas: cria novas
+    for (var k = 1; k < pesos.length; k++) {
+        B.push({
+            id: B.length, enc: bob.enc, item: bob.item, ver: bob.ver,
+            larg: bob.larg, esp: bob.esp, pig: bob.pig, qtde: pesos[k],
+            foto: null, fotoNm: '', ok: false, manual: true
+        });
+        estoque.push({
+            'ITEM': bob.item, 'VERSAO': bob.ver,
+            'DESCRICAO': '(' + bob.larg + 'cm x ' + bob.esp + 'mu) ITEM MANUAL',
+            'COMPOSICAO': '', 'PIGMENTADO': bob.pig,
+            'QTDE_ESTOQUE': pesos[k], '__A': bob.item, '__I': ''
+        });
+    }
+
+    fecharModal('splitBobModal');
+    grp(); save(); build(); atualizarInfo();
+
+    var descPesos = pesos.map(function(p) { return Math.round(parseFloat(p)) + 'kg'; }).join(' + ');
+    toast(bob.item + ': ' + Math.round(parseFloat(pesoOriginal)) + 'kg → ' + descPesos, 'success');
 }
 
 function addPesoRow() {
@@ -1125,22 +1429,72 @@ function doAddNew() {
 // ================================================================
 function xM(id) { document.getElementById(id).classList.remove('active'); if (id === 'amPeso') curG = null; }
 
+// MELHORIA 4: Anti-duplicata Firebase
 async function askFin() {
     var lo = document.getElementById('lo'), lt = document.getElementById('lt');
-    lo.classList.add('active'); lt.textContent = 'Salvando histórico...';
+    lo.classList.add('active'); lt.textContent = 'Verificando duplicidade...';
     try {
-        var agora = new Date(), ds = agora.toLocaleString('pt-BR'), lote = agora.getTime().toString(), salvos = 0;
+        var conteudoAtual = B.map(function(b) {
+            return b.enc + '|' + b.item + '|' + b.ver + '|' + b.qtde;
+        }).sort().join('||');
+
+        var ultimoSnap = await db.collection('encaixes')
+            .orderBy('timestamp', 'desc')
+            .limit(500)
+            .get();
+
+        if (!ultimoSnap.empty) {
+            var ultimoLote = '';
+            ultimoSnap.forEach(function(doc) {
+                var l = doc.data().lote || '';
+                if (!ultimoLote) ultimoLote = l;
+            });
+            var regsUltimo = [];
+            ultimoSnap.forEach(function(doc) {
+                var d = doc.data();
+                if (d.lote === ultimoLote) {
+                    regsUltimo.push(d.encaixe + '|' + d.item + '|' + d.versao + '|' + d.qtde);
+                }
+            });
+            var hashUltimo = regsUltimo.sort().join('||');
+
+            if (conteudoAtual === hashUltimo) {
+                lo.classList.remove('active');
+                toast('Relatório idêntico ao último salvo — ignorado', 'warning', 4000);
+                document.getElementById('fm').classList.add('active');
+                return;
+            }
+        }
+
+        lt.textContent = 'Salvando histórico...';
+        var agora = new Date(), ds = agora.toLocaleString('pt-BR'),
+            lote = agora.getTime().toString(), salvos = 0;
         var batch = db.batch();
         for (var i = 0; i < B.length; i++) {
             var b = B[i];
-            batch.set(db.collection('encaixes').doc(), { data: ds, timestamp: firebase.firestore.FieldValue.serverTimestamp(), lote: lote, encaixe: b.enc || '', item: b.item || '', versao: b.ver || '', chave: mkChave(b), qtde: b.qtde || '', manual: b.manual ? 'S' : 'N' });
-            salvos++; if (salvos % 400 === 0) { await batch.commit(); batch = db.batch(); }
+            batch.set(db.collection('encaixes').doc(), {
+                data: ds,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                lote: lote,
+                encaixe: b.enc || '',
+                item: b.item || '',
+                versao: b.ver || '',
+                chave: mkChave(b),
+                qtde: b.qtde || '',
+                manual: b.manual ? 'S' : 'N'
+            });
+            salvos++;
+            if (salvos % 400 === 0) { await batch.commit(); batch = db.batch(); }
         }
         if (salvos % 400 !== 0) await batch.commit();
         lo.classList.remove('active');
         toast(salvos + ' registros salvos no histórico', 'success');
         document.getElementById('fm').classList.add('active');
-    } catch (err) { lo.classList.remove('active'); toast('Erro ao salvar: ' + err.message, 'error'); document.getElementById('fm').classList.add('active'); }
+    } catch (err) {
+        lo.classList.remove('active');
+        toast('Erro ao salvar: ' + err.message, 'error');
+        document.getElementById('fm').classList.add('active');
+    }
 }
 
 function abrirProblemas() {
@@ -1218,7 +1572,9 @@ function estRender() {
     var html = '';
     for (var j = 0; j < itens.length; j++) {
         var it = itens[j], bg = it.isMetal ? '#f8fafc' : (it.isOculto ? '#f5f3ff' : (it.te ? '#f0fdf4' : '#fff')), bord = it.isMetal ? '#cbd5e1' : (it.isOculto ? '#c4b5fd' : (it.te ? '#bbf7d0' : '#e0e0e0'));
-        html += '<div style="background:' + bg + ';border-radius:10px;border:1px solid ' + bord + ';margin-bottom:6px;padding:10px 12px;display:flex;align-items:center;gap:8px;' + (it.isMetal || it.isOculto ? 'opacity:0.72;' : '') + '">';
+        var obsAtual = estObservacoes[it.item] || '';
+        html += '<div style="background:' + bg + ';border-radius:10px;border:1px solid ' + bord + ';margin-bottom:6px;' + (it.isMetal || it.isOculto ? 'opacity:0.72;' : '') + '">';
+        html += '<div style="padding:10px 12px;display:flex;align-items:center;gap:8px;">';
         html += '<div style="min-width:32px;text-align:center;"><div style="font-size:1.1em;">' + (it.isMetal ? '⛔' : (it.isOculto ? '👁️‍🗨️' : (it.tipo === 'CAPA' ? '🔴' : '🔵'))) + '</div><div style="font-size:0.5em;color:#888;">' + (it.isMetal ? 'METAL' : (it.isOculto ? 'OCULTA' : it.tipo)) + '</div></div>';
         html += '<div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:0.85em;font-weight:600;color:#1a1a2e;font-family:monospace;">' + it.item + '</span><span style="font-size:0.6em;color:#aaa;">v' + it.ver + '</span></div>';
         html += '<div style="display:flex;gap:8px;margin-top:2px;font-size:0.65em;color:#999;"><span>📏' + it.larg + '</span><span>📐' + it.esp + '</span><span>🎨' + it.pig + '</span></div></div>';
@@ -1229,11 +1585,44 @@ function estRender() {
         else if (it.te) html += '<div style="font-size:0.6em;padding:3px 6px;border-radius:8px;background:#dcfce7;color:#16a34a;font-weight:600;">OP ' + it.eop + '</div>';
         else html += '<div style="font-size:0.6em;padding:3px 6px;border-radius:8px;background:#fee2e2;color:#ef4444;font-weight:600;">SEM</div>';
         html += '</div>';
-        if (!it.isMetal) html += '<button onclick="event.stopPropagation();estToggleOculto(\'' + it.item + '\')" style="width:26px;height:26px;border-radius:6px;border:1px solid ' + (it.isOculto ? '#8b5cf6' : '#e0e0e0') + ';background:#fff;color:' + (it.isOculto ? '#8b5cf6' : '#94a3b8') + ';cursor:pointer;font-size:0.7em;display:flex;align-items:center;justify-content:center;">👁️‍🗨️</button>';
+                if (!it.isMetal) html += '<button onclick="event.stopPropagation();estToggleOculto(\'' + it.item + '\')" style="width:26px;height:26px;border-radius:6px;border:1px solid ' + (it.isOculto ? '#8b5cf6' : '#e0e0e0') + ';background:#fff;color:' + (it.isOculto ? '#8b5cf6' : '#94a3b8') + ';cursor:pointer;font-size:0.7em;display:flex;align-items:center;justify-content:center;">👁️‍🗨️</button>';
         if (!it.isMetal && !it.isOculto) html += '<button onclick="event.stopPropagation();xM(\'estModal\');setTimeout(function(){debugarItem(\'' + it.item + '\');},300);" style="min-width:26px;height:26px;border-radius:6px;border:1px solid #e0e0e0;background:#fff;color:#f59e0b;cursor:pointer;font-size:0.7em;display:flex;align-items:center;justify-content:center;">🔍</button>';
+        var obsAtual = estObservacoes[it.item] || '';
+        if (!it.isMetal) html += '<button onclick="event.stopPropagation();abrirModalObs(\'' + it.item + '\')" style="min-width:26px;height:26px;border-radius:6px;border:1px solid ' + (obsAtual ? '#f59e0b' : '#e0e0e0') + ';background:#fff;color:' + (obsAtual ? '#f59e0b' : '#94a3b8') + ';cursor:pointer;font-size:0.7em;display:flex;align-items:center;justify-content:center;" title="' + (obsAtual || 'Observação') + '">💬</button>';
         html += '</div>';
+        if (obsAtual) html += '<div style="width:100%;padding:2px 12px 6px 50px;font-size:0.65em;color:#f59e0b;margin-top:-6px;">💬 ' + obsAtual + '</div>';
     }
     body.innerHTML = html;
+}
+
+// MELHORIA 8: Modal observação
+function abrirModalObs(item) {
+    var obsAtual = estObservacoes[item] || '';
+    criarModal('obsModal',
+        '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:4px;">💬 Observação</h3>' +
+        '<p style="font-size:0.75em;color:#888;margin-bottom:14px;">' + item + '</p>' +
+        '<textarea id="obsInput" placeholder="Ex: Embalagem rasgada, pesar novamente..." ' +
+        'style="width:100%;padding:12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;min-height:80px;resize:vertical;">' + obsAtual + '</textarea>' +
+        '<div style="display:flex;gap:8px;margin-top:14px;">' +
+            '<button id="btnDelObs" style="padding:12px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;cursor:pointer;">🗑️</button>' +
+            '<button id="btnSalvarObs" style="flex:1;padding:12px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">💾 Salvar</button>' +
+        '</div>'
+    );
+    document.getElementById('btnDelObs').addEventListener('click', function() {
+        delete estObservacoes[item];
+        localStorage.setItem('enc_obs', JSON.stringify(estObservacoes));
+        fecharModal('obsModal'); estRender();
+        toast('Observação removida', 'info');
+    });
+    document.getElementById('btnSalvarObs').addEventListener('click', function() {
+        var texto = document.getElementById('obsInput').value.trim();
+        if (texto) estObservacoes[item] = texto;
+        else delete estObservacoes[item];
+        localStorage.setItem('enc_obs', JSON.stringify(estObservacoes));
+        fecharModal('obsModal'); estRender();
+        toast('Observação salva', 'success');
+    });
+    setTimeout(function() { var el = document.getElementById('obsInput'); if (el) el.focus(); }, 100);
 }
 
 function estCSV() {
@@ -1252,7 +1641,11 @@ function estCSV() {
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 
-function estToggleOculto(item) { if (confOcultos[item]) delete confOcultos[item]; else confOcultos[item] = true; localStorage.setItem('enc_ocultos', JSON.stringify(confOcultos)); estRender(); }
+function estToggleOculto(item) {
+    if (confOcultos[item]) delete confOcultos[item]; else confOcultos[item] = true;
+    localStorage.setItem('enc_ocultos', JSON.stringify(confOcultos));
+    estRender();
+}
 
 // ================================================================
 //                    CONFERÊNCIA
@@ -1307,34 +1700,71 @@ function confRender() {
         else if (it.temEnc) html += '<div style="font-size:0.55em;padding:2px 4px;border-radius:6px;background:#fef3c7;color:#f59e0b;font-weight:600;">ENC</div>';
         else html += '<div style="font-size:0.55em;padding:2px 4px;border-radius:6px;background:#fee2e2;color:#ef4444;font-weight:600;">SEM</div>';
         html += '</div>';
+        // MELHORIA 6: Campo editar peso vazio
         if (!it.metal) html += '<button onclick="event.stopPropagation();confEditarPeso(\'' + it.key + '\',' + it.estoqueIdx + ')" style="width:20px;height:20px;border-radius:4px;border:1px solid #e0e0e0;background:#fff;color:#f59e0b;cursor:pointer;font-size:0.55em;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✏️</button>';
         html += '</div></div></div>';
     }
     html += '<div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;">';
     html += '<button onclick="event.stopPropagation();confAdicionarItem()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">➕ Adicionar</button>';
-    html += '<button onclick="event.stopPropagation();confExportar()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">📌 Exportar relatório</button>';
     if (cOk > 0) html += '<button onclick="event.stopPropagation();confCompartilhar()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">📤 Compartilhar</button>';
     html += '<button onclick="event.stopPropagation();confFinalizar()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#ef4444;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">🏁 Finalizar conferência</button>';
     html += '<button onclick="event.stopPropagation();confLimparStatus()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.85em;cursor:pointer;">🔄 Resetar</button></div>';
     body.innerHTML = html;
 }
 
-function confPedirEndereco(key) {
+// MELHORIA 7: Sugerir último endereço do Firebase
+async function confPedirEndereco(key) {
     var partes = key.split('_'), itemNome = partes[0] || '';
-    var modal = document.createElement('div'); modal.id = 'confEndModal';
+    var enderecoSugerido = '';
+    try {
+        var snap = await db.collection('conferencias')
+            .where('item', '==', itemNome)
+            .where('status', '==', 'ENCONTRADA')
+            .orderBy('timestamp', 'desc')
+            .limit(1)
+            .get();
+        if (!snap.empty) {
+            snap.forEach(function(doc) {
+                var end = doc.data().endereco || '';
+                if (end) enderecoSugerido = end;
+            });
+        }
+    } catch(e) {}
+
+    var modal = document.createElement('div');
+    modal.id = 'confEndModal';
     modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
-    modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:24px;max-width:340px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.2);"><h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:4px;">📌 Endereço da bobina</h3><p style="font-size:0.75em;color:#888;margin-bottom:14px;">' + itemNome + '</p><input type="text" id="confEndInput" placeholder="Ex: Corredor A, Prateleira 3" style="width:100%;padding:12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;"><div style="display:flex;gap:8px;margin-top:14px;"><button onclick="document.getElementById(\'confEndModal\').remove()" style="padding:12px 16px;border:none;border-radius:10px;background:#ef4444;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">✖</button><button onclick="confRepetirEndereco()" style="padding:12px 16px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:1.1em;font-weight:600;cursor:pointer;" title="Repetir último">🔁</button><button onclick="confConfirmarEndereco(\'' + key + '\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">✅ Confirmar</button></div></div>';
+
+    var btnSugestao = '';
+    if (enderecoSugerido) {
+        btnSugestao = '<button onclick="document.getElementById(\'confEndInput\').value=\'' + enderecoSugerido.replace(/'/g, "\\'") + '\';confConfirmarEndereco(\'' + key + '\')" style="padding:12px 16px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-size:0.82em;font-weight:600;cursor:pointer;white-space:nowrap;" title="Usar sugestão">📌 ' + enderecoSugerido + '</button>';
+    } else {
+        btnSugestao = '<button onclick="confRepetirEndereco()" style="padding:12px 16px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:1.1em;font-weight:600;cursor:pointer;" title="Repetir último">🔁</button>';
+    }
+
+    modal.innerHTML =
+        '<div style="background:#fff;border-radius:16px;padding:24px;max-width:340px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.2);">' +
+        '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:4px;">📌 Endereço da bobina</h3>' +
+        '<p style="font-size:0.75em;color:#888;margin-bottom:14px;">' + itemNome + '</p>' +
+        (enderecoSugerido ? '<div style="font-size:0.72em;color:#2563eb;margin-bottom:8px;background:#eff6ff;padding:6px 10px;border-radius:8px;">💡 Último endereço: <strong>' + enderecoSugerido + '</strong></div>' : '') +
+        '<input type="text" id="confEndInput" placeholder="Ex: Corredor A, Prateleira 3" ' +
+        'style="width:100%;padding:12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;">' +
+        '<div style="display:flex;gap:8px;margin-top:14px;">' +
+        '<button onclick="document.getElementById(\'confEndModal\').remove()" style="padding:12px 16px;border:none;border-radius:10px;background:#ef4444;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">✖</button>' +
+        btnSugestao +
+        '<button onclick="confConfirmarEndereco(\'' + key + '\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">✅ Confirmar</button>' +
+        '</div></div>';
     document.body.appendChild(modal);
     setTimeout(function() { document.getElementById('confEndInput').focus(); }, 100);
     document.getElementById('confEndInput').addEventListener('keydown', function(ev) {
-        if (ev.key === 'Enter') { ev.preventDefault(); document.querySelector('#confEndModal button[onclick*="confConfirmarEndereco"]').click(); }
+        if (ev.key === 'Enter') { ev.preventDefault(); confConfirmarEndereco(key); }
     });
 }
 
 function confRepetirEndereco() {
     if (!ultimoEndereco) { var input = document.getElementById('confEndInput'); input.style.borderColor = '#f59e0b'; input.placeholder = '⚠️ Nenhum endereço anterior'; setTimeout(function() { input.style.borderColor = '#e0e0e0'; input.placeholder = 'Ex: Corredor A, Prateleira 3'; }, 1500); return; }
     document.getElementById('confEndInput').value = ultimoEndereco;
-    document.querySelector('#confEndModal button[onclick*="confConfirmarEndereco"]').click();
+    var btn = document.getElementById('btnConfEnd'); if (btn) btn.click();
 }
 
 function confConfirmarEndereco(key) {
@@ -1357,10 +1787,23 @@ function confDesmarcar(key) {
 
 function confLimparStatus() { if (!confirm('Resetar toda a conferência?')) return; confStatus = {}; confOcultos = {}; localStorage.setItem('enc_conf', JSON.stringify(confStatus)); localStorage.setItem('enc_ocultos', JSON.stringify(confOcultos)); confRender(); toast('Conferência resetada', 'info'); }
 
+// MELHORIA 6: Campo editar peso VAZIO (placeholder mostra atual)
 function confEditarPeso(key, estoqueIdx) {
     var partes = key.split('_'), itemNome = partes[0] || '', pesoAtual = partes[2] || '';
-    criarModal('confPesoModal', '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:4px;">✏️ Editar peso</h3><p style="font-size:0.75em;color:#888;margin-bottom:14px;">' + itemNome + ' | Atual: ' + pesoAtual + ' kg</p><input type="number" id="confPesoInput" value="' + pesoAtual + '" step="0.1" inputmode="decimal" style="width:100%;padding:12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;"><div style="display:flex;gap:8px;margin-top:14px;"><button onclick="confSalvarPeso(\'' + key + '\',' + estoqueIdx + ')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">💾 Salvar</button><button onclick="fecharModal(\'confPesoModal\')" style="padding:12px 16px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;cursor:pointer;">Cancelar</button></div>');
-    setTimeout(function() { document.getElementById('confPesoInput').focus(); }, 100);
+    criarModal('confPesoModal',
+        '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:4px;">✏️ Editar peso</h3>' +
+        '<p style="font-size:0.75em;color:#888;margin-bottom:14px;">' + itemNome + ' | Atual: ' + pesoAtual + ' kg</p>' +
+        '<input type="number" id="confPesoInput" placeholder="' + pesoAtual + '" step="0.1" inputmode="decimal" ' +
+        'style="width:100%;padding:12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;">' +
+        '<div style="display:flex;gap:8px;margin-top:14px;">' +
+            '<button onclick="fecharModal(\'confPesoModal\')" style="padding:12px 16px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;cursor:pointer;">Cancelar</button>' +
+'<button onclick="confSalvarPeso(\'' + key + '\',' + estoqueIdx + ')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">💾 Salvar</button>' +
+        '</div>'
+    );
+    setTimeout(function() {
+        var input = document.getElementById('confPesoInput');
+        if (input) input.focus();
+    }, 100);
 }
 
 function confSalvarPeso(key, estoqueIdx) {
@@ -1379,7 +1822,9 @@ function confAdicionarItem() {
         '<div style="display:flex;gap:8px;"><div style="flex:2;"><label style="font-size:0.7em;color:#888;">Item *</label><input type="text" id="confAddItem" placeholder="14005845-2" style="width:100%;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;"></div><div style="flex:0.8;"><label style="font-size:0.7em;color:#888;">Versão</label><input type="text" id="confAddVer" placeholder="70" inputmode="numeric" style="width:100%;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;"></div></div>' +
         '<div style="display:flex;gap:8px;margin-top:8px;"><div style="flex:1;"><label style="font-size:0.7em;color:#888;">Peso *</label><input type="number" id="confAddPeso" placeholder="80" step="0.1" inputmode="decimal" style="width:100%;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;"></div><div style="flex:1;"><label style="font-size:0.7em;color:#888;">Largura</label><input type="number" id="confAddLarg" placeholder="cm" step="0.1" inputmode="decimal" style="width:100%;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;"></div><div style="flex:1;"><label style="font-size:0.7em;color:#888;">Espessura</label><input type="number" id="confAddEsp" placeholder="mu" step="0.1" inputmode="decimal" style="width:100%;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;"></div><div style="flex:0.6;"><label style="font-size:0.7em;color:#888;">Pig.</label><select id="confAddPig" style="width:100%;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;"><option value="S">S</option><option value="N">N</option></select></div></div>' +
         '<div style="display:flex;gap:8px;margin-top:8px;"><div style="flex:2;"><label style="font-size:0.7em;color:#888;">Endereço</label><input type="text" id="confAddEnd" placeholder="Corredor A" value="' + (ultimoEndereco || '') + '" style="width:100%;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;"></div><div style="flex:1;"><label style="font-size:0.7em;color:#888;">OP</label><input type="text" id="confAddOP" placeholder="OP" inputmode="numeric" style="width:100%;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;"></div></div>' +
-        '<div style="display:flex;gap:8px;margin-top:14px;"><button onclick="fecharModal(\'confAddModal\')" style="padding:12px 16px;border:none;border-radius:10px;background:#ef4444;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">✖</button><button onclick="confSalvarNovo()" style="flex:1;padding:12px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">✅ Adicionar</button></div>');
+        '<div style="display:flex;gap:8px;margin-top:14px;"><button id="btnCancelConfAdd" style="padding:12px 16px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;font-weight:600;cursor:pointer;">Cancelar</button><button id="btnSalvarConfAdd" style="flex:1;padding:12px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">✅ Adicionar</button></div>');
+    document.getElementById('btnCancelConfAdd').addEventListener('click', function() { fecharModal('confAddModal'); });
+    document.getElementById('btnSalvarConfAdd').addEventListener('click', function() { confSalvarNovo(); });
     setTimeout(function() { document.getElementById('confAddItem').focus(); }, 100);
 }
 
@@ -1464,23 +1909,59 @@ async function shareFotos() {
     try {
         var arquivos = [], contPorOp = {};
         for (var i = 0; i < G.length; i++) { var g = G[i]; for (var b = 0; b < g.bs.length; b++) { var bob = B[g.bs[b]]; if (!bob.foto) continue; contPorOp[g.enc] = (contPorOp[g.enc] || 0) + 1; var n = contPorOp[g.enc]; var nome = g.enc + (n > 1 ? ' (' + n + ')' : '') + '.jpg'; try { var r = await fetch(bob.foto); var bl = await r.blob(); arquivos.push(new File([bl], nome, { type: 'image/jpeg' })); } catch (e) {} } }
+
         lt.textContent = 'Gerando relatório...';
+
+        // Gera texto do relatório
+        var textoRelatorio = '📦 RELATÓRIO DE ENCAIXES\n📅 ' + new Date().toLocaleString('pt-BR') + '\n📷 ' + B.length + ' bobinas | ' + G.length + ' OPs\n═══════════════════\n\n';
+        for (var o = 0; o < G.length; o++) {
+            var g2 = G[o];
+            textoRelatorio += '🔷 OP ' + g2.enc + '\n';
+            var pt = 0;
+            for (var b2 = 0; b2 < g2.bs.length; b2++) {
+                var bob2 = B[g2.bs[b2]];
+                pt += parseFloat(bob2.qtde) || 0;
+                textoRelatorio += '  ' + (bob2.ok ? '✅' : '⬜') + ' ' + bob2.item + ' v' + bob2.ver + ' → ' + bob2.qtde + 'kg';
+                if (bob2.manual) textoRelatorio += ' [MANUAL]';
+                textoRelatorio += '\n';
+            }
+            textoRelatorio += '  📊 Total: ' + pt.toFixed(0) + 'kg\n───────────────────\n\n';
+        }
+
+        // Gera imagem do relatório
         var canvas = document.createElement('canvas'), largura = 800, linhaAltura = 28, headerAltura = 80, linhas = [];
-        for (var o = 0; o < G.length; o++) { var g2 = G[o]; linhas.push({ tipo: 'op', enc: g2.enc }); for (var b2 = 0; b2 < g2.bs.length; b2++) { var bob2 = B[g2.bs[b2]]; linhas.push({ tipo: 'bob', item: bob2.item, ver: bob2.ver, larg: bob2.larg, esp: bob2.esp, pig: bob2.pig, qtde: bob2.qtde, manual: bob2.manual, foto: bob2.foto ? '📷' : '⬜' }); } linhas.push({ tipo: 'sep' }); }
+        for (var o2 = 0; o2 < G.length; o2++) { var g3 = G[o2]; linhas.push({ tipo: 'op', enc: g3.enc }); for (var b3 = 0; b3 < g3.bs.length; b3++) { var bob3 = B[g3.bs[b3]]; linhas.push({ tipo: 'bob', item: bob3.item, ver: bob3.ver, larg: bob3.larg, esp: bob3.esp, pig: bob3.pig, qtde: bob3.qtde, manual: bob3.manual, foto: bob3.foto ? '📷' : '⬜' }); } linhas.push({ tipo: 'sep' }); }
         var altura = headerAltura + (linhas.length * linhaAltura) + 40; canvas.width = largura; canvas.height = altura;
         var ctx = canvas.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, largura, altura);
         ctx.fillStyle = '#2563eb'; ctx.fillRect(0, 0, largura, headerAltura); ctx.fillStyle = '#fff'; ctx.font = 'bold 22px Arial'; ctx.fillText('📦 Relatório de Encaixes', 20, 35); ctx.font = '14px Arial'; ctx.fillText('📅 ' + new Date().toLocaleString('pt-BR') + '  |  ' + B.length + ' bobinas  |  ' + G.length + ' OPs', 20, 60);
         var y = headerAltura + 10; ctx.fillStyle = '#f0f2f5'; ctx.fillRect(0, y, largura, linhaAltura); ctx.fillStyle = '#888'; ctx.font = 'bold 12px Arial'; ctx.fillText('ENCAIXE', 20, y + 18); ctx.fillText('ITEM', 120, y + 18); ctx.fillText('VER', 280, y + 18); ctx.fillText('LARG', 330, y + 18); ctx.fillText('ESP', 400, y + 18); ctx.fillText('PIG', 460, y + 18); ctx.fillText('PESO', 510, y + 18); ctx.fillText('FOTO', 660, y + 18); y += linhaAltura;
         for (var l = 0; l < linhas.length; l++) { var lin = linhas[l]; if (lin.tipo === 'sep') { ctx.fillStyle = '#e0e0e0'; ctx.fillRect(20, y + 10, largura - 40, 1); y += linhaAltura / 2; continue; } if (lin.tipo === 'op') { ctx.fillStyle = '#eff6ff'; ctx.fillRect(0, y, largura, linhaAltura); ctx.fillStyle = '#2563eb'; ctx.font = 'bold 14px Arial'; ctx.fillText('OP ' + lin.enc, 20, y + 18); y += linhaAltura; continue; } if (lin.tipo === 'bob') { if (l % 2 === 0) { ctx.fillStyle = '#fafafa'; ctx.fillRect(0, y, largura, linhaAltura); } ctx.fillStyle = '#333'; ctx.font = '13px monospace'; ctx.fillText(lin.item || '', 120, y + 18); ctx.fillText(lin.ver || '', 280, y + 18); ctx.fillText(lin.larg || '', 330, y + 18); ctx.fillText(lin.esp || '', 400, y + 18); ctx.fillText(lin.pig || '', 460, y + 18); ctx.font = 'bold 13px Arial'; ctx.fillText(lin.qtde + ' kg', 510, y + 18); ctx.font = '13px Arial'; ctx.fillText(lin.foto, 660, y + 18); y += linhaAltura; } }
         ctx.fillStyle = '#aaa'; ctx.font = '11px Arial'; ctx.fillText('Sistema Encaixes | ' + new Date().toLocaleString('pt-BR'), 20, altura - 15);
-        var relBlob = await new Promise(function(resolve) { canvas.toBlob(resolve, 'image/jpeg', 0.95); }); arquivos.push(new File([relBlob], 'RELATORIO.jpg', { type: 'image/jpeg' }));
+        var relBlob = await new Promise(function(resolve) { canvas.toBlob(resolve, 'image/jpeg', 0.95); });
+        arquivos.push(new File([relBlob], 'RELATORIO.jpg', { type: 'image/jpeg' }));
+
         lo.classList.remove('active');
         if (arquivos.length === 0) { toast('Nenhuma foto', 'warning'); return; }
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: arquivos })) { try { await navigator.share({ files: arquivos, text: '📦 Encaixes ' + new Date().toLocaleDateString('pt-BR') }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+
+        // Compartilhar com texto do relatório junto
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: arquivos })) {
+            try {
+                await navigator.share({
+                    files: arquivos,
+                    title: '📦 Encaixes ' + new Date().toLocaleDateString('pt-BR'),
+                    text: textoRelatorio
+                });
+                return;
+            } catch (e) { if (e.name === 'AbortError') return; }
+        }
+
+        // Fallback: baixa fotos + abre WhatsApp com texto
         lt.textContent = 'Baixando...'; lo.classList.add('active');
         for (var f2 = 0; f2 < arquivos.length; f2++) { var url = URL.createObjectURL(arquivos[f2]); var link = document.createElement('a'); link.href = url; link.download = arquivos[f2].name; document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url); await new Promise(function(res) { setTimeout(res, 300); }); }
         lo.classList.remove('active');
-        setTimeout(function() { window.open('https://wa.me/?text=' + encodeURIComponent('📦 Encaixes ' + new Date().toLocaleDateString('pt-BR') + ' — ' + arquivos.length + ' fotos'), '_blank'); }, 500);
+        setTimeout(function() {
+            window.open('https://wa.me/?text=' + encodeURIComponent(textoRelatorio), '_blank');
+        }, 500);
     } catch (err) { lo.classList.remove('active'); toast('Erro: ' + err.message, 'error'); }
 }
 
@@ -1535,6 +2016,40 @@ function mkChave(b) { return (b.item || '') + ' | ' + (b.ver || '') + ' | ' + (b
 function mkChaveGrp(b) { return b.enc + '||' + b.item + '-' + b.ver + '-' + b.larg + '-' + b.esp + '-' + b.pig; }
 
 // ================================================================
+//                    OBSERVAÇÕES DO ESTOQUE
+// ================================================================
+var estObservacoes = {};
+
+function carregarObservacoes() {
+    try { var o = localStorage.getItem('enc_obs'); if (o) estObservacoes = JSON.parse(o); } catch(e) {}
+}
+
+function salvarObservacao(item, texto) {
+    if (texto) estObservacoes[item] = texto;
+    else delete estObservacoes[item];
+    localStorage.setItem('enc_obs', JSON.stringify(estObservacoes));
+    estRender();
+}
+
+function abrirModalObs(item) {
+    var obsAtual = estObservacoes[item] || '';
+    criarModal('obsModal',
+        '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:4px;">💬 Observação</h3>' +
+        '<p style="font-size:0.75em;color:#888;margin-bottom:14px;">' + item + '</p>' +
+        '<textarea id="obsInput" placeholder="Ex: Embalagem rasgada, pesar novamente..." ' +
+        'style="width:100%;padding:12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;' +
+        'color:#1a1a2e;font-size:0.9em;min-height:80px;resize:vertical;">' + obsAtual + '</textarea>' +
+        '<div style="display:flex;gap:8px;margin-top:14px;">' +
+            '<button onclick="salvarObservacao(\'' + item + '\',\'\');fecharModal(\'obsModal\')" ' +
+            'style="padding:12px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;cursor:pointer;">🗑️</button>' +
+            '<button onclick="salvarObservacao(\'' + item + '\',document.getElementById(\'obsInput\').value.trim());fecharModal(\'obsModal\')" ' +
+            'style="flex:1;padding:12px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">💾 Salvar</button>' +
+        '</div>'
+    );
+    setTimeout(function() { var el = document.getElementById('obsInput'); if (el) el.focus(); }, 100);
+}
+
+// ================================================================
 //                    LISTENERS
 // ================================================================
 document.addEventListener('keydown', function(e) {
@@ -1560,6 +2075,7 @@ addL('fileEstado', 'change', function(e) {
             if (estado.B) B = estado.B; if (estado.estoque) estoque = estado.estoque; if (estado.fila) fila = estado.fila; if (estado.origNm) origNm = estado.origNm;
             if (estado.confStatus) { confStatus = estado.confStatus; localStorage.setItem('enc_conf', JSON.stringify(confStatus)); }
             if (estado.confOcultos) { confOcultos = estado.confOcultos; localStorage.setItem('enc_ocultos', JSON.stringify(confOcultos)); }
+            if (estado.estObservacoes) { estObservacoes = estado.estObservacoes; localStorage.setItem('enc_obs', JSON.stringify(estObservacoes)); }
             if (estado.estFiltros) estFiltros = estado.estFiltros;
             grp(); build(); save(); atualizarInfo();
             toast('Backup restaurado!', 'success');
@@ -1678,7 +2194,14 @@ function hcLimpar() { document.getElementById('hcData').value = ''; hcRegs = [];
 //                    EXPORTAR / IMPORTAR ESTADO
 // ================================================================
 function exportarEstado() {
-    var estado = { versao: 'enc_backup_v1', data: new Date().toLocaleString('pt-BR'), timestamp: Date.now(), B: B, estoque: estoque, fila: fila, origNm: origNm, confStatus: confStatus, confOcultos: confOcultos, estFiltros: estFiltros };
+    var estado = {
+        versao: 'enc_backup_v1',
+        data: new Date().toLocaleString('pt-BR'),
+        timestamp: Date.now(),
+        B: B, estoque: estoque, fila: fila, origNm: origNm,
+        confStatus: confStatus, confOcultos: confOcultos,
+        estFiltros: estFiltros, estObservacoes: estObservacoes
+    };
     try {
         var estadoLimpo = JSON.parse(JSON.stringify(estado));
         for (var i = 0; i < estadoLimpo.B.length; i++) { if (estadoLimpo.B[i].foto) { estadoLimpo.B[i].temFoto = true; estadoLimpo.B[i].foto = null; } }
@@ -1701,6 +2224,7 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js').
 // ================================================================
 try { carregarTema(); } catch (e) { console.error('Erro carregarTema:', e); }
 try { carregarConferencia(); } catch (e) { console.error('Erro carregarConferencia:', e); }
+try { carregarObservacoes(); } catch (e) { console.error('Erro carregarObservacoes:', e); }
 try { load(); } catch (e) { console.error('Erro load:', e); }
 </script>
 </body>
