@@ -304,6 +304,8 @@
         <div class="menu-item" onclick="toggleMenu();abrirConferencia();"><div class="mi-icon">✅</div><div class="mi-text"><div class="mi-title">Conferência</div><div class="mi-desc">Verificar bobinas do estoque</div></div></div>
         <div class="menu-item" onclick="toggleMenu();abrirHistoricoUnificado();"><div class="mi-icon">🗄️</div><div class="mi-text"><div class="mi-title">Histórico</div><div class="mi-desc">Encaixes e conferências no Firebase</div></div></div>
         <div class="menu-sep"></div>
+<div class="menu-item" onclick="toggleMenu();abrirDashboard();"><div class="mi-icon">📊</div><div class="mi-text"><div class="mi-title">Dashboard</div><div class="mi-desc">Gráficos e análises</div></div></div>
+<div class="menu-item" onclick="toggleMenu();abrirIdadeBobinas();"><div class="mi-icon">⏳</div><div class="mi-text"><div class="mi-title">Bobinas Paradas</div><div class="mi-desc">Tempo sem encaixe</div></div></div>
         <div class="menu-item" onclick="toggleMenu();abrirProblemas();"><div class="mi-icon">⚠️</div><div class="mi-text"><div class="mi-title">Relatório de Erros</div><div class="mi-desc">Problemas do último cálculo</div></div></div>
         <div class="menu-item" onclick="toggleTema();"><div class="mi-icon" id="temaIcon">🌙</div><div class="mi-text"><div class="mi-title" id="temaLabel">Modo Escuro</div><div class="mi-desc">Alternar tema claro/escuro</div></div></div>
         <div class="menu-sep"></div>
@@ -524,6 +526,8 @@ var confFiltros = { enc: true, sem: true, ok: true, metal: true, oculto: true };
 var ultimosProblemasImportacaoEstoque = [];
 var undoStack = [];
 var fotoRotacao = 0;
+var camEtapa = 1; // 1=etiqueta, 2=bobina
+var fotoEtiqueta = null;
 var estObservacoes = {}; // MELHORIA 8: observações persistentes
 
 // ================================================================
@@ -1071,23 +1075,33 @@ function fil(tipo) {
 // ================================================================
 async function openCam(bi) {
     curB = bi; var b = B[bi];
-    document.getElementById('ci').innerHTML = 'OP <strong>' + b.enc + '</strong> | ' + b.item + ' / v' + b.ver + ' | ' + b.qtde + ' kg';
-    document.getElementById('cv').style.display = 'block'; document.getElementById('cp').style.display = 'none';
+    camEtapa = 1; fotoEtiqueta = null; fotoRotacao = 0;
+    document.getElementById('ci').innerHTML = 
+        'OP <strong>' + b.enc + '</strong> | ' + b.item + ' / v' + b.ver + ' | ' + b.qtde + ' kg' +
+        '<div style="margin-top:4px;font-size:0.85em;background:#eff6ff;padding:3px 8px;border-radius:6px;display:inline-block;">📸 Passo 1 de 2: Etiqueta</div>';
+    document.getElementById('cv').style.display = 'block';
+    document.getElementById('cp').style.display = 'none';
     camBt('cap'); document.getElementById('cm').classList.add('active');
-    try { strm = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } }); document.getElementById('cv').srcObject = strm; }
-    catch (e) { toast('Erro ao abrir câmera', 'error'); xM('cm'); }
+    try {
+        strm = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
+        document.getElementById('cv').srcObject = strm;
+    } catch (e) { toast('Erro ao abrir câmera', 'error'); xM('cm'); }
 }
 
 function camBt(s) {
     var c = document.getElementById('cbt');
+    var b = curB !== null ? B[curB] : null;
+    var passoLabel = camEtapa === 1 ? '📷 Etiqueta' : '📦 Bobina';
     if (s === 'cap') {
         c.innerHTML = '<button class="cam-b cr" onclick="xCam()">✖ Fechar</button>' +
-            '<button class="cam-b cg" onclick="snap()">📸 Capturar</button>';
+            '<button class="cam-b cg" onclick="snap()">📸 ' + passoLabel + '</button>';
     } else {
         c.innerHTML = '<button class="cam-b cr" onclick="xCam()">✖ Fechar</button>' +
             '<button class="cam-b co" onclick="redo()">🔄 Refazer</button>' +
             '<button class="cam-b co" onclick="girarFoto()">↻ Girar</button>' +
-            '<button class="cam-b cg" onclick="conf()">✅ Confirmar</button>';
+            '<button class="cam-b cg" onclick="conf()">✅ OK</button>';
     }
 }
 
@@ -1095,21 +1109,56 @@ function snap() {
     var vid = document.getElementById('cv'), can = document.getElementById('cc'), prev = document.getElementById('cp');
     can.width = vid.videoWidth; can.height = vid.videoHeight;
     var ctx = can.getContext('2d'); ctx.drawImage(vid, 0, 0);
-    var b = B[curB], tx = b.item + ' | OP ' + b.enc + ' | ' + b.qtde + 'kg | ' + new Date().toLocaleString('pt-BR');
-    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, can.height - 32, can.width, 32);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 13px Arial'; ctx.fillText(tx, 6, can.height - 10);
-    foto = can.toDataURL('image/jpeg', 0.95); prev.src = foto; prev.style.display = 'block'; vid.style.display = 'none';
-    fotoRotacao = 0;
-    camBt('prev');
+    var b = B[curB];
+    if (camEtapa === 2) {
+        // Foto da bobina — adiciona legenda
+        var tx = b.item + ' | OP ' + b.enc + ' | ' + b.qtde + 'kg | ' + new Date().toLocaleString('pt-BR');
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, can.height - 32, can.width, 32);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 13px Arial'; ctx.fillText(tx, 6, can.height - 10);
+    } else {
+        // Foto da etiqueta — legenda simples
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, can.height - 32, can.width, 32);
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 13px Arial';
+        ctx.fillText('ETIQUETA | ' + b.item + ' | ' + new Date().toLocaleString('pt-BR'), 6, can.height - 10);
+    }
+    foto = can.toDataURL('image/jpeg', 0.95);
+    prev.src = foto; prev.style.display = 'block'; vid.style.display = 'none';
+    fotoRotacao = 0; camBt('prev');
 }
 
 function conf() {
     var b = B[curB];
+
+    function finalizarFoto(fotoFinal) {
+        if (camEtapa === 1) {
+            // Salvou etiqueta, vai para passo 2
+            fotoEtiqueta = fotoFinal;
+            camEtapa = 2; fotoRotacao = 0;
+            document.getElementById('ci').innerHTML =
+                'OP <strong>' + b.enc + '</strong> | ' + b.item + ' / v' + b.ver + ' | ' + b.qtde + ' kg' +
+                '<div style="margin-top:4px;font-size:0.85em;background:#dcfce7;padding:3px 8px;border-radius:6px;display:inline-block;">✅ Etiqueta OK → 📸 Passo 2 de 2: Bobina</div>';
+            // Volta câmera ao vivo
+            document.getElementById('cp').style.display = 'none';
+            document.getElementById('cp').className = '';
+            document.getElementById('cv').style.display = 'block';
+            foto = null; camBt('cap');
+        } else {
+            // Salvou bobina — finaliza
+            b.foto = fotoFinal;
+            b.fotoEtiqueta = fotoEtiqueta;
+            b.ok = true;
+            b.fotoNm = 'foto_' + b.item + '_OP' + b.enc + '_' + Date.now() + '.jpg';
+            toast(b.item + ' (' + b.qtde + 'kg) ✔', 'success', 2000);
+            fotoRotacao = 0; fotoEtiqueta = null; camEtapa = 1;
+            xCam(); save(); build();
+            if (document.getElementById('fsView').classList.contains('active')) renderFS();
+        }
+    }
+
     if (fotoRotacao !== 0) {
         var img = new Image();
         img.onload = function() {
-            var can = document.getElementById('cc');
-            var ctx = can.getContext('2d');
+            var can = document.getElementById('cc'), ctx = can.getContext('2d');
             if (fotoRotacao === 90 || fotoRotacao === 270) { can.width = img.height; can.height = img.width; }
             else { can.width = img.width; can.height = img.height; }
             ctx.save();
@@ -1117,21 +1166,16 @@ function conf() {
             ctx.rotate(fotoRotacao * Math.PI / 180);
             ctx.drawImage(img, -img.width / 2, -img.height / 2);
             ctx.restore();
-            var tx = b.item + ' | OP ' + b.enc + ' | ' + b.qtde + 'kg | ' + new Date().toLocaleString('pt-BR');
-            ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, can.height - 32, can.width, 32);
-            ctx.fillStyle = '#fff'; ctx.font = 'bold 13px Arial'; ctx.fillText(tx, 6, can.height - 10);
-            b.foto = can.toDataURL('image/jpeg', 0.95);
-            b.ok = true; b.fotoNm = 'foto_' + b.item + '_OP' + b.enc + '_' + Date.now() + '.jpg';
-            toast(b.item + ' (' + b.qtde + 'kg) ✔', 'success', 2000);
-            fotoRotacao = 0; xCam(); save(); build();
-            if (document.getElementById('fsView').classList.contains('active')) renderFS();
+            if (camEtapa === 2) {
+                var tx = b.item + ' | OP ' + b.enc + ' | ' + b.qtde + 'kg | ' + new Date().toLocaleString('pt-BR');
+                ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, can.height - 32, can.width, 32);
+                ctx.fillStyle = '#fff'; ctx.font = 'bold 13px Arial'; ctx.fillText(tx, 6, can.height - 10);
+            }
+            finalizarFoto(can.toDataURL('image/jpeg', 0.95));
         };
         img.src = foto;
     } else {
-        b.foto = foto; b.ok = true; b.fotoNm = 'foto_' + b.item + '_OP' + b.enc + '_' + Date.now() + '.jpg';
-        toast(b.item + ' (' + b.qtde + 'kg) ✔', 'success', 2000);
-        xCam(); save(); build();
-        if (document.getElementById('fsView').classList.contains('active')) renderFS();
+        finalizarFoto(foto);
     }
 }
 
@@ -1155,7 +1199,7 @@ function xCam() {
     document.getElementById('cm').classList.remove('active');
     document.getElementById('cp').className = '';
     if (strm) { strm.getTracks().forEach(function(t) { t.stop(); }); strm = null; }
-    foto = null; curB = null; fotoRotacao = 0;
+    foto = null; fotoEtiqueta = null; curB = null; fotoRotacao = 0; camEtapa = 1;
 }
 
 // ================================================================
@@ -1273,8 +1317,342 @@ function splitGerarCampos(bi) {
         '</div>';
     }
     html += '</div>';
-    container.innerHTML = html;
+            container.innerHTML = html;
 
+// ================================================================
+//                    DASHBOARD
+// ================================================================
+function abrirDashboard() {
+    document.getElementById('dashModal').classList.add('active');
+    carregarDashboard();
+}
+
+async function carregarDashboard() {
+    var body = document.getElementById('dashBody');
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:#2563eb;">⏳ Carregando...</div>';
+    var dias = parseInt(document.getElementById('dashPeriodo').value) || 30;
+    var dataInicio = new Date(); dataInicio.setDate(dataInicio.getDate() - dias); dataInicio.setHours(0,0,0,0);
+
+    try {
+        // Busca encaixes
+        var snapEnc = await db.collection('encaixes')
+            .where('timestamp', '>=', dataInicio)
+            .orderBy('timestamp', 'desc')
+            .limit(2000).get();
+
+        // Busca conferências
+        var snapConf = await db.collection('conferencias')
+            .where('timestamp', '>=', dataInicio)
+            .orderBy('timestamp', 'desc')
+            .limit(2000).get();
+
+        var regsEnc = [], regsConf = [];
+        snapEnc.forEach(function(doc) { regsEnc.push(doc.data()); });
+        snapConf.forEach(function(doc) { regsConf.push(doc.data()); });
+
+        // Agrupa encaixes por dia
+        var porDia = {}, lotesSet = {}, opsSet = {};
+        regsEnc.forEach(function(r) {
+            var d = r.data ? r.data.split(' ')[0] : '?';
+            if (!porDia[d]) porDia[d] = { bobs: 0, peso: 0 };
+            porDia[d].bobs++;
+            porDia[d].peso += parseFloat(r.qtde) || 0;
+            if (r.lote) lotesSet[r.lote] = true;
+            if (r.encaixe) opsSet[r.encaixe] = true;
+        });
+
+        // Estatísticas
+        var totalBobs = regsEnc.length, totalPeso = 0, totalEnc = 0, totalNao = 0;
+        regsEnc.forEach(function(r) { totalPeso += parseFloat(r.qtde) || 0; });
+        regsConf.forEach(function(r) {
+            if (r.status === 'ENCONTRADA') totalEnc++;
+            else if (r.status === 'NAO ENCONTRADA') totalNao++;
+        });
+
+        document.getElementById('dashSubtitle').textContent = 'Últimos ' + dias + ' dias | ' + totalBobs + ' encaixes';
+
+        // Monta dias em ordem
+        var dias7 = [], hoje = new Date();
+        for (var d = dias - 1; d >= 0; d--) {
+            var dt = new Date(hoje); dt.setDate(dt.getDate() - d);
+            var key = dt.toLocaleDateString('pt-BR');
+            dias7.push({ key: key, data: dt });
+        }
+        var maxBobs = 1;
+        dias7.forEach(function(d) { var v = porDia[d.key] ? porDia[d.key].bobs : 0; if (v > maxBobs) maxBobs = v; });
+
+        var html = '';
+
+        // Cards de resumo
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">';
+        html += cardDash('📦', totalBobs, 'Encaixes', '#2563eb');
+        html += cardDash('⚖️', Math.round(totalPeso) + 'kg', 'Peso total', '#10b981');
+        html += cardDash('🗂️', Object.keys(lotesSet).length, 'Lotes', '#8b5cf6');
+        html += cardDash('🏭', Object.keys(opsSet).length, 'OPs únicas', '#f59e0b');
+        html += cardDash('✅', totalEnc, 'Conferidas', '#10b981');
+        html += cardDash('❌', totalNao, 'Não encontradas', '#ef4444');
+        html += '</div>';
+
+        // Gráfico de barras por dia
+        if (dias <= 30) {
+            html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;">';
+            html += '<div style="font-size:0.85em;font-weight:700;color:#1a1a2e;margin-bottom:10px;">📅 Encaixes por dia</div>';
+            html += '<div style="display:flex;align-items:flex-end;gap:3px;height:80px;overflow-x:auto;">';
+            dias7.forEach(function(d) {
+                var v = porDia[d.key] ? porDia[d.key].bobs : 0;
+                var h = maxBobs > 0 ? Math.round((v / maxBobs) * 70) : 0;
+                var isHoje = d.data.toDateString() === hoje.toDateString();
+                html += '<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:' + (dias <= 14 ? '28' : '18') + 'px;">';
+                if (v > 0) html += '<div style="font-size:0.45em;color:#2563eb;font-weight:700;margin-bottom:2px;">' + v + '</div>';
+                html += '<div style="width:100%;height:' + (h || 2) + 'px;background:' + (isHoje ? '#10b981' : (v > 0 ? '#2563eb' : '#e0e0e0')) + ';border-radius:3px 3px 0 0;min-height:2px;"></div>';
+                if (dias <= 14) html += '<div style="font-size:0.4em;color:#888;margin-top:2px;text-align:center;">' + d.data.getDate() + '/' + (d.data.getMonth()+1) + '</div>';
+                html += '</div>';
+            });
+            html += '</div></div>';
+        }
+
+        // Top OPs
+        var opCount = {};
+        regsEnc.forEach(function(r) { if (r.encaixe) { opCount[r.encaixe] = (opCount[r.encaixe] || 0) + 1; } });
+        var topOps = Object.keys(opCount).sort(function(a,b){return opCount[b]-opCount[a];}).slice(0,5);
+        if (topOps.length > 0) {
+            html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;">';
+            html += '<div style="font-size:0.85em;font-weight:700;color:#1a1a2e;margin-bottom:8px;">🏆 Top OPs</div>';
+            topOps.forEach(function(op, idx) {
+                html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;">';
+                html += '<div style="font-size:0.75em;font-weight:700;color:#2563eb;min-width:20px;">#' + (idx+1) + '</div>';
+                html += '<div style="font-size:0.8em;font-weight:600;flex:1;">OP ' + op + '</div>';
+                html += '<div style="font-size:0.75em;color:#888;">' + opCount[op] + ' bob</div>';
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        // Conferências por lote
+        if (regsConf.length > 0) {
+            var confLotes = {};
+            regsConf.forEach(function(r) {
+                var lk = r.lote || r.data || '?';
+                if (!confLotes[lk]) confLotes[lk] = { data: r.data, enc: 0, nao: 0 };
+                if (r.status === 'ENCONTRADA') confLotes[lk].enc++;
+                else confLotes[lk].nao++;
+            });
+            html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;">';
+            html += '<div style="font-size:0.85em;font-weight:700;color:#1a1a2e;margin-bottom:8px;">✅ Conferências</div>';
+            Object.keys(confLotes).forEach(function(lk) {
+                var cl = confLotes[lk];
+                var taxa = cl.enc + cl.nao > 0 ? Math.round(cl.enc / (cl.enc + cl.nao) * 100) : 0;
+                html += '<div style="padding:8px 0;border-bottom:1px solid #f0f0f0;">';
+                html += '<div style="font-size:0.75em;color:#888;">' + cl.data + '</div>';
+                html += '<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">';
+                html += '<div style="flex:1;height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden;"><div style="height:100%;width:' + taxa + '%;background:#10b981;border-radius:4px;"></div></div>';
+                html += '<div style="font-size:0.7em;font-weight:700;color:#10b981;">' + taxa + '%</div>';
+                html += '<div style="font-size:0.65em;color:#888;">✅' + cl.enc + ' ❌' + cl.nao + '</div>';
+                html += '</div></div>';
+            });
+            html += '</div>';
+        }
+
+        body.innerHTML = html;
+    } catch(err) {
+        body.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">❌ ' + err.message + '</div>';
+    }
+}
+
+function cardDash(icon, valor, label, cor) {
+    return '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;text-align:center;">' +
+        '<div style="font-size:1.5em;">' + icon + '</div>' +
+        '<div style="font-size:1.2em;font-weight:700;color:' + cor + ';margin-top:4px;">' + valor + '</div>' +
+        '<div style="font-size:0.6em;color:#888;margin-top:2px;">' + label + '</div>' +
+        '</div>';
+}
+
+// ================================================================
+//                    IDADE DAS BOBINAS
+// ================================================================
+function abrirIdadeBobinas() {
+    document.getElementById('idadeModal').classList.add('active');
+}
+
+async function carregarIdadeBobinas() {
+    var body = document.getElementById('idadeBody');
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:#f59e0b;">⏳ Buscando nas últimas 10 conferências...</div>';
+
+    try {
+        // Busca as últimas 10 conferências (lotes distintos)
+        var snap = await db.collection('conferencias')
+            .orderBy('timestamp', 'desc')
+            .limit(2000).get();
+
+        // Separa lotes distintos (últimos 10)
+        var lotesOrdem = [], lotesMap = {};
+        snap.forEach(function(doc) {
+            var d = doc.data();
+            var lk = d.lote || '';
+            if (lk && !lotesMap[lk]) {
+                lotesMap[lk] = { timestamp: d.timestamp, data: d.data || '' };
+                lotesOrdem.push(lk);
+            }
+        });
+        var ultimos10 = lotesOrdem.slice(0, 10);
+
+        // Para cada item do estoque atual, encontra a primeira vez que apareceu
+        var primeiraVez = {}; // { itemCode: { data, timestamp, diasAtras } }
+        snap.forEach(function(doc) {
+            var d = doc.data();
+            if (!d.item || ultimos10.indexOf(d.lote) === -1) return;
+            var item = d.item;
+            if (!primeiraVez[item] || (d.timestamp && primeiraVez[item].timestamp && d.timestamp.seconds < primeiraVez[item].timestamp.seconds)) {
+                primeiraVez[item] = { data: d.data || '', timestamp: d.timestamp, lote: d.lote };
+            }
+        });
+
+// Mescla datas manuais (têm prioridade)
+var manualDatas = {};
+try { manualDatas = JSON.parse(localStorage.getItem('enc_datas') || '{}'); } catch(e) {}
+Object.keys(manualDatas).forEach(function(item) {
+    var dt = new Date(manualDatas[item]);
+    if (!isNaN(dt.getTime())) {
+        primeiraVez[item] = {
+            data: dt.toLocaleDateString('pt-BR'),
+            timestamp: { toDate: function() { return dt; }, seconds: dt.getTime()/1000 },
+            lote: 'manual'
+        };
+    }
+});
+        // Calcula dias parado para cada item do estoque
+        var agora = new Date();
+        var itensParados = [];
+        for (var i = 0; i < estoque.length; i++) {
+            var e = estoque[i], ic = getItemEstoque(e);
+            if (/-4$/.test(ic)) continue; // ignora metalizados
+            if (confOcultos[ic]) continue; // ignora ocultos
+
+            var qtde = parseFloat(e['QTDE_ESTOQUE']) || 0;
+            var temEncaixe = false;
+            for (var b = 0; b < B.length; b++) { if (B[b].item === ic) { temEncaixe = true; break; } }
+
+            var diasParado = null, dataEntrada = null, origem = '';
+            if (primeiraVez[ic]) {
+                var pv = primeiraVez[ic];
+                if (pv.timestamp && pv.timestamp.toDate) {
+                    var dt = pv.timestamp.toDate();
+                    diasParado = Math.floor((agora - dt) / 86400000);
+                    dataEntrada = dt.toLocaleDateString('pt-BR');
+                    origem = 'conferência';
+                }
+            }
+
+            itensParados.push({
+                item: ic, ver: e['VERSAO'] || '', qtde: qtde,
+                temEncaixe: temEncaixe, diasParado: diasParado,
+                dataEntrada: dataEntrada, origem: origem,
+                desc: e['DESCRICAO'] || '', tipo: temCapa(ic) ? 'CAPA' : 'BASE'
+            });
+        }
+
+        // Ordena: sem data primeiro (desconhecido), depois por dias decrescente
+        itensParados.sort(function(a, b) {
+            if (a.diasParado === null && b.diasParado === null) return a.item.localeCompare(b.item);
+            if (a.diasParado === null) return -1;
+            if (b.diasParado === null) return 1;
+            return b.diasParado - a.diasParado;
+        });
+
+        document.getElementById('idadeSubtitle').textContent = itensParados.length + ' itens | ' + ultimos10.length + ' conferências analisadas';
+
+        if (itensParados.length === 0) {
+            body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;">📭 Sem dados</div>';
+            return;
+        }
+
+        // Separa por faixa
+        var semData = [], ate30 = [], de30a60 = [], de60a90 = [], mais90 = [];
+        itensParados.forEach(function(it) {
+            if (it.diasParado === null) semData.push(it);
+            else if (it.diasParado <= 30) ate30.push(it);
+            else if (it.diasParado <= 60) de30a60.push(it);
+            else if (it.diasParado <= 90) de60a90.push(it);
+            else mais90.push(it);
+        });
+
+        var html = '';
+
+        // Resumo
+        html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px;">';
+        html += cardDash('🟢', ate30.length, '≤30 dias', '#10b981');
+        html += cardDash('🟡', de30a60.length, '30-60d', '#f59e0b');
+        html += cardDash('🟠', de60a90.length, '60-90d', '#f97316');
+        html += cardDash('🔴', mais90.length, '>90 dias', '#ef4444');
+        html += '</div>';
+
+        function renderFaixa(lista, titulo, cor) {
+            if (lista.length === 0) return '';
+            var h = '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;margin-bottom:8px;overflow:hidden;">';
+            h += '<div style="padding:10px 14px;background:#f8fafc;font-size:0.82em;font-weight:700;color:' + cor + ';">' + titulo + ' (' + lista.length + ')</div>';
+            lista.forEach(function(it) {
+                var bgRow = it.temEncaixe ? '#f0fdf4' : '#fff';
+                h += '<div style="padding:10px 14px;border-bottom:1px solid #f0f0f0;background:' + bgRow + ';display:flex;align-items:center;gap:8px;">';
+                h += '<div style="font-size:1em;">' + (it.tipo === 'CAPA' ? '🔴' : '🔵') + '</div>';
+                h += '<div style="flex:1;min-width:0;">';
+                h += '<div style="font-size:0.82em;font-weight:600;font-family:monospace;">' + it.item + ' <span style="font-size:0.8em;color:#aaa;">v' + it.ver + '</span></div>';
+                h += '<div style="font-size:0.65em;color:#888;margin-top:2px;">';
+                if (it.dataEntrada) h += '📅 desde ' + it.dataEntrada;
+                else h += '📅 data desconhecida';
+                if (it.temEncaixe) h += ' <span style="color:#10b981;font-weight:600;">● com encaixe</span>';
+                h += '</div></div>';
+                h += '<div style="text-align:right;flex-shrink:0;">';
+                h += '<div style="font-size:0.85em;font-weight:700;color:#1a1a2e;">' + Math.round(it.qtde) + 'kg</div>';
+                if (it.diasParado !== null) {
+                    var corDias = it.diasParado > 90 ? '#ef4444' : (it.diasParado > 60 ? '#f97316' : (it.diasParado > 30 ? '#f59e0b' : '#10b981'));
+                    h += '<div style="font-size:0.65em;font-weight:700;color:' + corDias + ';">' + it.diasParado + ' dias</div>';
+                } else {
+                    h += '<div style="font-size:0.6em;color:#aaa;">? dias</div>';
+                    h += '<button onclick="idadeEditarData(\'' + it.item + '\')" style="margin-top:2px;padding:2px 6px;border:1px solid #e0e0e0;border-radius:6px;background:#fff;color:#2563eb;font-size:0.6em;cursor:pointer;">📅 Definir</button>';
+                }
+                h += '</div></div>';
+            });
+            h += '</div>';
+            return h;
+        }
+
+        if (mais90.length > 0) html += renderFaixa(mais90, '🔴 Mais de 90 dias', '#ef4444');
+        if (de60a90.length > 0) html += renderFaixa(de60a90, '🟠 60 a 90 dias', '#f97316');
+        if (de30a60.length > 0) html += renderFaixa(de30a60, '🟡 30 a 60 dias', '#f59e0b');
+        if (ate30.length > 0) html += renderFaixa(ate30, '🟢 Até 30 dias', '#10b981');
+        if (semData.length > 0) html += renderFaixa(semData, '⚪ Data desconhecida', '#94a3b8');
+
+        body.innerHTML = html;
+    } catch(err) {
+        body.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">❌ ' + err.message + '</div>';
+    }
+}
+
+function idadeEditarData(item) {
+    criarModal('idadeDataModal',
+        '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:4px;">📅 Data de entrada</h3>' +
+        '<p style="font-size:0.75em;color:#888;margin-bottom:14px;">' + item + '</p>' +
+        '<input type="date" id="idadeDataInput" style="width:100%;padding:12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;">' +
+        '<div style="display:flex;gap:8px;margin-top:14px;">' +
+            '<button onclick="fecharModal(\'idadeDataModal\')" style="padding:12px 16px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;cursor:pointer;">Cancelar</button>' +
+            '<button onclick="idadeSalvarData(\'' + item + '\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">💾 Salvar</button>' +
+        '</div>'
+    );
+    setTimeout(function() { document.getElementById('idadeDataInput').focus(); }, 100);
+}
+
+function idadeSalvarData(item) {
+    var val = document.getElementById('idadeDataInput').value;
+    if (!val) { toast('Selecione uma data!', 'error'); return; }
+    // Salva no localStorage como data manual
+    var manualDatas = {};
+    try { manualDatas = JSON.parse(localStorage.getItem('enc_datas') || '{}'); } catch(e) {}
+    manualDatas[item] = val;
+    localStorage.setItem('enc_datas', JSON.stringify(manualDatas));
+    fecharModal('idadeDataModal');
+    toast(item + ' → data salva', 'success');
+    carregarIdadeBobinas();
+}
     // Listeners para atualizar info
     var inputs = container.querySelectorAll('.splitPesoInput');
     inputs.forEach(function(inp) {
@@ -1908,7 +2286,26 @@ async function shareFotos() {
     xM('fm'); var lo = document.getElementById('lo'), lt = document.getElementById('lt'); lo.classList.add('active'); lt.textContent = 'Preparando fotos...';
     try {
         var arquivos = [], contPorOp = {};
-        for (var i = 0; i < G.length; i++) { var g = G[i]; for (var b = 0; b < g.bs.length; b++) { var bob = B[g.bs[b]]; if (!bob.foto) continue; contPorOp[g.enc] = (contPorOp[g.enc] || 0) + 1; var n = contPorOp[g.enc]; var nome = g.enc + (n > 1 ? ' (' + n + ')' : '') + '.jpg'; try { var r = await fetch(bob.foto); var bl = await r.blob(); arquivos.push(new File([bl], nome, { type: 'image/jpeg' })); } catch (e) {} } }
+        for (var i = 0; i < G.length; i++) {
+    var g = G[i];
+    for (var b = 0; b < g.bs.length; b++) {
+        var bob = B[g.bs[b]];
+        // Foto da etiqueta
+        if (bob.fotoEtiqueta) {
+            contPorOp[g.enc] = (contPorOp[g.enc] || 0) + 1;
+            var n = contPorOp[g.enc];
+            var nomeEt = g.enc + (n > 1 ? ' (' + n + ')' : '') + '_etiqueta.jpg';
+            try { var r = await fetch(bob.fotoEtiqueta); var bl = await r.blob(); arquivos.push(new File([bl], nomeEt, { type: 'image/jpeg' })); } catch(e) {}
+        }
+        // Foto da bobina
+        if (bob.foto) {
+            contPorOp[g.enc] = (contPorOp[g.enc] || 0) + 1;
+            var n2 = contPorOp[g.enc];
+            var nome = g.enc + (n2 > 1 ? ' (' + n2 + ')' : '') + '.jpg';
+            try { var r2 = await fetch(bob.foto); var bl2 = await r2.blob(); arquivos.push(new File([bl2], nome, { type: 'image/jpeg' })); } catch(e) {}
+        }
+    }
+}
 
         lt.textContent = 'Gerando relatório...';
 
@@ -2053,7 +2450,7 @@ function abrirModalObs(item) {
 //                    LISTENERS
 // ================================================================
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') { xCam(); xM('amPeso'); xM('amNew'); xM('fm'); xM('ao'); xM('probModal'); xM('estModal'); xM('histModal'); xM('confModal'); xM('dbgModal'); xM('histConfModal'); fecharFS(); var hem = document.getElementById('histEscolhaModal'); if (hem) hem.remove(); var mp = document.getElementById('menuPanel'); if (mp && mp.classList.contains('active')) toggleMenu(); }
+    if (e.key === 'Escape') { xCam(); xM('amPeso'); xM('amNew'); xM('fm'); xM('ao'); xM('probModal'); xM('estModal'); xM('histModal'); xM('confModal'); xM('dbgModal'); xM('histConfModal'); xM('dashModal'); xM('idadeModal'); fecharFS(); var hem = document.getElementById('histEscolhaModal'); if (hem) hem.remove(); var mp = document.getElementById('menuPanel'); if (mp && mp.classList.contains('active')) toggleMenu(); }
 });
 
 function addL(id, evt, fn) { var el = document.getElementById(id); if (el) el.addEventListener(evt, fn); }
@@ -2083,6 +2480,8 @@ addL('fileEstado', 'change', function(e) {
     };
     r.readAsText(f, 'UTF-8'); e.target.value = '';
 });
+
+
 
 // ================================================================
 //                    FIREBASE
@@ -2227,5 +2626,39 @@ try { carregarConferencia(); } catch (e) { console.error('Erro carregarConferenc
 try { carregarObservacoes(); } catch (e) { console.error('Erro carregarObservacoes:', e); }
 try { load(); } catch (e) { console.error('Erro load:', e); }
 </script>
+
+<div class="modal modal-full" id="dashModal" style="background:#f0f2f5;">
+    <div class="modal-head">
+        <div class="modal-head-info"><h3>📊 Dashboard</h3><p id="dashSubtitle">Análise do histórico</p></div>
+        <button class="btn-close" onclick="xM('dashModal')">✖</button>
+    </div>
+    <div style="padding:10px 14px;flex-shrink:0;display:flex;gap:6px;">
+        <select id="dashPeriodo" style="flex:1;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#fff;color:#333;font-size:0.85em;">
+            <option value="7">Últimos 7 dias</option>
+            <option value="30" selected>Últimos 30 dias</option>
+            <option value="90">Últimos 90 dias</option>
+        </select>
+        <button onclick="carregarDashboard()" style="flex:1;padding:10px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-size:0.85em;font-weight:600;cursor:pointer;">🔄 Atualizar</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:6px 12px 20px;-webkit-overflow-scrolling:touch;" id="dashBody">
+        <div style="text-align:center;padding:40px;color:#aaa;"><div style="font-size:2.5em;">📊</div><p>Clique em Atualizar</p></div>
+    </div>
+</div>
+
+<div class="modal modal-full" id="idadeModal" style="background:#f0f2f5;">
+    <div class="modal-head">
+        <div class="modal-head-info"><h3>⏳ Bobinas Paradas</h3><p id="idadeSubtitle">Tempo sem encaixe</p></div>
+        <button class="btn-close" onclick="xM('idadeModal')">✖</button>
+    </div>
+    <div style="padding:10px 14px;flex-shrink:0;display:flex;gap:6px;align-items:center;">
+        <div style="font-size:0.75em;color:#888;flex:1;">Baseado nas últimas 10 conferências do Firebase</div>
+        <button onclick="carregarIdadeBobinas()" style="padding:10px 16px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:0.85em;font-weight:600;cursor:pointer;">🔍 Buscar</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:6px 12px 20px;-webkit-overflow-scrolling:touch;" id="idadeBody">
+        <div style="text-align:center;padding:40px;color:#aaa;"><div style="font-size:2.5em;">⏳</div><p>Clique em Buscar</p></div>
+    </div>
+</div>
+
+
 </body>
 </html>
