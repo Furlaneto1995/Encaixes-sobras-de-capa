@@ -1673,11 +1673,11 @@ try {
                 if (it.dataEntrada) h += '📅 desde ' + it.dataEntrada; else h += '📅 data desconhecida';
                 if (it.temEncaixe) h += ' <span style="color:#10b981;font-weight:600;">● com encaixe</span>';
                 h += '</div></div><div style="text-align:right;flex-shrink:0;"><div style="font-size:0.85em;font-weight:700;color:#1a1a2e;">' + Math.round(it.qtde) + 'kg</div>';
-                if (it.diasParado !== null) {
-                    var corDias = it.diasParado > 90 ? '#ef4444' : (it.diasParado > 60 ? '#f97316' : (it.diasParado > 30 ? '#f59e0b' : '#10b981'));
+                                if (it.diasParado !== null) {
+                    var corDias = it.diasParado > 180 ? '#ef4444' : (it.diasParado > 90 ? '#f97316' : (it.diasParado > 30 ? '#f59e0b' : '#10b981'));
                     h += '<div style="font-size:0.65em;font-weight:700;color:' + corDias + ';">' + it.diasParado + ' dias</div>';
-                } else {
-                    h += '<div style="font-size:0.6em;color:#aaa;">? dias</div><button onclick="idadeEditarData(\'' + it.item + '\')" style="margin-top:2px;padding:2px 6px;border:1px solid #e0e0e0;border-radius:6px;background:#fff;color:#2563eb;font-size:0.6em;cursor:pointer;">📅 Definir</button>';
+                }
+                h += '<button onclick="idadeEditarData(\'' + it.item.replace(/'/g, "\\'") + '\')" style="margin-top:2px;padding:2px 6px;border:1px solid #e0e0e0;border-radius:6px;background:#fff;color:' + (it.diasParado !== null ? '#888' : '#2563eb') + ';font-size:0.55em;cursor:pointer;">' + (it.diasParado !== null ? '✏️' : '📅 Definir') + '</button>';
                 }
                 h += '</div></div>';
             });
