@@ -321,6 +321,27 @@ function cardDash(icon, valor, label, cor) {
     }
 }
 
+/* Largura padrão para todas as telas */
+#estBody, #confBody, #dashBody, #idadeBody, #hBody, #hcBody, #dbgBody, #probBody, #fsBody {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+}
+#estBody *, #confBody *, #dashBody *, #idadeBody *, #hBody *, #hcBody *, #dbgBody * {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+.modal-full {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+}
+#estModal > div:nth-child(4) > div,
+#confModal > div:nth-child(4) > div {
+    overflow: hidden !important;
+}
+
 
     </style>
 </head>
@@ -966,8 +987,10 @@ document.getElementById('fileEstoque').addEventListener('change', function(e) {
     var f = e.target.files[0]; if (!f) return;
     var r = new FileReader();
     if (f.name.endsWith('.csv')) {
-        r.onload = function(ev) {
-            estoque = parseCSV(ev.target.result); infoEstoque();
+       r.onload = function(ev) {
+    var estoqueAnterior = estoque.length > 0 ? estoque.slice() : [];
+    estoque = parseCSV(ev.target.result); infoEstoque();
+    if (estoqueAnterior.length > 0) compararEstoques(estoqueAnterior, estoque);
             ultimosProblemasImportacaoEstoque = validarEstoqueImportado();
             var nVal = 0, nMetal = 0;
             for (var vi = 0; vi < estoque.length; vi++) { if (/-4$/.test(getItemEstoque(estoque[vi]))) nMetal++; else nVal++; }
@@ -977,9 +1000,11 @@ document.getElementById('fileEstoque').addEventListener('change', function(e) {
         r.readAsText(f, 'UTF-8');
     } else {
         r.onload = function(ev) {
-            var wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
-            estoque = parseTabela(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 }));
-            infoEstoque();
+    var estoqueAnterior = estoque.length > 0 ? estoque.slice() : [];
+    var wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+    estoque = parseTabela(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 }));
+    infoEstoque();
+    if (estoqueAnterior.length > 0) compararEstoques(estoqueAnterior, estoque);
             ultimosProblemasImportacaoEstoque = validarEstoqueImportado();
             var nVal = 0, nMetal = 0;
             for (var vi = 0; vi < estoque.length; vi++) { if (/-4$/.test(getItemEstoque(estoque[vi]))) nMetal++; else nVal++; }
@@ -1565,7 +1590,18 @@ async function carregarIdadeBobinas() {
         });
 
         var manualDatas = {};
-        try { manualDatas = JSON.parse(localStorage.getItem('enc_datas') || '{}'); } catch(e) {}
+try { manualDatas = JSON.parse(localStorage.getItem('enc_datas') || '{}'); } catch(e) {}
+
+// Busca datas manuais do Firebase também
+try {
+    var snapDatas = await db.collection('datas_manuais').get();
+    snapDatas.forEach(function(doc) {
+        var d = doc.data();
+        if (d.item && d.data && !manualDatas[d.item]) {
+            manualDatas[d.item] = d.data;
+        }
+    });
+} catch(e) {}
         Object.keys(manualDatas).forEach(function(item) {
             var dt = new Date(manualDatas[item]);
             if (!isNaN(dt.getTime())) {
@@ -1658,13 +1694,25 @@ function idadeEditarData(item) {
     setTimeout(function() { document.getElementById('idadeDataInput').focus(); }, 100);
 }
 
-function idadeSalvarData(item) {
+async function idadeSalvarData(item) {
     var val = document.getElementById('idadeDataInput').value;
     if (!val) { toast('Selecione uma data!', 'error'); return; }
+
+    // Salva no localStorage
     var manualDatas = {};
     try { manualDatas = JSON.parse(localStorage.getItem('enc_datas') || '{}'); } catch(e) {}
     manualDatas[item] = val;
     localStorage.setItem('enc_datas', JSON.stringify(manualDatas));
+
+    // Salva no Firebase
+    try {
+        await db.collection('datas_manuais').doc(item).set({
+            item: item,
+            data: val,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    } catch(e) { console.error('Erro ao salvar data no Firebase:', e); }
+
     fecharModal('idadeDataModal');
     toast(item + ' → data salva', 'success');
     carregarIdadeBobinas();
@@ -2036,16 +2084,67 @@ function estCSV() {
     if (estoque.length === 0) { toast('Importe o estoque', 'warning'); return; }
     var enc = {}, encCount = {};
     for (var b = 0; b < B.length; b++) { enc[B[b].item] = B[b].enc; encCount[B[b].item] = (encCount[B[b].item] || 0) + 1; }
-    var encUsado = {}, csv = 'ITEM;VERSAO;LARGURA;ESPESSURA;COMPOSICAO;PIGMENTO;QTDE;TIPO;ENCAIXE\n';
+    var encUsado = {};
+
+    // Busca datas manuais
+    var manualDatas = {};
+    try { manualDatas = JSON.parse(localStorage.getItem('enc_datas') || '{}'); } catch(e) {}
+
+    var csv = 'ITEM;VERSAO;LARGURA;ESPESSURA;MATERIAL;PIGMENTO;QTDE;TIPO;STATUS;ENCAIXE;OBSERVACAO;IDADE_DIAS;DATA_ENTRADA\n';
+
     for (var i = 0; i < estoque.length; i++) {
-        var e = estoque[i], ic = getItemEstoque(e); if (/-4$/.test(ic)) continue;
+        var e = estoque[i], ic = getItemEstoque(e);
+        if (/-4$/.test(ic)) continue;
         var desc = e['DESCRICAO'] || '', eop = '';
-        if (enc[ic]) { var usado = encUsado[ic] || 0; if (usado < (encCount[ic] || 0)) { eop = enc[ic]; encUsado[ic] = usado + 1; } }
-        csv += ic + ';' + (e['VERSAO'] || '') + ';' + extrairLargura(desc) + ';' + extrairEspessura(desc) + ';' + normalizarComposicao(e['COMPOSICAO'] || '') + ';' + normalizarPigmentado(e['PIGMENTADO'] || '') + ';' + (parseFloat(e['QTDE_ESTOQUE']) || 0) + ';' + (temCapa(ic) ? 'CAPA' : 'BASE') + ';' + eop + '\n';
+        var isMetal = /-4$/.test(ic);
+        var isOculto = confOcultos[ic] === true;
+        var material = e['MATERIAL'] || '';
+        var obs = estObservacoes[ic] || '';
+        var dataEntrada = manualDatas[ic] || '';
+        var diasParado = '';
+
+        if (dataEntrada) {
+            var dt = new Date(dataEntrada);
+            if (!isNaN(dt.getTime())) {
+                diasParado = Math.floor((new Date() - dt) / 86400000);
+                dataEntrada = dt.toLocaleDateString('pt-BR');
+            }
+        }
+
+        // Status
+        var status = '';
+        if (isOculto) status = 'OCULTA';
+        else if (enc[ic]) {
+            var usado = encUsado[ic] || 0;
+            if (usado < (encCount[ic] || 0)) { eop = enc[ic]; encUsado[ic] = usado + 1; status = 'ENCAIXADA'; }
+            else status = 'SEM ENCAIXE';
+        } else {
+            status = 'SEM ENCAIXE';
+        }
+
+        csv += ic + ';' +
+            (e['VERSAO'] || '') + ';' +
+            extrairLargura(desc) + ';' +
+            extrairEspessura(desc) + ';' +
+            material + ';' +
+            normalizarPigmentado(e['PIGMENTADO'] || '') + ';' +
+            (parseFloat(e['QTDE_ESTOQUE']) || 0) + ';' +
+            (temCapa(ic) ? 'CAPA' : 'BASE') + ';' +
+            status + ';' +
+            eop + ';' +
+            obs.replace(/;/g, ',') + ';' +
+            diasParado + ';' +
+            dataEntrada + '\n';
     }
+
     var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-    var link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'estoque_' + new Date().toISOString().slice(0, 10) + '.csv';
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    var link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'estoque_completo_' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast('CSV exportado com todas as informações', 'success');
 }
 
 function estToggleOculto(item) {
@@ -2180,7 +2279,7 @@ async function confPedirEndereco(key) {
         '<input type="text" id="confEndInput" placeholder="Ex: Corredor A, Prateleira 3" ' +
         'style="width:100%;padding:12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;">' +
         '<div style="display:flex;gap:8px;margin-top:14px;">' +
-        '<button onclick="document.getElementById(\'confEndModal\').remove()" style="padding:12px 16px;border:none;border-radius:10px;background:#ef4444;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">✖</button>' +
+        '<button onclick="document.getElementById(\'confEndModal\').remove()" style="padding:12px 16px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;font-weight:600;cursor:pointer;">Cancelar</button>' +
         btnSugestao +
         '<button onclick="confConfirmarEndereco(\'' + key + '\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">✅ Confirmar</button>' +
         '</div></div>';
@@ -2496,6 +2595,109 @@ function abrirModalObs(item) {
         '</div>'
     );
     setTimeout(function() { var el = document.getElementById('obsInput'); if (el) el.focus(); }, 100);
+}
+
+// ================================================================
+//                    COMPARAR ESTOQUES
+// ================================================================
+function compararEstoques(anterior, atual) {
+    var antMap = {}, atuMap = {};
+
+    for (var i = 0; i < anterior.length; i++) {
+        var ic = getItemEstoque(anterior[i]);
+        if (!ic || /-4$/.test(ic)) continue;
+        var qtde = parseFloat(anterior[i]['QTDE_ESTOQUE']) || 0;
+        var key = ic + '_' + qtde;
+        antMap[key] = { item: ic, qtde: qtde, ver: anterior[i]['VERSAO'] || '', material: anterior[i]['MATERIAL'] || '' };
+    }
+
+    for (var j = 0; j < atual.length; j++) {
+        var ic2 = getItemEstoque(atual[j]);
+        if (!ic2 || /-4$/.test(ic2)) continue;
+        var qtde2 = parseFloat(atual[j]['QTDE_ESTOQUE']) || 0;
+        var key2 = ic2 + '_' + qtde2;
+        atuMap[key2] = { item: ic2, qtde: qtde2, ver: atual[j]['VERSAO'] || '', material: atual[j]['MATERIAL'] || '' };
+    }
+
+    var novas = [], sumiram = [], pesoAntes = 0, pesoAgora = 0, bobAntes = 0, bobAgora = 0;
+
+    // Novas: estão no atual mas não no anterior
+    for (var ka in atuMap) {
+        bobAgora++;
+        pesoAgora += atuMap[ka].qtde;
+        if (!antMap[ka]) novas.push(atuMap[ka]);
+    }
+
+    // Sumiram: estão no anterior mas não no atual
+    for (var kb in antMap) {
+        bobAntes++;
+        pesoAntes += antMap[kb].qtde;
+        if (!atuMap[kb]) sumiram.push(antMap[kb]);
+    }
+
+    if (novas.length === 0 && sumiram.length === 0) {
+        toast('Estoque idêntico ao anterior', 'info');
+        return;
+    }
+
+    var html = '<h3 style="font-size:1em;color:#1a1a2e;margin-bottom:12px;">📊 Comparativo de Estoque</h3>';
+
+    // Resumo
+    var diffBob = bobAgora - bobAntes;
+    var diffPeso = pesoAgora - pesoAntes;
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;">';
+    html += '<div style="background:#f8fafc;border-radius:8px;padding:8px;text-align:center;border:1px solid #e0e0e0;">';
+    html += '<div style="font-size:0.6em;color:#888;">Antes</div>';
+    html += '<div style="font-size:0.85em;font-weight:700;color:#555;">' + bobAntes + ' bob | ' + Math.round(pesoAntes) + 'kg</div></div>';
+    html += '<div style="background:#f8fafc;border-radius:8px;padding:8px;text-align:center;border:1px solid #e0e0e0;">';
+    html += '<div style="font-size:0.6em;color:#888;">Agora</div>';
+    html += '<div style="font-size:0.85em;font-weight:700;color:#555;">' + bobAgora + ' bob | ' + Math.round(pesoAgora) + 'kg</div></div>';
+    html += '</div>';
+
+    html += '<div style="text-align:center;margin-bottom:12px;font-size:0.82em;font-weight:700;color:' + (diffBob >= 0 ? '#10b981' : '#ef4444') + ';">';
+    html += 'Diferença: ' + (diffBob >= 0 ? '+' : '') + diffBob + ' bobinas | ' + (diffPeso >= 0 ? '+' : '') + Math.round(diffPeso) + 'kg</div>';
+
+    // Novas
+    if (novas.length > 0) {
+        var pesoNovas = 0;
+        novas.forEach(function(n) { pesoNovas += n.qtde; });
+        html += '<div style="background:#fff;border-radius:10px;border:1px solid #e0e0e0;margin-bottom:8px;overflow:hidden;">';
+        html += '<div style="padding:8px 12px;background:#dcfce7;font-size:0.82em;font-weight:700;color:#16a34a;">🆕 Novas (' + novas.length + ') | ' + Math.round(pesoNovas) + 'kg</div>';
+        novas.forEach(function(n) {
+            html += '<div style="padding:6px 12px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:6px;font-size:0.78em;">';
+            html += '<span style="color:' + (temCapa(n.item) ? '#ef4444' : '#10b981') + ';">' + (temCapa(n.item) ? '🔴' : '🟢') + '</span>';
+            html += '<span style="font-family:monospace;font-weight:600;">' + n.item + '</span>';
+            html += '<span style="color:#888;">v' + n.ver + '</span>';
+            if (n.material) html += '<span style="color:#2563eb;font-size:0.85em;">🧪' + n.material + '</span>';
+            html += '<span style="margin-left:auto;font-weight:700;">' + Math.round(n.qtde) + 'kg</span>';
+            html += '</div>';
+        });
+        html += '</div>';
+    }
+
+    // Sumiram
+    if (sumiram.length > 0) {
+        var pesoSumiram = 0;
+        sumiram.forEach(function(s) { pesoSumiram += s.qtde; });
+        html += '<div style="background:#fff;border-radius:10px;border:1px solid #e0e0e0;margin-bottom:8px;overflow:hidden;">';
+        html += '<div style="padding:8px 12px;background:#fee2e2;font-size:0.82em;font-weight:700;color:#ef4444;">❌ Saíram (' + sumiram.length + ') | ' + Math.round(pesoSumiram) + 'kg</div>';
+        sumiram.forEach(function(s) {
+            html += '<div style="padding:6px 12px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:6px;font-size:0.78em;">';
+            html += '<span style="color:' + (temCapa(s.item) ? '#ef4444' : '#10b981') + ';">' + (temCapa(s.item) ? '🔴' : '🟢') + '</span>';
+            html += '<span style="font-family:monospace;font-weight:600;">' + s.item + '</span>';
+            html += '<span style="color:#888;">v' + s.ver + '</span>';
+            if (s.material) html += '<span style="color:#2563eb;font-size:0.85em;">🧪' + s.material + '</span>';
+            html += '<span style="margin-left:auto;font-weight:700;">' + Math.round(s.qtde) + 'kg</span>';
+            html += '</div>';
+        });
+        html += '</div>';
+    }
+
+    html += '<div style="display:flex;gap:8px;margin-top:12px;">';
+    html += '<button onclick="fecharModal(\'compModal\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;cursor:pointer;">Fechar</button>';
+    html += '</div>';
+
+    criarModal('compModal', html, { maxWidth: '400px' });
 }
 
 // ================================================================
