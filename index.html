@@ -277,6 +277,13 @@
 }
 #confBusca { flex: 1.4 !important; min-width: 0 !important; max-width: none !important; }
 #confBuscaKg { flex: 0.6 !important; min-width: 0 !important; max-width: none !important; }
+#dashModal, #idadeModal {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+}
     </style>
 </head>
 
@@ -1378,36 +1385,43 @@ async function carregarDashboard() {
         var maxBobs = 1;
         dias7.forEach(function(d) { var v = porDia[d.key] ? porDia[d.key].bobs : 0; if (v > maxBobs) maxBobs = v; });
 
-        var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">';
-        html += cardDash('📦', totalBobs, 'Encaixes', '#2563eb');
-        html += cardDash('⚖️', Math.round(totalPeso) + 'kg', 'Peso total', '#10b981');
-        html += cardDash('🗂️', Object.keys(lotesSet).length, 'Lotes', '#8b5cf6');
-        html += cardDash('🏭', Object.keys(opsSet).length, 'OPs únicas', '#f59e0b');
-        html += cardDash('✅', totalEnc, 'Conferidas', '#10b981');
-        html += cardDash('❌', totalNao, 'Não encontradas', '#ef4444');
-        html += '</div>';
+        var diasComEnc = Object.keys(porDia).length;
+var mediaDia = diasComEnc > 0 ? Math.round(totalBobs / diasComEnc) : 0;
+var mediaPesoDia = diasComEnc > 0 ? Math.round(totalPeso / diasComEnc) : 0;
+var mediaLote = Object.keys(lotesSet).length > 0 ? Math.round(totalBobs / Object.keys(lotesSet).length) : 0;
+
+var html = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">';
+html += cardDash('📦', totalBobs, 'Encaixes', '#2563eb');
+html += cardDash('⚖️', Math.round(totalPeso) + 'kg', 'Peso total', '#10b981');
+html += cardDash('🗂️', Object.keys(lotesSet).length, 'Lotes', '#8b5cf6');
+html += cardDash('🏭', Object.keys(opsSet).length, 'OPs únicas', '#f59e0b');
+html += cardDash('✅', totalEnc, 'Conferidas', '#10b981');
+html += cardDash('❌', totalNao, 'Não encontr.', '#ef4444');
+html += '</div>';
+
+html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;">';
+html += '<div style="font-size:0.85em;font-weight:700;color:#1a1a2e;margin-bottom:10px;">📊 Médias</div>';
+html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">';
+html += cardDash('📅', mediaDia + '/dia', 'Bob/dia', '#2563eb');
+html += cardDash('⚖️', mediaPesoDia + 'kg', 'Peso/dia', '#10b981');
+html += cardDash('📋', mediaLote + '/lote', 'Bob/lote', '#8b5cf6');
+html += '</div></div>';
 
         if (dias <= 30) {
-            html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;"><div style="font-size:0.85em;font-weight:700;color:#1a1a2e;margin-bottom:10px;">📅 Encaixes por dia</div><div style="display:flex;align-items:flex-end;gap:3px;height:80px;overflow-x:auto;">';
+            html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;">';
+            html += '<div style="font-size:0.85em;font-weight:700;color:#1a1a2e;margin-bottom:10px;">📅 Encaixes por dia</div>';
+            html += '<div style="display:flex;align-items:flex-end;gap:3px;height:100px;overflow-x:auto;">';
             dias7.forEach(function(d) {
                 var v = porDia[d.key] ? porDia[d.key].bobs : 0;
-                var h = maxBobs > 0 ? Math.round((v / maxBobs) * 70) : 0;
+                var h = maxBobs > 0 ? Math.round((v / maxBobs) * 85) : 0;
                 var isHoje = d.data.toDateString() === hoje.toDateString();
                 html += '<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:' + (dias <= 14 ? '28' : '18') + 'px;">';
                 if (v > 0) html += '<div style="font-size:0.45em;color:#2563eb;font-weight:700;margin-bottom:2px;">' + v + '</div>';
                 html += '<div style="width:100%;height:' + (h || 2) + 'px;background:' + (isHoje ? '#10b981' : (v > 0 ? '#2563eb' : '#e0e0e0')) + ';border-radius:3px 3px 0 0;min-height:2px;"></div>';
-                if (dias <= 14) html += '<div style="font-size:0.4em;color:#888;margin-top:2px;text-align:center;">' + d.data.getDate() + '/' + (d.data.getMonth()+1) + '</div></div>';
+                if (dias <= 14) html += '<div style="font-size:0.4em;color:#888;margin-top:2px;text-align:center;">' + d.data.getDate() + '/' + (d.data.getMonth()+1) + '</div>';
+                html += '</div>';
             });
             html += '</div></div>';
-        }
-
-        var opCount = {};
-        regsEnc.forEach(function(r) { if (r.encaixe) { opCount[r.encaixe] = (opCount[r.encaixe] || 0) + 1; } });
-        var topOps = Object.keys(opCount).sort(function(a,b){return opCount[b]-opCount[a];}).slice(0,5);
-        if (topOps.length > 0) {
-            html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;"><div style="font-size:0.85em;font-weight:700;color:#1a1a2e;margin-bottom:8px;">🏆 Top OPs</div>';
-            topOps.forEach(function(op, idx) { html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;"><div style="font-size:0.75em;font-weight:700;color:#2563eb;min-width:20px;">#' + (idx+1) + '</div><div style="font-size:0.8em;font-weight:600;flex:1;">OP ' + op + '</div><div style="font-size:0.75em;color:#888;">' + opCount[op] + ' bob</div></div>'; });
-            html += '</div>';
         }
 
         if (regsConf.length > 0) {
@@ -1417,13 +1431,21 @@ async function carregarDashboard() {
                 if (!confLotes[lk]) confLotes[lk] = { data: r.data, enc: 0, nao: 0 };
                 if (r.status === 'ENCONTRADA') confLotes[lk].enc++; else confLotes[lk].nao++;
             });
-            html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;"><div style="font-size:0.85em;font-weight:700;color:#1a1a2e;margin-bottom:8px;">✅ Conferências</div>';
+            html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;">';
+            html += '<div style="font-size:0.85em;font-weight:700;color:#1a1a2e;margin-bottom:8px;">✅ Conferências</div>';
             Object.keys(confLotes).forEach(function(lk) {
                 var cl = confLotes[lk], taxa = cl.enc + cl.nao > 0 ? Math.round(cl.enc / (cl.enc + cl.nao) * 100) : 0;
-                html += '<div style="padding:8px 0;border-bottom:1px solid #f0f0f0;"><div style="font-size:0.75em;color:#888;">' + cl.data + '</div><div style="display:flex;align-items:center;gap:6px;margin-top:4px;"><div style="flex:1;height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden;"><div style="height:100%;width:' + taxa + '%;background:#10b981;border-radius:4px;"></div></div><div style="font-size:0.7em;font-weight:700;color:#10b981;">' + taxa + '%</div><div style="font-size:0.65em;color:#888;">✅' + cl.enc + ' ❌' + cl.nao + '</div></div></div>';
+                html += '<div style="padding:8px 0;border-bottom:1px solid #f0f0f0;">';
+                html += '<div style="font-size:0.75em;color:#888;">' + cl.data + '</div>';
+                html += '<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">';
+                html += '<div style="flex:1;height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden;"><div style="height:100%;width:' + taxa + '%;background:#10b981;border-radius:4px;"></div></div>';
+                html += '<div style="font-size:0.7em;font-weight:700;color:#10b981;">' + taxa + '%</div>';
+                html += '<div style="font-size:0.65em;color:#888;">✅' + cl.enc + ' ❌' + cl.nao + '</div>';
+                html += '</div></div>';
             });
             html += '</div>';
         }
+
         body.innerHTML = html;
     } catch(err) { body.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">❌ ' + err.message + '</div>'; }
 }
@@ -2532,10 +2554,11 @@ try { load(); } catch (e) { console.error('Erro load:', e); }
     </div>
     <div style="padding:10px 14px;flex-shrink:0;display:flex;gap:6px;">
         <select id="dashPeriodo" style="flex:1;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#fff;color:#333;font-size:0.85em;">
-            <option value="7">Últimos 7 dias</option>
-            <option value="30" selected>Últimos 30 dias</option>
-            <option value="90">Últimos 90 dias</option>
-        </select>
+    <option value="7">Últimos 7 dias</option>
+    <option value="30" selected>Últimos 30 dias</option>
+    <option value="90">Últimos 90 dias</option>
+    <option value="9999">Tudo</option>
+</select>
         <button onclick="carregarDashboard()" style="flex:1;padding:10px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-size:0.85em;font-weight:600;cursor:pointer;">🔄 Atualizar</button>
     </div>
     <div style="flex:1;overflow-y:auto;padding:6px 12px 20px;-webkit-overflow-scrolling:touch;" id="dashBody">
