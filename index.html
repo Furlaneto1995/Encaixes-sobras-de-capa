@@ -277,12 +277,15 @@
 }
 #confBusca { flex: 1.4 !important; min-width: 0 !important; max-width: none !important; }
 #confBuscaKg { flex: 0.6 !important; min-width: 0 !important; max-width: none !important; }
-#dashModal, #idadeModal {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
+#dashModal .modal-head, #idadeModal .modal-head {
+    flex-shrink: 0;
+}
+#dashBody, #idadeBody {
+    overflow-x: hidden !important;
+}
+#dashBody > div, #idadeBody > div {
+    max-width: 100% !important;
+    overflow: hidden;
 }
     </style>
 </head>
@@ -1451,7 +1454,11 @@ html += '</div></div>';
 }
 
 function cardDash(icon, valor, label, cor) {
-    return '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;text-align:center;"><div style="font-size:1.5em;">' + icon + '</div><div style="font-size:1.2em;font-weight:700;color:' + cor + ';margin-top:4px;">' + valor + '</div><div style="font-size:0.6em;color:#888;margin-top:2px;">' + label + '</div></div>';
+    return '<div style="background:#fff;border-radius:10px;border:1px solid #e0e0e0;padding:10px 6px;text-align:center;overflow:hidden;">' +
+        '<div style="font-size:1.1em;">' + icon + '</div>' +
+        '<div style="font-size:0.95em;font-weight:700;color:' + cor + ';margin-top:2px;word-break:break-all;">' + valor + '</div>' +
+        '<div style="font-size:0.5em;color:#888;margin-top:1px;">' + label + '</div>' +
+        '</div>';
 }
 
 // ================================================================
@@ -1887,10 +1894,11 @@ function estRender() {
         if (!it.isMetal && !it.isOculto) html += '<button onclick="event.stopPropagation();xM(\'estModal\');setTimeout(function(){debugarItem(\'' + it.item + '\');},300);" style="min-width:26px;height:26px;border-radius:6px;border:1px solid #e0e0e0;background:#fff;color:#f59e0b;cursor:pointer;font-size:0.7em;display:flex;align-items:center;justify-content:center;">🔍</button>';
         var obsAtual = estObservacoes[it.item] || '';
         if (!it.isMetal) html += '<button onclick="event.stopPropagation();abrirModalObs(\'' + it.item + '\')" style="min-width:26px;height:26px;border-radius:6px;border:1px solid ' + (obsAtual ? '#f59e0b' : '#e0e0e0') + ';background:#fff;color:' + (obsAtual ? '#f59e0b' : '#94a3b8') + ';cursor:pointer;font-size:0.7em;display:flex;align-items:center;justify-content:center;" title="' + (obsAtual || 'Observação') + '">💬</button>';
+                html += '</div>';
+        if (obsAtual) html += '<div style="width:100%;padding:2px 12px 6px 50px;font-size:0.65em;color:#f59e0b;">💬 ' + obsAtual + '</div>';
         html += '</div>';
-        if (obsAtual) html += '<div style="width:100%;padding:2px 12px 6px 50px;font-size:0.65em;color:#f59e0b;margin-top:-6px;">💬 ' + obsAtual + '</div>';
     }
-    body.innerHTML = html;
+    body.innerHTML = html;;
 }
 
 // MELHORIA 8: Modal observação
