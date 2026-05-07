@@ -1317,7 +1317,17 @@ function splitGerarCampos(bi) {
         '</div>';
     }
     html += '</div>';
-            container.innerHTML = html;
+    container.innerHTML = html;
+
+    var inputs = container.querySelectorAll('.splitPesoInput');
+    inputs.forEach(function(inp) {
+        inp.addEventListener('input', function() {
+            splitAtualizarInfo(total);
+        });
+    });
+
+    if (inputs.length > 0) setTimeout(function() { inputs[0].focus(); }, 50);
+}
 
 // ================================================================
 //                    DASHBOARD
@@ -1334,23 +1344,12 @@ async function carregarDashboard() {
     var dataInicio = new Date(); dataInicio.setDate(dataInicio.getDate() - dias); dataInicio.setHours(0,0,0,0);
 
     try {
-        // Busca encaixes
-        var snapEnc = await db.collection('encaixes')
-            .where('timestamp', '>=', dataInicio)
-            .orderBy('timestamp', 'desc')
-            .limit(2000).get();
-
-        // Busca conferências
-        var snapConf = await db.collection('conferencias')
-            .where('timestamp', '>=', dataInicio)
-            .orderBy('timestamp', 'desc')
-            .limit(2000).get();
-
+        var snapEnc = await db.collection('encaixes').where('timestamp', '>=', dataInicio).orderBy('timestamp', 'desc').limit(2000).get();
+        var snapConf = await db.collection('conferencias').where('timestamp', '>=', dataInicio).orderBy('timestamp', 'desc').limit(2000).get();
         var regsEnc = [], regsConf = [];
         snapEnc.forEach(function(doc) { regsEnc.push(doc.data()); });
         snapConf.forEach(function(doc) { regsConf.push(doc.data()); });
 
-        // Agrupa encaixes por dia
         var porDia = {}, lotesSet = {}, opsSet = {};
         regsEnc.forEach(function(r) {
             var d = r.data ? r.data.split(' ')[0] : '?';
@@ -1361,7 +1360,6 @@ async function carregarDashboard() {
             if (r.encaixe) opsSet[r.encaixe] = true;
         });
 
-        // Estatísticas
         var totalBobs = regsEnc.length, totalPeso = 0, totalEnc = 0, totalNao = 0;
         regsEnc.forEach(function(r) { totalPeso += parseFloat(r.qtde) || 0; });
         regsConf.forEach(function(r) {
@@ -1371,7 +1369,6 @@ async function carregarDashboard() {
 
         document.getElementById('dashSubtitle').textContent = 'Últimos ' + dias + ' dias | ' + totalBobs + ' encaixes';
 
-        // Monta dias em ordem
         var dias7 = [], hoje = new Date();
         for (var d = dias - 1; d >= 0; d--) {
             var dt = new Date(hoje); dt.setDate(dt.getDate() - d);
@@ -1381,10 +1378,7 @@ async function carregarDashboard() {
         var maxBobs = 1;
         dias7.forEach(function(d) { var v = porDia[d.key] ? porDia[d.key].bobs : 0; if (v > maxBobs) maxBobs = v; });
 
-        var html = '';
-
-        // Cards de resumo
-        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">';
+        var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">';
         html += cardDash('📦', totalBobs, 'Encaixes', '#2563eb');
         html += cardDash('⚖️', Math.round(totalPeso) + 'kg', 'Peso total', '#10b981');
         html += cardDash('🗂️', Object.keys(lotesSet).length, 'Lotes', '#8b5cf6');
@@ -1393,11 +1387,8 @@ async function carregarDashboard() {
         html += cardDash('❌', totalNao, 'Não encontradas', '#ef4444');
         html += '</div>';
 
-        // Gráfico de barras por dia
         if (dias <= 30) {
-            html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;">';
-            html += '<div style="font-size:0.85em;font-weight:700;color:#1a1a2e;margin-bottom:10px;">📅 Encaixes por dia</div>';
-            html += '<div style="display:flex;align-items:flex-end;gap:3px;height:80px;overflow-x:auto;">';
+            html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;"><div style="font-size:0.85em;font-weight:700;color:#1a1a2e;margin-bottom:10px;">📅 Encaixes por dia</div><div style="display:flex;align-items:flex-end;gap:3px;height:80px;overflow-x:auto;">';
             dias7.forEach(function(d) {
                 var v = porDia[d.key] ? porDia[d.key].bobs : 0;
                 var h = maxBobs > 0 ? Math.round((v / maxBobs) * 70) : 0;
@@ -1405,99 +1396,59 @@ async function carregarDashboard() {
                 html += '<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:' + (dias <= 14 ? '28' : '18') + 'px;">';
                 if (v > 0) html += '<div style="font-size:0.45em;color:#2563eb;font-weight:700;margin-bottom:2px;">' + v + '</div>';
                 html += '<div style="width:100%;height:' + (h || 2) + 'px;background:' + (isHoje ? '#10b981' : (v > 0 ? '#2563eb' : '#e0e0e0')) + ';border-radius:3px 3px 0 0;min-height:2px;"></div>';
-                if (dias <= 14) html += '<div style="font-size:0.4em;color:#888;margin-top:2px;text-align:center;">' + d.data.getDate() + '/' + (d.data.getMonth()+1) + '</div>';
-                html += '</div>';
+                if (dias <= 14) html += '<div style="font-size:0.4em;color:#888;margin-top:2px;text-align:center;">' + d.data.getDate() + '/' + (d.data.getMonth()+1) + '</div></div>';
             });
             html += '</div></div>';
         }
 
-        // Top OPs
         var opCount = {};
         regsEnc.forEach(function(r) { if (r.encaixe) { opCount[r.encaixe] = (opCount[r.encaixe] || 0) + 1; } });
         var topOps = Object.keys(opCount).sort(function(a,b){return opCount[b]-opCount[a];}).slice(0,5);
         if (topOps.length > 0) {
-            html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;">';
-            html += '<div style="font-size:0.85em;font-weight:700;color:#1a1a2e;margin-bottom:8px;">🏆 Top OPs</div>';
-            topOps.forEach(function(op, idx) {
-                html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;">';
-                html += '<div style="font-size:0.75em;font-weight:700;color:#2563eb;min-width:20px;">#' + (idx+1) + '</div>';
-                html += '<div style="font-size:0.8em;font-weight:600;flex:1;">OP ' + op + '</div>';
-                html += '<div style="font-size:0.75em;color:#888;">' + opCount[op] + ' bob</div>';
-                html += '</div>';
-            });
+            html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;"><div style="font-size:0.85em;font-weight:700;color:#1a1a2e;margin-bottom:8px;">🏆 Top OPs</div>';
+            topOps.forEach(function(op, idx) { html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;"><div style="font-size:0.75em;font-weight:700;color:#2563eb;min-width:20px;">#' + (idx+1) + '</div><div style="font-size:0.8em;font-weight:600;flex:1;">OP ' + op + '</div><div style="font-size:0.75em;color:#888;">' + opCount[op] + ' bob</div></div>'; });
             html += '</div>';
         }
 
-        // Conferências por lote
         if (regsConf.length > 0) {
             var confLotes = {};
             regsConf.forEach(function(r) {
                 var lk = r.lote || r.data || '?';
                 if (!confLotes[lk]) confLotes[lk] = { data: r.data, enc: 0, nao: 0 };
-                if (r.status === 'ENCONTRADA') confLotes[lk].enc++;
-                else confLotes[lk].nao++;
+                if (r.status === 'ENCONTRADA') confLotes[lk].enc++; else confLotes[lk].nao++;
             });
-            html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;">';
-            html += '<div style="font-size:0.85em;font-weight:700;color:#1a1a2e;margin-bottom:8px;">✅ Conferências</div>';
+            html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;"><div style="font-size:0.85em;font-weight:700;color:#1a1a2e;margin-bottom:8px;">✅ Conferências</div>';
             Object.keys(confLotes).forEach(function(lk) {
-                var cl = confLotes[lk];
-                var taxa = cl.enc + cl.nao > 0 ? Math.round(cl.enc / (cl.enc + cl.nao) * 100) : 0;
-                html += '<div style="padding:8px 0;border-bottom:1px solid #f0f0f0;">';
-                html += '<div style="font-size:0.75em;color:#888;">' + cl.data + '</div>';
-                html += '<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">';
-                html += '<div style="flex:1;height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden;"><div style="height:100%;width:' + taxa + '%;background:#10b981;border-radius:4px;"></div></div>';
-                html += '<div style="font-size:0.7em;font-weight:700;color:#10b981;">' + taxa + '%</div>';
-                html += '<div style="font-size:0.65em;color:#888;">✅' + cl.enc + ' ❌' + cl.nao + '</div>';
-                html += '</div></div>';
+                var cl = confLotes[lk], taxa = cl.enc + cl.nao > 0 ? Math.round(cl.enc / (cl.enc + cl.nao) * 100) : 0;
+                html += '<div style="padding:8px 0;border-bottom:1px solid #f0f0f0;"><div style="font-size:0.75em;color:#888;">' + cl.data + '</div><div style="display:flex;align-items:center;gap:6px;margin-top:4px;"><div style="flex:1;height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden;"><div style="height:100%;width:' + taxa + '%;background:#10b981;border-radius:4px;"></div></div><div style="font-size:0.7em;font-weight:700;color:#10b981;">' + taxa + '%</div><div style="font-size:0.65em;color:#888;">✅' + cl.enc + ' ❌' + cl.nao + '</div></div></div>';
             });
             html += '</div>';
         }
-
         body.innerHTML = html;
-    } catch(err) {
-        body.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">❌ ' + err.message + '</div>';
-    }
+    } catch(err) { body.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">❌ ' + err.message + '</div>'; }
 }
 
 function cardDash(icon, valor, label, cor) {
-    return '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;text-align:center;">' +
-        '<div style="font-size:1.5em;">' + icon + '</div>' +
-        '<div style="font-size:1.2em;font-weight:700;color:' + cor + ';margin-top:4px;">' + valor + '</div>' +
-        '<div style="font-size:0.6em;color:#888;margin-top:2px;">' + label + '</div>' +
-        '</div>';
+    return '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;text-align:center;"><div style="font-size:1.5em;">' + icon + '</div><div style="font-size:1.2em;font-weight:700;color:' + cor + ';margin-top:4px;">' + valor + '</div><div style="font-size:0.6em;color:#888;margin-top:2px;">' + label + '</div></div>';
 }
 
 // ================================================================
 //                    IDADE DAS BOBINAS
 // ================================================================
-function abrirIdadeBobinas() {
-    document.getElementById('idadeModal').classList.add('active');
-}
+function abrirIdadeBobinas() { document.getElementById('idadeModal').classList.add('active'); }
 
 async function carregarIdadeBobinas() {
     var body = document.getElementById('idadeBody');
     body.innerHTML = '<div style="text-align:center;padding:40px;color:#f59e0b;">⏳ Buscando nas últimas 10 conferências...</div>';
-
     try {
-        // Busca as últimas 10 conferências (lotes distintos)
-        var snap = await db.collection('conferencias')
-            .orderBy('timestamp', 'desc')
-            .limit(2000).get();
-
-        // Separa lotes distintos (últimos 10)
+        var snap = await db.collection('conferencias').orderBy('timestamp', 'desc').limit(2000).get();
         var lotesOrdem = [], lotesMap = {};
         snap.forEach(function(doc) {
-            var d = doc.data();
-            var lk = d.lote || '';
-            if (lk && !lotesMap[lk]) {
-                lotesMap[lk] = { timestamp: d.timestamp, data: d.data || '' };
-                lotesOrdem.push(lk);
-            }
+            var d = doc.data(), lk = d.lote || '';
+            if (lk && !lotesMap[lk]) { lotesMap[lk] = { timestamp: d.timestamp, data: d.data || '' }; lotesOrdem.push(lk); }
         });
         var ultimos10 = lotesOrdem.slice(0, 10);
-
-        // Para cada item do estoque atual, encontra a primeira vez que apareceu
-        var primeiraVez = {}; // { itemCode: { data, timestamp, diasAtras } }
+        var primeiraVez = {};
         snap.forEach(function(doc) {
             var d = doc.data();
             if (!d.item || ultimos10.indexOf(d.lote) === -1) return;
@@ -1507,31 +1458,21 @@ async function carregarIdadeBobinas() {
             }
         });
 
-// Mescla datas manuais (têm prioridade)
-var manualDatas = {};
-try { manualDatas = JSON.parse(localStorage.getItem('enc_datas') || '{}'); } catch(e) {}
-Object.keys(manualDatas).forEach(function(item) {
-    var dt = new Date(manualDatas[item]);
-    if (!isNaN(dt.getTime())) {
-        primeiraVez[item] = {
-            data: dt.toLocaleDateString('pt-BR'),
-            timestamp: { toDate: function() { return dt; }, seconds: dt.getTime()/1000 },
-            lote: 'manual'
-        };
-    }
-});
-        // Calcula dias parado para cada item do estoque
-        var agora = new Date();
-        var itensParados = [];
+        var manualDatas = {};
+        try { manualDatas = JSON.parse(localStorage.getItem('enc_datas') || '{}'); } catch(e) {}
+        Object.keys(manualDatas).forEach(function(item) {
+            var dt = new Date(manualDatas[item]);
+            if (!isNaN(dt.getTime())) {
+                primeiraVez[item] = { data: dt.toLocaleDateString('pt-BR'), timestamp: { toDate: function() { return dt; }, seconds: dt.getTime()/1000 }, lote: 'manual' };
+            }
+        });
+
+        var agora = new Date(), itensParados = [];
         for (var i = 0; i < estoque.length; i++) {
             var e = estoque[i], ic = getItemEstoque(e);
-            if (/-4$/.test(ic)) continue; // ignora metalizados
-            if (confOcultos[ic]) continue; // ignora ocultos
-
-            var qtde = parseFloat(e['QTDE_ESTOQUE']) || 0;
-            var temEncaixe = false;
+            if (/-4$/.test(ic) || confOcultos[ic]) continue;
+            var qtde = parseFloat(e['QTDE_ESTOQUE']) || 0, temEncaixe = false;
             for (var b = 0; b < B.length; b++) { if (B[b].item === ic) { temEncaixe = true; break; } }
-
             var diasParado = null, dataEntrada = null, origem = '';
             if (primeiraVez[ic]) {
                 var pv = primeiraVez[ic];
@@ -1542,16 +1483,9 @@ Object.keys(manualDatas).forEach(function(item) {
                     origem = 'conferência';
                 }
             }
-
-            itensParados.push({
-                item: ic, ver: e['VERSAO'] || '', qtde: qtde,
-                temEncaixe: temEncaixe, diasParado: diasParado,
-                dataEntrada: dataEntrada, origem: origem,
-                desc: e['DESCRICAO'] || '', tipo: temCapa(ic) ? 'CAPA' : 'BASE'
-            });
+            itensParados.push({ item: ic, ver: e['VERSAO'] || '', qtde: qtde, temEncaixe: temEncaixe, diasParado: diasParado, dataEntrada: dataEntrada, origem: origem, desc: e['DESCRICAO'] || '', tipo: temCapa(ic) ? 'CAPA' : 'BASE' });
         }
 
-        // Ordena: sem data primeiro (desconhecido), depois por dias decrescente
         itensParados.sort(function(a, b) {
             if (a.diasParado === null && b.diasParado === null) return a.item.localeCompare(b.item);
             if (a.diasParado === null) return -1;
@@ -1561,25 +1495,14 @@ Object.keys(manualDatas).forEach(function(item) {
 
         document.getElementById('idadeSubtitle').textContent = itensParados.length + ' itens | ' + ultimos10.length + ' conferências analisadas';
 
-        if (itensParados.length === 0) {
-            body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;">📭 Sem dados</div>';
-            return;
-        }
+        if (itensParados.length === 0) { body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;">📭 Sem dados</div>'; return; }
 
-        // Separa por faixa
         var semData = [], ate30 = [], de30a60 = [], de60a90 = [], mais90 = [];
         itensParados.forEach(function(it) {
-            if (it.diasParado === null) semData.push(it);
-            else if (it.diasParado <= 30) ate30.push(it);
-            else if (it.diasParado <= 60) de30a60.push(it);
-            else if (it.diasParado <= 90) de60a90.push(it);
-            else mais90.push(it);
+            if (it.diasParado === null) semData.push(it); else if (it.diasParado <= 30) ate30.push(it); else if (it.diasParado <= 60) de30a60.push(it); else if (it.diasParado <= 90) de60a90.push(it); else mais90.push(it);
         });
 
-        var html = '';
-
-        // Resumo
-        html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px;">';
+        var html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px;">';
         html += cardDash('🟢', ate30.length, '≤30 dias', '#10b981');
         html += cardDash('🟡', de30a60.length, '30-60d', '#f59e0b');
         html += cardDash('🟠', de60a90.length, '60-90d', '#f97316');
@@ -1588,27 +1511,18 @@ Object.keys(manualDatas).forEach(function(item) {
 
         function renderFaixa(lista, titulo, cor) {
             if (lista.length === 0) return '';
-            var h = '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;margin-bottom:8px;overflow:hidden;">';
-            h += '<div style="padding:10px 14px;background:#f8fafc;font-size:0.82em;font-weight:700;color:' + cor + ';">' + titulo + ' (' + lista.length + ')</div>';
+            var h = '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;margin-bottom:8px;overflow:hidden;"><div style="padding:10px 14px;background:#f8fafc;font-size:0.82em;font-weight:700;color:' + cor + ';">' + titulo + ' (' + lista.length + ')</div>';
             lista.forEach(function(it) {
                 var bgRow = it.temEncaixe ? '#f0fdf4' : '#fff';
-                h += '<div style="padding:10px 14px;border-bottom:1px solid #f0f0f0;background:' + bgRow + ';display:flex;align-items:center;gap:8px;">';
-                h += '<div style="font-size:1em;">' + (it.tipo === 'CAPA' ? '🔴' : '🔵') + '</div>';
-                h += '<div style="flex:1;min-width:0;">';
-                h += '<div style="font-size:0.82em;font-weight:600;font-family:monospace;">' + it.item + ' <span style="font-size:0.8em;color:#aaa;">v' + it.ver + '</span></div>';
-                h += '<div style="font-size:0.65em;color:#888;margin-top:2px;">';
-                if (it.dataEntrada) h += '📅 desde ' + it.dataEntrada;
-                else h += '📅 data desconhecida';
+                h += '<div style="padding:10px 14px;border-bottom:1px solid #f0f0f0;background:' + bgRow + ';display:flex;align-items:center;gap:8px;"><div style="font-size:1em;">' + (it.tipo === 'CAPA' ? '🔴' : '🔵') + '</div><div style="flex:1;min-width:0;"><div style="font-size:0.82em;font-weight:600;font-family:monospace;">' + it.item + ' <span style="font-size:0.8em;color:#aaa;">v' + it.ver + '</span></div><div style="font-size:0.65em;color:#888;margin-top:2px;">';
+                if (it.dataEntrada) h += '📅 desde ' + it.dataEntrada; else h += '📅 data desconhecida';
                 if (it.temEncaixe) h += ' <span style="color:#10b981;font-weight:600;">● com encaixe</span>';
-                h += '</div></div>';
-                h += '<div style="text-align:right;flex-shrink:0;">';
-                h += '<div style="font-size:0.85em;font-weight:700;color:#1a1a2e;">' + Math.round(it.qtde) + 'kg</div>';
+                h += '</div></div><div style="text-align:right;flex-shrink:0;"><div style="font-size:0.85em;font-weight:700;color:#1a1a2e;">' + Math.round(it.qtde) + 'kg</div>';
                 if (it.diasParado !== null) {
                     var corDias = it.diasParado > 90 ? '#ef4444' : (it.diasParado > 60 ? '#f97316' : (it.diasParado > 30 ? '#f59e0b' : '#10b981'));
                     h += '<div style="font-size:0.65em;font-weight:700;color:' + corDias + ';">' + it.diasParado + ' dias</div>';
                 } else {
-                    h += '<div style="font-size:0.6em;color:#aaa;">? dias</div>';
-                    h += '<button onclick="idadeEditarData(\'' + it.item + '\')" style="margin-top:2px;padding:2px 6px;border:1px solid #e0e0e0;border-radius:6px;background:#fff;color:#2563eb;font-size:0.6em;cursor:pointer;">📅 Definir</button>';
+                    h += '<div style="font-size:0.6em;color:#aaa;">? dias</div><button onclick="idadeEditarData(\'' + it.item + '\')" style="margin-top:2px;padding:2px 6px;border:1px solid #e0e0e0;border-radius:6px;background:#fff;color:#2563eb;font-size:0.6em;cursor:pointer;">📅 Definir</button>';
                 }
                 h += '</div></div>';
             });
@@ -1621,11 +1535,8 @@ Object.keys(manualDatas).forEach(function(item) {
         if (de30a60.length > 0) html += renderFaixa(de30a60, '🟡 30 a 60 dias', '#f59e0b');
         if (ate30.length > 0) html += renderFaixa(ate30, '🟢 Até 30 dias', '#10b981');
         if (semData.length > 0) html += renderFaixa(semData, '⚪ Data desconhecida', '#94a3b8');
-
         body.innerHTML = html;
-    } catch(err) {
-        body.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">❌ ' + err.message + '</div>';
-    }
+    } catch(err) { body.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">❌ ' + err.message + '</div>'; }
 }
 
 function idadeEditarData(item) {
@@ -1644,7 +1555,6 @@ function idadeEditarData(item) {
 function idadeSalvarData(item) {
     var val = document.getElementById('idadeDataInput').value;
     if (!val) { toast('Selecione uma data!', 'error'); return; }
-    // Salva no localStorage como data manual
     var manualDatas = {};
     try { manualDatas = JSON.parse(localStorage.getItem('enc_datas') || '{}'); } catch(e) {}
     manualDatas[item] = val;
@@ -1653,18 +1563,6 @@ function idadeSalvarData(item) {
     toast(item + ' → data salva', 'success');
     carregarIdadeBobinas();
 }
-    // Listeners para atualizar info
-    var inputs = container.querySelectorAll('.splitPesoInput');
-    inputs.forEach(function(inp) {
-        inp.addEventListener('input', function() {
-            splitAtualizarInfo(total);
-        });
-    });
-
-    // Focus no primeiro
-    if (inputs.length > 0) setTimeout(function() { inputs[0].focus(); }, 50);
-}
-
 function splitDividirIgual(bi) {
     var bob = B[bi];
     var total = parseFloat(bob.qtde) || 0;
