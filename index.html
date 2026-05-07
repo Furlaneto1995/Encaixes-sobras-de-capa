@@ -1191,16 +1191,10 @@ function snap() {
     can.width = vid.videoWidth; can.height = vid.videoHeight;
     var ctx = can.getContext('2d'); ctx.drawImage(vid, 0, 0);
     var b = B[curB];
-    if (camEtapa === 2) {
-        // Foto da bobina — adiciona legenda
-        var tx = b.item + ' | OP ' + b.enc + ' | ' + b.qtde + 'kg | ' + new Date().toLocaleString('pt-BR');
-        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, can.height - 32, can.width, 32);
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 13px Arial'; ctx.fillText(tx, 6, can.height - 10);
-    } else {
-        // Foto da etiqueta — legenda simples
-        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, can.height - 32, can.width, 32);
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 13px Arial';
-       ctx.fillText('ETIQUETA | ' + b.item + ' | OP ' + b.enc + ' | ' + new Date().toLocaleString('pt-BR'), 6, can.height - 10);
+        var tipoFoto = camEtapa === 1 ? 'ETIQUETA' : 'BOBINA';
+    var tx = tipoFoto + ' | OP ' + b.enc + ' | ' + b.item + '/v' + b.ver + ' | ' + b.qtde + 'kg | ' + new Date().toLocaleString('pt-BR');
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, can.height - 32, can.width, 32);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 13px Arial'; ctx.fillText(tx, 6, can.height - 10);
     }
     foto = can.toDataURL('image/jpeg', 0.95);
     prev.src = foto; prev.style.display = 'block'; vid.style.display = 'none';
