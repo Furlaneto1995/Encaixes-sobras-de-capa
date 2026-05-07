@@ -1393,22 +1393,21 @@ var mediaDia = diasComEnc > 0 ? Math.round(totalBobs / diasComEnc) : 0;
 var mediaPesoDia = diasComEnc > 0 ? Math.round(totalPeso / diasComEnc) : 0;
 var mediaLote = Object.keys(lotesSet).length > 0 ? Math.round(totalBobs / Object.keys(lotesSet).length) : 0;
 
-var html = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">';
+var diasComEnc = Object.keys(porDia).length;
+var mediaDia = diasComEnc > 0 ? Math.round(totalBobs / diasComEnc) : 0;
+var mediaPesoDia = diasComEnc > 0 ? Math.round(totalPeso / diasComEnc) : 0;
+var mediaLote = Object.keys(lotesSet).length > 0 ? Math.round(totalBobs / Object.keys(lotesSet).length) : 0;
+
+var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">';
 html += cardDash('📦', totalBobs, 'Encaixes', '#2563eb');
 html += cardDash('⚖️', Math.round(totalPeso) + 'kg', 'Peso total', '#10b981');
 html += cardDash('🗂️', Object.keys(lotesSet).length, 'Lotes', '#8b5cf6');
-html += cardDash('🏭', Object.keys(opsSet).length, 'OPs únicas', '#f59e0b');
+html += cardDash('🏭', Object.keys(opsSet).length, 'OPs', '#f59e0b');
 html += cardDash('✅', totalEnc, 'Conferidas', '#10b981');
-html += cardDash('❌', totalNao, 'Não encontr.', '#ef4444');
+html += cardDash('❌', totalNao, 'Não enc.', '#ef4444');
+html += cardDash('📅', mediaDia + '/dia', 'Média bob', '#2563eb');
+html += cardDash('⚖️', mediaPesoDia + 'kg/dia', 'Média peso', '#10b981');
 html += '</div>';
-
-html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;">';
-html += '<div style="font-size:0.85em;font-weight:700;color:#1a1a2e;margin-bottom:10px;">📊 Médias</div>';
-html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">';
-html += cardDash('📅', mediaDia + '/dia', 'Bob/dia', '#2563eb');
-html += cardDash('⚖️', mediaPesoDia + 'kg', 'Peso/dia', '#10b981');
-html += cardDash('📋', mediaLote + '/lote', 'Bob/lote', '#8b5cf6');
-html += '</div></div>';
 
         if (dias <= 30) {
             html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;">';
