@@ -11,6 +11,21 @@
     <meta name="apple-mobile-web-app-title" content="Encaixes">
     <link rel="apple-touch-icon" href="icon-192.png">
     <style>
+
+* {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+input, textarea, [contenteditable] {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+}
         * { margin: 0; padding: 0; box-sizing: border-box; }
         button { outline: none; border: none; }
         button:focus { outline: none; }
@@ -280,13 +295,6 @@
 #dashModal .modal-head, #idadeModal .modal-head {
     flex-shrink: 0;
 }
-function cardDash(icon, valor, label, cor) {
-    return '<div style="background:#fff;border-radius:8px;border:1px solid #e0e0e0;padding:8px 4px;text-align:center;overflow:hidden;min-width:0;">' +
-        '<div style="font-size:0.9em;">' + icon + '</div>' +
-        '<div style="font-size:0.8em;font-weight:700;color:' + cor + ';margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + valor + '</div>' +
-        '<div style="font-size:0.45em;color:#888;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + label + '</div>' +
-        '</div>';
-}
 
 #dashModal, #idadeModal {
     position: fixed !important;
@@ -389,14 +397,17 @@ function cardDash(icon, valor, label, cor) {
 <div class="toolbar">
     <div class="import-row">
         <input type="file" id="fileEstoque" accept=".csv,.ods,.xlsx" style="display:none;">
-        <input type="file" id="fileFila" accept=".csv,.ods,.xlsx" style="display:none;">
-        <input type="file" id="fileEstado" accept=".json" style="display:none;">
-        <button class="btn-import" onclick="document.getElementById('fileEstoque').click()" style="flex:1;min-width:0;">📦 Estoque</button>
-        <button class="btn-import secondary" onclick="document.getElementById('fileFila').click()" style="flex:1;min-width:0;">🏭 Fila</button>
-        <button class="btn-calc" onclick="calcularEncaixes()">⚡ Calcular</button>
-        <button class="btn-calc" onclick="openNew()" style="padding:10px 12px;font-size:0.82em;">➕</button>
+<input type="file" id="fileFila" accept=".csv,.ods,.xlsx" style="display:none;">
+<input type="file" id="fileFilaLaminacao" accept=".csv,.ods,.xlsx" style="display:none;">
+<input type="file" id="fileEstado" accept=".json" style="display:none;">
+
+<button class="btn-import" onclick="document.getElementById('fileEstoque').click()" style="flex:1;min-width:0;">📦 Estoque</button>
+<button class="btn-import secondary" onclick="document.getElementById('fileFila').click()" style="flex:1;min-width:0;">🏭 Fila Extrusão</button>
+<button class="btn-import secondary" onclick="document.getElementById('fileFilaLaminacao').click()" style="flex:1;min-width:0;background:#fef3c7;color:#d97706;">✨ Fila Laminação</button>
+<button class="btn-calc" onclick="calcularEncaixes()">⚡ Calcular</button>
+<button class="btn-calc" onclick="openNew()" style="padding:10px 12px;font-size:0.82em;">➕</button>
     </div>
-    <div class="file-info" id="fInfo">1️⃣ Importe o Estoque → 2️⃣ Importe a Fila → 3️⃣ Clique Calcular</div>
+    <div class="file-info" id="fInfo">1️⃣ Importe o Estoque → 2️⃣ Importe a Fila Extrusão → 3️⃣ Importe a Fila Laminação → 4️⃣ Clique Calcular</div>
     <div class="stats-row" id="sr">
         <div class="st-btn on" id="sAll" onclick="fil('all')"><div class="num" id="nAll">0</div><div class="lbl">Total</div></div>
         <div class="st-btn" id="sPend" onclick="fil('pend')"><div class="num" id="nPend">0</div><div class="lbl">Pendentes</div></div>
@@ -585,7 +596,7 @@ function cardDash(icon, valor, label, cor) {
 // ================================================================
 var B = [], G = [], curB = null, curG = null, foto = null, strm = null;
 var origNm = '', filt = 'all';
-var estoque = [], fila = [];
+var estoque = [], fila = [], filaLaminacao = [];
 var LS = 'enc_v3';
 var ultimoRelatorio = '';
 var confStatus = {};
@@ -697,7 +708,7 @@ function validarEstoqueImportado() {
         if (larg === 0) faltando.push('Largura');
         if (esp === 0) faltando.push('Espessura');
         if (qtde === 0) faltando.push('Qtde');
-        if (!pig && !isMetal) faltando.push('Pigmentado');
+        if (!pig && !/-4$/.test(item)) faltando.push('Pigmentado');
         if (faltando.length > 0) problemas.push({ linha: i + 2, item: item || '(vazio)', versao: versao || '-', descricao: desc, motivo: faltando.join(', ') });
     }
     ultimosProblemasImportacaoEstoque = problemas;
@@ -782,10 +793,43 @@ function parseTabela(dados) {
 }
 
 // ================================================================
+//                    TIPO DE ITEM (VISUAL)
+// ================================================================
+function isMetalizado(cod) {
+    return /-4$/.test(String(cod || '').trim());
+}
+
+function getIconeTipo(cod) {
+    if (isMetalizado(cod)) return '⚪';
+    return temCapa(cod) ? '🔴' : '🟢';
+}
+
+function getLabelTipo(cod) {
+    if (isMetalizado(cod)) return 'METAL';
+    return temCapa(cod) ? 'CAPA' : 'BASE';
+}
+
+function getCorTipo(cod) {
+    if (isMetalizado(cod)) return '#94a3b8';
+    return temCapa(cod) ? '#ef4444' : '#10b981';
+}
+
+// ================================================================
 //                    EXTRAÇÃO
 // ================================================================
 function extrairLargura(d) { try { var m = d.toLowerCase().replace(/\s/g,'').match(/\(([0-9.,]+)cm/); if(m) return parseFloat(m[1].replace(',','.')); } catch(e){} return 0; }
 function extrairEspessura(d) { try { var m = d.toLowerCase().replace(/\s/g,'').match(/x([0-9.,]+)mu/); if(m) return parseFloat(m[1].replace(',','.')); } catch(e){} return 0; }
+function extrairProdutoK(textoK) {
+    if (!textoK) return '';
+    var partes = String(textoK).split(' - ');
+    return (partes[0] || '').trim().toUpperCase();
+}
+
+function extrairVersaoL(textoL) {
+    if (!textoL) return '';
+    var partes = String(textoL).split(' - ');
+    return (partes[0] || '').trim();
+}
 
 // ================================================================
 //                    PRIORIDADE
@@ -803,16 +847,15 @@ function calcularEncaixes() {
 
     document.getElementById('fInfo').textContent = '⚡ Calculando...';
     var problemasImportacao = validarEstoqueImportado();
-    var problemas = [], ignorados = 0, est = [];
+    var problemas = [], est = [];
 
     for (var i=0;i<estoque.length;i++) {
         var e=estoque[i], ic=getItemEstoque(e);
-        if(/-4$/.test(ic)){ignorados++;continue;}
         var desc=e['DESCRICAO']||'', larg=extrairLargura(desc), esp=extrairEspessura(desc);
         var comp=normalizarComposicao(e['COMPOSICAO']||''), pig=normalizarPigmentado(e['PIGMENTADO']||'');
         var qtde=parseFloat(e['QTDE_ESTOQUE'])||0;
         if(!comp||larg===0||esp===0||qtde===0) { var m=[]; if(!comp)m.push('Composição'); if(larg===0)m.push('Largura'); if(esp===0)m.push('Espessura'); if(qtde===0)m.push('Qtde'); problemas.push({item:ic,versao:e['VERSAO']||'?',desc:desc,motivo:m.join(', '),tipo:'ERRO'}); continue; }
-        if(!pig) { var jaReportado=false; for(var pi=0;pi<ultimosProblemasImportacaoEstoque.length;pi++){if(ultimosProblemasImportacaoEstoque[pi].item===ic){jaReportado=true;break;}} if(!jaReportado) problemas.push({item:ic,versao:e['VERSAO']||'?',desc:desc,motivo:'Pigmentado vazio',tipo:'AVISO'}); }
+        if(!pig && !/-4$/.test(ic)) { var jaReportado=false; for(var pi=0;pi<ultimosProblemasImportacaoEstoque.length;pi++){if(ultimosProblemasImportacaoEstoque[pi].item===ic){jaReportado=true;break;}} if(!jaReportado) problemas.push({item:ic,versao:e['VERSAO']||'?',desc:desc,motivo:'Pigmentado vazio',tipo:'AVISO'}); }
         est.push({
     item: ic,
     versao: e['VERSAO'] || '',
@@ -824,6 +867,7 @@ function calcularEncaixes() {
     qtde: qtde,
     material: normalizarTexto(e['MATERIAL'] || ''),
     isCapa: temCapa(ic),
+    isMetal: /-4$/.test(ic),
     chaveExata: larg + '|' + esp + '|' + comp + '|' + pig,
     chaveSemLarg: esp + '|' + comp + '|' + pig
 });
@@ -842,34 +886,128 @@ function calcularEncaixes() {
     }
 
     var saldo={}; for(var s=0;s<fp.length;s++){if(!saldo[fp[s].op])saldo[fp[s].op]=fp[s].peso;}
+var fpLam = [];
+for (var jl = 0; jl < filaLaminacao.length; jl++) {
+    var fl = filaLaminacao[jl];
+
+    var textoK = fl['PRODUTO'] || fl['__K'] || '';
+    var textoL = fl['VERSÃO'] || fl['VERSAO'] || fl['__L'] || '';
+    var produto = extrairProdutoK(textoK);
+    var versaoLam = extrairVersaoL(textoL);
+    var largLam = extrairLargura(textoK);
+    var espLam = extrairEspessura(textoK);
+    var pesoLam = parseFloat(fl['PESO']) || 0;
+    var prevEntrega = fl['PREV. ENTREGA'] || fl['PREV ENTREGA'] || '';
+    var opLam = fl['OP'] || '';
+
+    if (!produto || !opLam || pesoLam <= 0) continue;
+
+    fpLam.push({
+        op: opLam,
+        itemFila: produto,
+        versao: versaoLam,
+        largura: largLam,
+        espessura: espLam,
+        peso: pesoLam,
+        difData: diferencaDiasHoje(prevEntrega),
+        data: prevEntrega
+    });
+}
+
+var saldoLam = {};
+for (var sl = 0; sl < fpLam.length; sl++) {
+    if (!saldoLam[fpLam[sl].op]) saldoLam[fpLam[sl].op] = fpLam[sl].peso;
+}
     var res=[]; est.sort(function(a,b){return a.qtde-b.qtde;});
 
-    for(var e2=0;e2<est.length;e2++){
-        var bob=est[e2],found=false;
-        var tent=[{ex:true,mt:true},{ex:true,mt:false},{ex:false,mt:true},{ex:false,mt:false}];
-        for(var t=0;t<tent.length;t++){
-            if(found)break; var tn=tent[t],cands=[];
-            for(var f2=0;f2<fp.length;f2++){
-                var o=fp[f2];
-                if(tn.mt){if(o.isCapa!==bob.isCapa)continue;}else{if(o.isCapa===bob.isCapa)continue;}
-                if(tn.ex){if(o.chaveExata!==bob.chaveExata)continue;}else{if(o.chaveSemLarg!==bob.chaveSemLarg)continue;if(bob.largura<o.largura)continue;if(bob.largura>o.largMaxAceita)continue;}
-                if(o.prioridade>=99)continue; var sa=saldo[o.op]||0; if(bob.qtde>sa)continue; cands.push(o);
-            }
-            if(cands.length===0)continue;
-            ordenarCandidatas(cands); var esc=cands[0]; saldo[esc.op]-=bob.qtde;
+    for (var e2 = 0; e2 < est.length; e2++) {
+    var bob = est[e2], found = false;
+
+    if (bob.isMetal) {
+        var candsLam = [];
+
+        for (var f2 = 0; f2 < fpLam.length; f2++) {
+            var oL = fpLam[f2];
+
+            if (String(oL.itemFila) !== String(bob.item)) continue;
+            if (String(oL.versao) !== String(bob.versao)) continue;
+            if (Number(oL.largura) !== Number(bob.largura)) continue;
+            if (Number(oL.espessura) !== Number(bob.espessura)) continue;
+
+            var saL = saldoLam[oL.op] || 0;
+            if (bob.qtde > saL) continue;
+
+            candsLam.push(oL);
+        }
+
+        if (candsLam.length > 0) {
+            candsLam.sort(function(a, b) {
+                return a.difData - b.difData;
+            });
+
+            var escL = candsLam[0];
+            saldoLam[escL.op] -= bob.qtde;
+
             res.push({
-    enc: esc.op,
-    item: bob.item,
-    ver: bob.versao,
-    larg: String(bob.largura),
-    esp: String(bob.espessura),
-    pig: bob.pigmentado,
-    qtde: String(bob.qtde),
-    material: bob.material || ''
-});
-            found=true;
+                enc: escL.op,
+                item: bob.item,
+                ver: bob.versao,
+                larg: String(bob.largura),
+                esp: String(bob.espessura),
+                pig: bob.pigmentado,
+                qtde: String(bob.qtde),
+                material: bob.material || ''
+            });
+
+            found = true;
+        }
+
+    } else {
+        var tent = [{ex:true,mt:true},{ex:true,mt:false},{ex:false,mt:true},{ex:false,mt:false}];
+
+        for (var t = 0; t < tent.length; t++) {
+            if (found) break;
+            var tn = tent[t], cands = [];
+
+            for (var f2n = 0; f2n < fp.length; f2n++) {
+                var o = fp[f2n];
+                if (tn.mt) { if (o.isCapa !== bob.isCapa) continue; }
+                else { if (o.isCapa === bob.isCapa) continue; }
+
+                if (tn.ex) {
+                    if (o.chaveExata !== bob.chaveExata) continue;
+                } else {
+                    if (o.chaveSemLarg !== bob.chaveSemLarg) continue;
+                    if (bob.largura < o.largura) continue;
+                    if (bob.largura > o.largMaxAceita) continue;
+                }
+
+                if (o.prioridade >= 99) continue;
+                var sa = saldo[o.op] || 0;
+                if (bob.qtde > sa) continue;
+                cands.push(o);
+            }
+
+            if (cands.length === 0) continue;
+            ordenarCandidatas(cands);
+            var esc = cands[0];
+            saldo[esc.op] -= bob.qtde;
+
+            res.push({
+                enc: esc.op,
+                item: bob.item,
+                ver: bob.versao,
+                larg: String(bob.largura),
+                esp: String(bob.espessura),
+                pig: bob.pigmentado,
+                qtde: String(bob.qtde),
+                material: bob.material || ''
+            });
+
+            found = true;
         }
     }
+}
 
     B=[];
     for(var r2=0;r2<res.length;r2++){var rs=res[r2];B.push({
@@ -912,7 +1050,6 @@ function calcularEncaixes() {
             for(var pa=0;pa<avisos.length;pa++){h+='<div style="background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:4px;border-left:3px solid '+COR.amarelo+';"><div style="font-size:0.82em;color:'+COR.texto+';font-weight:600;">'+avisos[pa].item+' / v'+avisos[pa].versao+'</div><div style="font-size:0.7em;color:#888;margin-top:2px;">'+avisos[pa].desc+'</div><div style="font-size:0.72em;color:'+COR.amarelo+';margin-top:3px;">'+avisos[pa].motivo+'</div></div>';}
             h+='</div>';
         }
-        if(ignorados>0){h+='<div style="background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:4px;border-left:3px solid '+COR.cinza+';"><div style="font-size:0.82em;color:#64748b;font-weight:600;">🥈 '+ignorados+' Metalizados ignorados (-4)</div><div style="font-size:0.7em;color:#888;margin-top:2px;">Itens terminados em -4 são ignorados automaticamente</div></div>';}
         ultimoRelatorio=h; document.getElementById('probBody').innerHTML=h;
         document.getElementById('probModal').classList.add('active');
     } else { ultimoRelatorio=''; }
@@ -922,12 +1059,12 @@ function atualizarInfo() {
     var total=B.length, ok=0;
     for(var i=0;i<total;i++){if(B[i].ok)ok++;}
     var estTotal=0,metalizados=0;
-    for(var j=0;j<estoque.length;j++){if(/-4$/.test(getItemEstoque(estoque[j]))){metalizados++;continue;}estTotal++;}
-    var semEnc=estTotal-total;
-    var txt='✅ '+total+' encaixes';
-    if(ok>0)txt+=' | 📷 '+ok+' ok';
-    if(semEnc>0)txt+=' | ⚠️ '+semEnc+' sem';
-    if(metalizados>0)txt+=' | ⛔ '+metalizados+' metal.';
+for(var j=0;j<estoque.length;j++){if(/-4$/.test(getItemEstoque(estoque[j]))){metalizados++;}estTotal++;}
+var semEnc=estTotal-total;
+var txt='✅ '+total+' encaixes';
+if(ok>0)txt+=' | 📷 '+ok+' ok';
+if(semEnc>0)txt+=' | ⚠️ '+semEnc+' sem';
+if(metalizados>0)txt+=' | ✨ '+metalizados+' metal.';
     if(ultimosProblemasImportacaoEstoque.length>0)txt+=' | ⚠️ '+ultimosProblemasImportacaoEstoque.length+' aviso(s)';
     document.getElementById('fInfo').textContent=txt;
 }
@@ -936,8 +1073,8 @@ function atualizarInfo() {
 //                    SAVE / LOAD
 // ================================================================
 function save() {
-    try { localStorage.setItem(LS, JSON.stringify({ B: B, origNm: origNm, estoque: estoque, fila: fila })); }
-    catch (e) { try { localStorage.setItem(LS, JSON.stringify({ B: B, origNm: origNm, estoque: estoque })); } catch (e2) { try { localStorage.setItem(LS, JSON.stringify({ B: B, origNm: origNm })); } catch (e3) {} } }
+    try { localStorage.setItem(LS, JSON.stringify({ B: B, origNm: origNm, estoque: estoque, fila: fila, filaLaminacao: filaLaminacao })); }
+    catch (e) { try { localStorage.setItem(LS, JSON.stringify({ B: B, origNm: origNm, estoque: estoque, fila: fila })); } catch (e2) { try { localStorage.setItem(LS, JSON.stringify({ B: B, origNm: origNm, estoque: estoque })); } catch (e3) { try { localStorage.setItem(LS, JSON.stringify({ B: B, origNm: origNm })); } catch (e4) {} } } }
 }
 
 function load() {
@@ -945,7 +1082,8 @@ function load() {
         var s = localStorage.getItem(LS); if (!s) return false;
         var d = JSON.parse(s);
         if (d.estoque && d.estoque.length) estoque = d.estoque;
-        if (d.fila && d.fila.length) fila = d.fila;
+if (d.fila && d.fila.length) fila = d.fila;
+if (d.filaLaminacao && d.filaLaminacao.length) filaLaminacao = d.filaLaminacao;
         var estoqueValidos = 0, metalizados = 0;
         for (var i = 0; i < estoque.length; i++) { if (/-4$/.test(getItemEstoque(estoque[i]))) metalizados++; else estoqueValidos++; }
         var info = [];
@@ -983,10 +1121,16 @@ function limpar() {
 // ================================================================
 function infoEstoque() {
     var total = 0, metalizados = 0;
-    for (var i = 0; i < estoque.length; i++) { if (/-4$/.test(getItemEstoque(estoque[i]))) metalizados++; else total++; }
-    var txt = estoque.length ? ('✅ Estoque: ' + total) : '1️⃣ Estoque';
-    if (metalizados > 0) txt += ' | ⛔ ' + metalizados + ' metal.';
-    txt += ' | ' + (fila.length ? '✅ Fila: ' + fila.length : '2️⃣ Fila');
+    for (var i = 0; i < estoque.length; i++) {
+        if (/-4$/.test(getItemEstoque(estoque[i]))) metalizados++;
+        else total++;
+    }
+
+    var txt = estoque.length ? ('✅ Est: ' + total) : '1️⃣ Estoque';
+    if (metalizados > 0) txt += ' | ✨ Met: ' + metalizados;
+    txt += ' | ' + (fila.length ? '✅ Fila Extrusão: ' + fila.length : '2️⃣ Fila Extrusão');
+txt += ' | ' + (filaLaminacao.length ? '✅ Fila Laminação: ' + filaLaminacao.length : '3️⃣ Fila Laminação');
+
     document.getElementById('fInfo').textContent = txt;
     save();
 }
@@ -1029,16 +1173,40 @@ document.getElementById('fileFila').addEventListener('change', function(e) {
     origNm = f.name.replace(/\.[^.]+$/, '');
     var r = new FileReader();
     if (f.name.endsWith('.csv')) {
-        r.onload = function(ev) { fila = parseCSV(ev.target.result); infoEstoque(); toast(fila.length + ' itens da fila importados', 'success'); };
+        r.onload = function(ev) { fila = parseCSV(ev.target.result); infoEstoque(); toast(fila.length + ' itens da fila extrusão importados', 'success'); };
         r.readAsText(f, 'UTF-8');
     } else {
         r.onload = function(ev) {
             var wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
             fila = parseTabela(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 }));
-            infoEstoque(); toast(fila.length + ' itens da fila importados', 'success');
+            infoEstoque(); toast(fila.length + ' itens da fila extrusão importados', 'success');
         };
         r.readAsArrayBuffer(f);
     }
+    e.target.value = '';
+});
+
+document.getElementById('fileFilaLaminacao').addEventListener('change', function(e) {
+    var f = e.target.files[0]; if (!f) return;
+    var r = new FileReader();
+
+    if (f.name.endsWith('.csv')) {
+        r.onload = function(ev) {
+            filaLaminacao = parseCSV(ev.target.result);
+            infoEstoque();
+            toast(filaLaminacao.length + ' itens da fila laminação importados', 'success');
+        };
+        r.readAsText(f, 'UTF-8');
+    } else {
+        r.onload = function(ev) {
+            var wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+            filaLaminacao = parseTabela(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 }));
+            infoEstoque();
+            toast(filaLaminacao.length + ' itens da fila laminação importados', 'success');
+        };
+        r.readAsArrayBuffer(f);
+    }
+
     e.target.value = '';
 });
 
@@ -1083,7 +1251,8 @@ function mkCard(gi) {
         var bi = g.bs[b], bob = B[bi];
         if (filt === 'ok' && !bob.ok) continue; if (filt === 'pend' && bob.ok) continue;
         bl += '<div class="bob-row' + (bob.ok ? ' done' : '') + '"><button class="bob-chk' + (bob.ok ? ' done' : '') + '" data-b="' + bi + '">' + (bob.ok ? '✔' : '📷') + '</button>' +
-            '<div class="bob-mid"><span class="bob-peso">' + bob.qtde + ' kg' + (bob.manual ? tagManual() : '') + (isNova(bob.item, bob.qtde) ? tagNew() : '') + '</span>' + (estObservacoes[bob.item] ? '<div style="font-size:0.6em;color:#f59e0b;margin-top:2px;">💬 ' + estObservacoes[bob.item] + '</div>' : '') + '</div>' +
+    '<div class="bob-mid"><span class="bob-peso">' + bob.qtde + ' kg' + (isMetalizado(bob.item) ? ' <span style="font-size:0.6em;padding:2px 6px;border-radius:6px;background:#f1f5f9;color:#94a3b8;font-weight:700;">METAL</span>' : '') + (bob.manual ? tagManual() : '') + (isNova(bob.item, bob.qtde) ? tagNew() : '') + '</span>' + (estObservacoes[bob.item] ? '<div style="font-size:0.6em;color:#f59e0b;margin-top:2px;">💬 ' + estObservacoes[bob.item] + '</div>' : '') + '</div>' +
+
             (bob.foto ? '<img src="' + bob.foto + '" class="bob-mini" data-b="' + bi + '">' : '') +
             '<div class="bob-actions">' +
                 '<button class="bob-act bob-act-edit" data-b="' + bi + '" data-g="' + gi + '" title="Editar peso">✏️</button>' +
@@ -1563,14 +1732,6 @@ function cardDash(icon, valor, label, cor) {
         '</div>';
 }
 
-function cardDash(icon, valor, label, cor) {
-    return '<div style="background:#fff;border-radius:8px;border:1px solid #e0e0e0;padding:8px 4px;text-align:center;overflow:hidden;min-width:0;">' +
-        '<div style="font-size:0.9em;">' + icon + '</div>' +
-        '<div style="font-size:0.8em;font-weight:700;color:' + cor + ';margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + valor + '</div>' +
-        '<div style="font-size:0.45em;color:#888;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + label + '</div>' +
-        '</div>';
-}
-
 // ================================================================
 //                    IDADE DAS BOBINAS
 // ================================================================
@@ -1579,62 +1740,109 @@ function abrirIdadeBobinas() { document.getElementById('idadeModal').classList.a
 async function carregarIdadeBobinas() {
     var body = document.getElementById('idadeBody');
     body.innerHTML = '<div style="text-align:center;padding:40px;color:#f59e0b;">⏳ Buscando nas últimas 10 conferências...</div>';
+
     try {
         var snap = await db.collection('conferencias').orderBy('timestamp', 'desc').limit(2000).get();
         var lotesOrdem = [], lotesMap = {};
+
         snap.forEach(function(doc) {
             var d = doc.data(), lk = d.lote || '';
-            if (lk && !lotesMap[lk]) { lotesMap[lk] = { timestamp: d.timestamp, data: d.data || '' }; lotesOrdem.push(lk); }
+            if (lk && !lotesMap[lk]) {
+                lotesMap[lk] = { timestamp: d.timestamp, data: d.data || '' };
+                lotesOrdem.push(lk);
+            }
         });
+
         var ultimos10 = lotesOrdem.slice(0, 10);
         var primeiraVez = {};
+
         snap.forEach(function(doc) {
             var d = doc.data();
             if (!d.item || ultimos10.indexOf(d.lote) === -1) return;
+
             var item = d.item;
             if (!primeiraVez[item] || (d.timestamp && primeiraVez[item].timestamp && d.timestamp.seconds < primeiraVez[item].timestamp.seconds)) {
-                primeiraVez[item] = { data: d.data || '', timestamp: d.timestamp, lote: d.lote };
+                primeiraVez[item] = {
+                    data: d.data || '',
+                    timestamp: d.timestamp,
+                    lote: d.lote
+                };
             }
         });
 
         var manualDatas = {};
-try { manualDatas = JSON.parse(localStorage.getItem('enc_datas') || '{}'); } catch(e) {}
+        try {
+            manualDatas = JSON.parse(localStorage.getItem('enc_datas') || '{}');
+        } catch(e) {}
 
-// Busca datas manuais do Firebase também
-try {
-    var snapDatas = await db.collection('datas_manuais').get();
-    snapDatas.forEach(function(doc) {
-        var d = doc.data();
-        if (d.item && d.data && !manualDatas[d.item]) {
-            manualDatas[d.item] = d.data;
-        }
-    });
-} catch(e) {}
+        // Busca datas manuais do Firebase também
+        try {
+            var snapDatas = await db.collection('datas_manuais').get();
+            snapDatas.forEach(function(doc) {
+                var d = doc.data();
+                if (d.item && d.data && !manualDatas[d.item]) {
+                    manualDatas[d.item] = d.data;
+                }
+            });
+        } catch(e) {}
+
         Object.keys(manualDatas).forEach(function(item) {
-    var partes = manualDatas[item].split('-');
-    var dt = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
-    if (!isNaN(dt.getTime())) {
-                primeiraVez[item] = { data: dt.toLocaleDateString('pt-BR'), timestamp: { toDate: function() { return dt; }, seconds: dt.getTime()/1000 }, lote: 'manual' };
+            var partes = manualDatas[item].split('-');
+            var dt = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+            if (!isNaN(dt.getTime())) {
+                primeiraVez[item] = {
+                    data: dt.toLocaleDateString('pt-BR'),
+                    timestamp: {
+                        toDate: function() { return dt; },
+                        seconds: dt.getTime() / 1000
+                    },
+                    lote: 'manual'
+                };
             }
         });
 
-        var agora = new Date(), itensParados = [];
+        var agora = new Date();
+        var itensParados = [];
+
         for (var i = 0; i < estoque.length; i++) {
-            var e = estoque[i], ic = getItemEstoque(e);
-            if (/-4$/.test(ic) || confOcultos[ic]) continue;
-            var qtde = parseFloat(e['QTDE_ESTOQUE']) || 0, temEncaixe = false;
-            for (var b = 0; b < B.length; b++) { if (B[b].item === ic) { temEncaixe = true; break; } }
+            var e = estoque[i];
+            var ic = getItemEstoque(e);
+
+            if (confOcultos[ic]) continue;
+
+            var qtde = parseFloat(e['QTDE_ESTOQUE']) || 0;
+            var temEncaixe = false;
+
+            for (var b = 0; b < B.length; b++) {
+                if (B[b].item === ic) {
+                    temEncaixe = true;
+                    break;
+                }
+            }
+
             var diasParado = null, dataEntrada = null, origem = '';
+
             if (primeiraVez[ic]) {
                 var pv = primeiraVez[ic];
                 if (pv.timestamp && pv.timestamp.toDate) {
-                    var dt = pv.timestamp.toDate();
-                    diasParado = Math.floor((agora - dt) / 86400000);
-                    dataEntrada = dt.toLocaleDateString('pt-BR');
+                    var dt2 = pv.timestamp.toDate();
+                    diasParado = Math.floor((agora - dt2) / 86400000);
+                    dataEntrada = dt2.toLocaleDateString('pt-BR');
                     origem = 'conferência';
                 }
             }
-            itensParados.push({ item: ic, ver: e['VERSAO'] || '', qtde: qtde, temEncaixe: temEncaixe, diasParado: diasParado, dataEntrada: dataEntrada, origem: origem, desc: e['DESCRICAO'] || '', tipo: temCapa(ic) ? 'CAPA' : 'BASE' });
+
+            itensParados.push({
+                item: ic,
+                ver: e['VERSAO'] || '',
+                qtde: qtde,
+                temEncaixe: temEncaixe,
+                diasParado: diasParado,
+                dataEntrada: dataEntrada,
+                origem: origem,
+                desc: e['DESCRICAO'] || '',
+                tipo: isMetalizado(ic) ? 'METAL' : (temCapa(ic) ? 'CAPA' : 'BASE')
+            });
         }
 
         itensParados.sort(function(a, b) {
@@ -1646,9 +1854,13 @@ try {
 
         document.getElementById('idadeSubtitle').textContent = itensParados.length + ' itens | ' + ultimos10.length + ' conferências analisadas';
 
-        if (itensParados.length === 0) { body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;">📭 Sem dados</div>'; return; }
+        if (itensParados.length === 0) {
+            body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;">📭 Sem dados</div>';
+            return;
+        }
 
         var semData = [], ate30 = [], de30a90 = [], de90a180 = [], mais180 = [];
+
         itensParados.forEach(function(it) {
             if (it.diasParado === null) semData.push(it);
             else if (it.diasParado <= 30) ate30.push(it);
@@ -1666,21 +1878,37 @@ try {
 
         function renderFaixa(lista, titulo, cor) {
             if (lista.length === 0) return '';
-            var h = '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;margin-bottom:8px;overflow:hidden;"><div style="padding:10px 14px;background:#f8fafc;font-size:0.82em;font-weight:700;color:' + cor + ';">' + titulo + ' (' + lista.length + ')</div>';
+
+            var h = '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;margin-bottom:8px;overflow:hidden;">' +
+                '<div style="padding:10px 14px;background:#f8fafc;font-size:0.82em;font-weight:700;color:' + cor + ';">' + titulo + ' (' + lista.length + ')</div>';
+
             lista.forEach(function(it) {
                 var bgRow = it.temEncaixe ? '#f0fdf4' : '#fff';
-                h += '<div style="padding:10px 14px;border-bottom:1px solid #f0f0f0;background:' + bgRow + ';display:flex;align-items:center;gap:8px;"><div style="font-size:1em;">' + (it.tipo === 'CAPA' ? '🔴' : '🔵') + '</div><div style="flex:1;min-width:0;"><div style="font-size:0.82em;font-weight:600;font-family:monospace;">' + it.item + ' <span style="font-size:0.8em;color:#aaa;">v' + it.ver + '</span></div><div style="font-size:0.65em;color:#888;margin-top:2px;">';
-                if (it.dataEntrada) h += '📅 desde ' + it.dataEntrada; else h += '📅 data desconhecida';
+
+                h += '<div style="padding:10px 14px;border-bottom:1px solid #f0f0f0;background:' + bgRow + ';display:flex;align-items:center;gap:8px;">' +
+                    '<div style="font-size:1em;">' + (it.tipo === 'METAL' ? '⚪' : (it.tipo === 'CAPA' ? '🔴' : '🔵')) + '</div>' +
+                    '<div style="flex:1;min-width:0;">' +
+                        '<div style="font-size:0.82em;font-weight:600;font-family:monospace;">' + it.item + ' <span style="font-size:0.8em;color:#aaa;">v' + it.ver + '</span></div>' +
+                        '<div style="font-size:0.65em;color:#888;margin-top:2px;">';
+
+                if (it.dataEntrada) h += '📅 desde ' + it.dataEntrada;
+                else h += '📅 data desconhecida';
+
                 if (it.temEncaixe) h += ' <span style="color:#10b981;font-weight:600;">● com encaixe</span>';
-                h += '</div></div><div style="text-align:right;flex-shrink:0;"><div style="font-size:0.85em;font-weight:700;color:#1a1a2e;">' + Math.round(it.qtde) + 'kg</div>';
-                                if (it.diasParado !== null) {
+
+                h += '</div></div>' +
+                    '<div style="text-align:right;flex-shrink:0;">' +
+                        '<div style="font-size:0.85em;font-weight:700;color:#1a1a2e;">' + Math.round(it.qtde) + 'kg</div>';
+
+                if (it.diasParado !== null) {
                     var corDias = it.diasParado > 180 ? '#ef4444' : (it.diasParado > 90 ? '#f97316' : (it.diasParado > 30 ? '#f59e0b' : '#10b981'));
                     h += '<div style="font-size:0.65em;font-weight:700;color:' + corDias + ';">' + it.diasParado + ' dias</div>';
                 }
-                h += '<button onclick="idadeEditarData(\'' + it.item.replace(/'/g, "\\'") + '\')" style="margin-top:2px;padding:2px 6px;border:1px solid #e0e0e0;border-radius:6px;background:#fff;color:' + (it.diasParado !== null ? '#888' : '#2563eb') + ';font-size:0.55em;cursor:pointer;">' + (it.diasParado !== null ? '✏️' : '📅 Definir') + '</button>';
-                
-                h += '</div></div>';
+
+                h += '<button onclick="idadeEditarData(\'' + it.item.replace(/'/g, "\\'") + '\')" style="margin-top:2px;padding:2px 6px;border:1px solid #e0e0e0;border-radius:6px;background:#fff;color:' + (it.diasParado !== null ? '#888' : '#2563eb') + ';font-size:0.55em;cursor:pointer;">' + (it.diasParado !== null ? '✏️' : '📅 Definir') + '</button>' +
+                    '</div></div>';
             });
+
             h += '</div>';
             return h;
         }
@@ -1690,8 +1918,12 @@ try {
         if (de30a90.length > 0) html += renderFaixa(de30a90, '🟡 1 a 3 meses', '#f59e0b');
         if (ate30.length > 0) html += renderFaixa(ate30, '🟢 Até 30 dias', '#10b981');
         if (semData.length > 0) html += renderFaixa(semData, '⚪ Data desconhecida', '#94a3b8');
+
         body.innerHTML = html;
-    } catch(err) { body.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">❌ ' + err.message + '</div>'; }
+
+    } catch(err) {
+        body.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">❌ ' + err.message + '</div>';
+    }
 }
 
 function idadeEditarData(item) {
@@ -2019,77 +2251,142 @@ function estRender() {
     var enc = {}, encCount = {};
     for (var b = 0; b < B.length; b++) { enc[B[b].item] = B[b].enc; encCount[B[b].item] = (encCount[B[b].item] || 0) + 1; }
     var encUsado = {}, itens = [], cEnc = 0, cSem = 0, cMetal = 0, cOculto = 0, pEnc = 0, pSem = 0, pMetal = 0, pOculto = 0;
+
     for (var i = 0; i < estoque.length; i++) {
         var e = estoque[i], ic = getItemEstoque(e), qtde = parseFloat(e['QTDE_ESTOQUE']) || 0, ver = e['VERSAO'] || '', desc = e['DESCRICAO'] || '';
         var larg = extrairLargura(desc), esp = extrairEspessura(desc), comp = normalizarComposicao(e['COMPOSICAO'] || ''), pig = normalizarPigmentado(e['PIGMENTADO'] || '');
         var cap = temCapa(ic), isMetal = /-4$/.test(ic), isOculto = !isMetal && confOcultos[ic] === true;
         var eop = '', te = false;
-        if (!isMetal && !isOculto && enc[ic]) { var usado = encUsado[ic] || 0; if (usado < (encCount[ic] || 0)) { eop = enc[ic]; te = true; encUsado[ic] = usado + 1; } }
+        if (!isOculto && enc[ic]) { var usado = encUsado[ic] || 0; if (usado < (encCount[ic] || 0)) { eop = enc[ic]; te = true; encUsado[ic] = usado + 1; } }
         var categoria = '';
-        if (isMetal) { categoria = 'metal'; cMetal++; pMetal += qtde; } else if (isOculto) { categoria = 'oculto'; cOculto++; pOculto += qtde; } else if (te) { categoria = 'enc'; cEnc++; pEnc += qtde; } else { categoria = 'sem'; cSem++; pSem += qtde; }
+        if (isMetal) { categoria = 'metal'; cMetal++; pMetal += qtde; }
+        else if (isOculto) { categoria = 'oculto'; cOculto++; pOculto += qtde; }
+        else if (te) { categoria = 'enc'; cEnc++; pEnc += qtde; }
+        else { categoria = 'sem'; cSem++; pSem += qtde; }
         if (!estFiltros[categoria]) continue;
+
         if (busca) {
-    var buscaLimpa = busca.replace(/-/g, '').replace(/\s+/g, ' ').trim();
-    var buscaPartes = buscaLimpa.split(' ');
-    var buscaPrimeira = buscaPartes[0] || '';
-    var buscaResto = buscaPartes.length > 1 ? buscaPartes.slice(1).join(' ') : '';
-    var pigBusca = '';
-    if (buscaResto === 'BRANCO' || buscaResto === 'PIGMENTADO') pigBusca = 'S';
-    else if (buscaResto === 'TRANSPARENTE' || buscaResto === 'TRANSP') pigBusca = 'N';
+            var buscaLimpa = busca.replace(/-/g, '').replace(/\s+/g, ' ').trim();
+            var buscaPartes = buscaLimpa.split(' ');
+            var buscaPrimeira = buscaPartes[0] || '';
+            var buscaResto = buscaPartes.length > 1 ? buscaPartes.slice(1).join(' ') : '';
+            var pigBusca = '';
+            if (buscaResto === 'BRANCO' || buscaResto === 'PIGMENTADO') pigBusca = 'S';
+            else if (buscaResto === 'TRANSPARENTE' || buscaResto === 'TRANSP') pigBusca = 'N';
+            var materialLimpo = normalizarTexto(e['MATERIAL'] || '').replace(/-/g, '');
+            var linhaInteira = (ic + ' ' + comp + ' ' + pig + ' ' + (e['MATERIAL'] || '') + ' ' + desc + ' ' + (eop || '')).toUpperCase().replace(/-/g, '');
+            var achouLinha = linhaInteira.indexOf(buscaLimpa) > -1;
+            var achouMaterial = materialLimpo.indexOf(buscaPrimeira) > -1;
+            var achouPig = !pigBusca || pig === pigBusca;
+            var achouSoPig = (buscaLimpa === 'BRANCO' || buscaLimpa === 'PIGMENTADO') && pig === 'S';
+            var achouSoTransp = (buscaLimpa === 'TRANSPARENTE' || buscaLimpa === 'TRANSP') && pig === 'N';
+            if (!(achouLinha || (achouMaterial && achouPig) || achouSoPig || achouSoTransp)) continue;
+        }
 
-    var materialLimpo = normalizarTexto(e['MATERIAL'] || '').replace(/-/g, '');
-    var linhaInteira = (ic + ' ' + comp + ' ' + pig + ' ' + (e['MATERIAL'] || '') + ' ' + desc + ' ' + (eop || '')).toUpperCase().replace(/-/g, '');
-
-    var achouLinha = linhaInteira.indexOf(buscaLimpa) > -1;
-    var achouMaterial = materialLimpo.indexOf(buscaPrimeira) > -1;
-    var achouPig = !pigBusca || pig === pigBusca;
-    var achouSoPig = (buscaLimpa === 'BRANCO' || buscaLimpa === 'PIGMENTADO') && pig === 'S';
-    var achouSoTransp = (buscaLimpa === 'TRANSPARENTE' || buscaLimpa === 'TRANSP') && pig === 'N';
-
-    if (achouLinha || (achouMaterial && achouPig) || achouSoPig || achouSoTransp) {
-        // ok
-    } else {
-        continue;
-    }
-}
-        if (filtro === 'capa' && !cap) continue; if (filtro === 'base' && cap) continue;
+        if (filtro === 'capa' && !cap) continue;
+        if (filtro === 'base' && cap) continue;
         itens.push({ item: ic, ver: ver, larg: larg, esp: esp, comp: comp, pig: pig, qtde: qtde, tipo: cap ? 'CAPA' : 'BASE', eop: eop, te: te, isMetal: isMetal, isOculto: isOculto, material: normalizarTexto(e['MATERIAL'] || '') });
     }
+
     document.getElementById('estComEnc').textContent = cEnc; document.getElementById('estPesoEnc').textContent = pEnc.toFixed(0) + 'kg';
     document.getElementById('estSemEnc').textContent = cSem; document.getElementById('estPesoSem').textContent = pSem.toFixed(0) + 'kg';
     document.getElementById('estMetal').textContent = cMetal; document.getElementById('estPesoMetal').textContent = pMetal.toFixed(0) + 'kg';
     document.getElementById('estOculto').textContent = cOculto; document.getElementById('estPesoOculto').textContent = pOculto.toFixed(0) + 'kg';
+
     var totalVis = 0, pesoVis = 0;
-    if (estFiltros.enc) { totalVis += cEnc; pesoVis += pEnc; } if (estFiltros.sem) { totalVis += cSem; pesoVis += pSem; }
-    if (estFiltros.metal) { totalVis += cMetal; pesoVis += pMetal; } if (estFiltros.oculto) { totalVis += cOculto; pesoVis += pOculto; }
+    if (estFiltros.enc) { totalVis += cEnc; pesoVis += pEnc; }
+    if (estFiltros.sem) { totalVis += cSem; pesoVis += pSem; }
+    if (estFiltros.metal) { totalVis += cMetal; pesoVis += pMetal; }
+    if (estFiltros.oculto) { totalVis += cOculto; pesoVis += pOculto; }
     document.getElementById('estSubtitle').textContent = totalVis + ' visíveis (' + pesoVis.toFixed(0) + 'kg) | ' + (cEnc + cSem + cMetal + cOculto) + ' total';
-    if (itens.length === 0) { body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;">📭 Nenhum item</div>'; return; }
-    itens.sort(function(a, b) { if (a.isOculto !== b.isOculto) return a.isOculto ? 1 : -1; if (a.isMetal !== b.isMetal) return a.isMetal ? 1 : -1; if (a.te !== b.te) return a.te ? 1 : -1; return a.item.localeCompare(b.item); });
-    var html = '';
+
+    if (itens.length === 0) {
+        body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;">📭 Nenhum item</div>';
+        return;
+    }
+
+    itens.sort(function(a, b) {
+        if (a.isOculto !== b.isOculto) return a.isOculto ? 1 : -1;
+        if (a.isMetal !== b.isMetal) return a.isMetal ? 1 : -1;
+        if (a.te !== b.te) return a.te ? 1 : -1;
+        return a.item.localeCompare(b.item);
+    });
+
+        var html = '';
     for (var j = 0; j < itens.length; j++) {
-        var it = itens[j], bg = it.isMetal ? '#f8fafc' : (it.isOculto ? '#f5f3ff' : (it.te ? '#f0fdf4' : '#fff')), bord = it.isMetal ? '#cbd5e1' : (it.isOculto ? '#c4b5fd' : (it.te ? '#bbf7d0' : '#e0e0e0'));
+        var it = itens[j];
+        var bg = it.isOculto ? '#f5f3ff' : (it.te ? '#f0fdf4' : '#fff');
+        var bord = it.isOculto ? '#c4b5fd' : (it.te ? '#bbf7d0' : '#e0e0e0');
         var obsAtual = estObservacoes[it.item] || '';
-        html += '<div style="background:' + bg + ';border-radius:10px;border:1px solid ' + bord + ';margin-bottom:6px;' + (it.isMetal || it.isOculto ? 'opacity:0.72;' : '') + '">';
-        html += '<div style="padding:10px 12px;display:flex;align-items:center;gap:8px;">';
-        html += '<div style="min-width:32px;text-align:center;"><div style="font-size:1.1em;">' + (it.isMetal ? '⛔' : (it.isOculto ? '👁️‍🗨️' : (it.tipo === 'CAPA' ? '🔴' : '🟢'))) + '</div><div style="font-size:0.5em;color:' + (it.isMetal ? '#888' : (it.isOculto ? '#888' : (it.tipo === 'CAPA' ? '#ef4444' : '#10b981'))) + ';font-weight:600;">' + (it.isMetal ? 'METAL' : (it.isOculto ? 'OCULTA' : it.tipo)) + '</div></div>';
-        html += '<div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:0.85em;font-weight:600;color:#1a1a2e;font-family:monospace;">' + it.item + '</span><span style="font-size:0.6em;color:#aaa;">v' + it.ver + '</span>' + (isNova(it.item, it.qtde) ? tagNew() : '') + '</div>';
-        html += '<div style="display:flex;gap:8px;margin-top:2px;font-size:0.65em;color:#999;"><span>📐' + it.larg + 'x' + it.esp + '</span><span>🎨' + it.pig + '</span>' + (it.material ? '<span>🧪' + it.material + '</span>' : '') + '</div></div>';
-        html += '<div style="text-align:right;min-width:50px;"><div style="font-size:0.85em;font-weight:700;color:#1a1a2e;">' + it.qtde.toFixed(0) + '</div><div style="font-size:0.5em;color:#888;">kg</div></div>';
-        html += '<div style="min-width:60px;text-align:center;">';
-        if (it.isMetal) html += '<div style="font-size:0.6em;padding:3px 6px;border-radius:8px;background:#f1f5f9;color:#94a3b8;font-weight:600;">METAL</div>';
-        else if (it.isOculto) html += '<div style="font-size:0.6em;padding:3px 6px;border-radius:8px;background:#f5f3ff;color:#8b5cf6;font-weight:600;">OCULTA</div>';
-        else if (it.te) html += '<div style="font-size:0.6em;padding:3px 6px;border-radius:8px;background:#dcfce7;color:#16a34a;font-weight:600;">OP ' + it.eop + '</div>';
-        else html += '<div style="font-size:0.6em;padding:3px 6px;border-radius:8px;background:#fee2e2;color:#ef4444;font-weight:600;">SEM</div>';
+        var icone = it.isMetal ? '⚪' : (it.isOculto ? '👁️‍🗨️' : (it.tipo === 'CAPA' ? '🔴' : '🟢'));
+        var corLabel = it.isMetal ? '#94a3b8' : (it.isOculto ? '#888' : (it.tipo === 'CAPA' ? '#ef4444' : '#10b981'));
+        var labelTipo = it.isMetal ? 'METAL' : (it.isOculto ? 'OCULTA' : it.tipo);
+
+        // Card container
+        html += '<div style="background:' + bg + ';border-radius:10px;border:1px solid ' + bord + ';margin-bottom:6px;' + (it.isOculto ? 'opacity:0.72;' : '') + '" oncontextmenu="event.preventDefault();estLongPress(\'' + it.item.replace(/'/g, "\\'") + '\');" data-estitem="' + it.item + '">';
+
+        // Linha 1: tipo + item + versão + medidas + pigmento + peso
+        html += '<div style="padding:8px 12px 2px;display:flex;align-items:center;gap:6px;">';
+
+        // Ícone tipo
+        html += '<div style="font-size:1em;flex-shrink:0;">' + icone + '</div>';
+
+        // Item + versão
+        html += '<span style="font-size:0.85em;font-weight:600;color:#1a1a2e;font-family:monospace;">' + it.item + '</span>';
+        html += '<span style="font-size:0.6em;color:#aaa;">v' + it.ver + '</span>';
+
+        // Medidas
+        html += '<span style="font-size:0.6em;color:#888;">📐' + it.larg + 'x' + it.esp + '</span>';
+
+        // Pigmento (só se não for metal)
+        if (!it.isMetal) html += '<span style="font-size:0.6em;color:#888;">🎨' + it.pig + '</span>';
+
+        // Tag NEW
+        if (isNova(it.item, it.qtde)) html += tagNew();
+
+        // Peso (empurrado pra direita)
+        html += '<div style="margin-left:auto;text-align:right;flex-shrink:0;">' +
+            '<span style="font-size:0.9em;font-weight:700;color:#1a1a2e;">' + it.qtde.toFixed(0) + '</span>' +
+            '<span style="font-size:0.5em;color:#888;"> kg</span>' +
+            '</div>';
+
         html += '</div>';
-                if (!it.isMetal) html += '<button onclick="event.stopPropagation();estToggleOculto(\'' + it.item + '\')" style="width:26px;height:26px;border-radius:6px;border:1px solid ' + (it.isOculto ? '#8b5cf6' : '#e0e0e0') + ';background:#fff;color:' + (it.isOculto ? '#8b5cf6' : '#94a3b8') + ';cursor:pointer;font-size:0.7em;display:flex;align-items:center;justify-content:center;">👁️‍🗨️</button>';
-        if (!it.isMetal && !it.isOculto) html += '<button onclick="event.stopPropagation();xM(\'estModal\');setTimeout(function(){debugarItem(\'' + it.item + '\');},300);" style="min-width:26px;height:26px;border-radius:6px;border:1px solid #e0e0e0;background:#fff;color:#f59e0b;cursor:pointer;font-size:0.7em;display:flex;align-items:center;justify-content:center;">🔍</button>';
-        var obsAtual = estObservacoes[it.item] || '';
-        if (!it.isMetal) html += '<button onclick="event.stopPropagation();abrirModalObs(\'' + it.item + '\')" style="min-width:26px;height:26px;border-radius:6px;border:1px solid ' + (obsAtual ? '#f59e0b' : '#e0e0e0') + ';background:#fff;color:' + (obsAtual ? '#f59e0b' : '#94a3b8') + ';cursor:pointer;font-size:0.7em;display:flex;align-items:center;justify-content:center;" title="' + (obsAtual || 'Observação') + '">💬</button>';
-                html += '</div>';
-        if (obsAtual) html += '<div style="width:100%;padding:2px 12px 6px 50px;font-size:0.65em;color:#f59e0b;">💬 ' + obsAtual + '</div>';
+
+        // Linha 2: material + composição + obs
+        html += '<div style="padding:0 12px 6px 28px;display:flex;gap:8px;flex-wrap:wrap;font-size:0.6em;color:#aaa;align-items:center;">';
+        if (it.material) html += '<span style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🧪 ' + it.material + '</span>';
+        if (it.comp) html += '<span style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📦 ' + it.comp + '</span>';
+        if (it.te) html += '<span style="color:#16a34a;font-weight:600;">✅ OP ' + it.eop + '</span>';
+        if (it.isOculto) html += '<span style="color:#8b5cf6;font-weight:600;">👁️ OCULTA</span>';
+        if (obsAtual) html += '<span style="color:#f59e0b;">💬 ' + obsAtual + '</span>';
+        html += '</div>';
+
+        // Fecha o card
         html += '</div>';
     }
-    body.innerHTML = html;;
+
+    body.innerHTML = html;
+
+    // Long press nos cards do estoque
+    var cards = body.querySelectorAll('[data-estitem]');
+    cards.forEach(function(card) {
+        var timer = null;
+        var item = card.getAttribute('data-estitem');
+
+        card.addEventListener('touchstart', function(e) {
+            timer = setTimeout(function() {
+                e.preventDefault();
+                estAbrirOpcoes(item);
+            }, 500);
+        });
+        card.addEventListener('touchend', function() { clearTimeout(timer); });
+        card.addEventListener('touchmove', function() { clearTimeout(timer); });
+        card.addEventListener('mousedown', function() {
+            timer = setTimeout(function() { estAbrirOpcoes(item); }, 500);
+        });
+        card.addEventListener('mouseup', function() { clearTimeout(timer); });
+        card.addEventListener('mouseleave', function() { clearTimeout(timer); });
+    });
 }
 
 // MELHORIA 8: Modal observação
@@ -2171,7 +2468,7 @@ function estCSV() {
             material + ';' +
             normalizarPigmentado(e['PIGMENTADO'] || '') + ';' +
             (parseFloat(e['QTDE_ESTOQUE']) || 0) + ';' +
-            (temCapa(ic) ? 'CAPA' : 'BASE') + ';' +
+            (/-4$/.test(ic) ? 'METAL' : (temCapa(ic) ? 'CAPA' : 'BASE')) + ';' +
             status + ';' +
             eop + ';' +
             obs.replace(/;/g, ',') + ';' +
@@ -2193,6 +2490,35 @@ function estToggleOculto(item) {
     if (confOcultos[item]) delete confOcultos[item]; else confOcultos[item] = true;
     localStorage.setItem('enc_ocultos', JSON.stringify(confOcultos));
     estRender();
+}
+
+function estAbrirOpcoes(item) {
+    if (navigator.vibrate) navigator.vibrate([50]);
+
+    var isOculto = confOcultos[item] === true;
+    var obsAtual = estObservacoes[item] || '';
+
+    var html = '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:4px;">' + item + '</h3>' +
+        '<p style="font-size:0.72em;color:#888;margin-bottom:14px;">Ações da bobina</p>' +
+        '<div style="display:flex;flex-direction:column;gap:8px;">';
+
+    // Ocultar / Mostrar
+    html += '<button onclick="estToggleOculto(\'' + item.replace(/'/g, "\\'") + '\');fecharModal(\'estOpcoesModal\');estRender();" style="width:100%;padding:12px;border:none;border-radius:10px;background:' + (isOculto ? '#8b5cf6' : '#f1f5f9') + ';color:' + (isOculto ? '#fff' : '#555') + ';font-size:0.88em;font-weight:600;cursor:pointer;">' + (isOculto ? '👁️ Mostrar bobina' : '👁️‍🗨️ Ocultar bobina') + '</button>';
+
+    // Debug
+    if (!isOculto) {
+        html += '<button onclick="fecharModal(\'estOpcoesModal\');xM(\'estModal\');setTimeout(function(){debugarItem(\'' + item.replace(/'/g, "\\'") + '\');},300);" style="width:100%;padding:12px;border:none;border-radius:10px;background:#fef3c7;color:#92400e;font-size:0.88em;font-weight:600;cursor:pointer;">🔍 Investigar (Debug)</button>';
+    }
+
+    // Observação
+    html += '<button onclick="fecharModal(\'estOpcoesModal\');abrirModalObs(\'' + item.replace(/'/g, "\\'") + '\');" style="width:100%;padding:12px;border:none;border-radius:10px;background:' + (obsAtual ? '#fef3c7' : '#f1f5f9') + ';color:' + (obsAtual ? '#92400e' : '#555') + ';font-size:0.88em;font-weight:600;cursor:pointer;">💬 ' + (obsAtual ? 'Editar observação' : 'Adicionar observação') + '</button>';
+
+    // Fechar
+    html += '<button onclick="fecharModal(\'estOpcoesModal\')" style="width:100%;padding:12px;border:none;border-radius:10px;background:#ef4444;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">✖ Fechar</button>';
+
+    html += '</div>';
+
+    criarModal('estOpcoesModal', html);
 }
 
 // ================================================================
@@ -2252,37 +2578,54 @@ function confRender() {
     var html = '';
     for (var j = 0; j < itens.length; j++) {
         var it = itens[j], isOk2 = it.status === 'ok', cardStyle = '';
-        if (it.metal) cardStyle = 'opacity:0.6;border-color:#94a3b8;'; else if (it.oculto) cardStyle = 'opacity:0.6;border-color:#8b5cf6;'; else if (isOk2) cardStyle = 'border-color:#10b981;background:#f0fdf4;'; else if (it.temEnc) cardStyle = 'border-color:#f59e0b;background:#fffbeb;';
+        if (it.oculto) cardStyle = 'opacity:0.6;border-color:#8b5cf6;';
+        else if (isOk2) cardStyle = 'border-color:#10b981;background:#f0fdf4;';
+        else if (it.temEnc) cardStyle = 'border-color:#f59e0b;background:#fffbeb;';
+
+        var icone = it.metal ? '⚪' : (it.tipo === 'CAPA' ? '🔴' : '🔵');
+
         html += '<div class="conf-card" style="' + cardStyle + '"><div style="display:flex;align-items:center;gap:6px;width:100%;">';
-        if (it.metal) html += '<div style="width:22px;height:22px;min-width:22px;display:flex;align-items:center;justify-content:center;font-size:0.85em;color:#94a3b8;">⛔</div>';
-        else if (it.oculto) html += '<div style="width:22px;height:22px;min-width:22px;display:flex;align-items:center;justify-content:center;font-size:0.85em;color:#8b5cf6;">👁️‍🗨️</div>';
+
+        // Checkbox / ícone oculto
+        if (it.oculto) html += '<div style="width:22px;height:22px;min-width:22px;display:flex;align-items:center;justify-content:center;font-size:0.85em;color:#8b5cf6;">👁️‍🗨️</div>';
         else if (isOk2) html += '<button class="conf-chk ok" onclick="event.stopPropagation();confDesmarcar(\'' + it.key + '\')" style="flex-shrink:0;">✔</button>';
         else html += '<button class="conf-chk" onclick="event.stopPropagation();confPedirEndereco(\'' + it.key + '\')" style="flex-shrink:0;">✔️</button>';
-        html += '<div style="flex:1;min-width:0;overflow:hidden;"><div class="conf-item">' + (it.tipo === 'CAPA' ? '🔴' : '🔵') + ' ' + it.item + ' <span style="font-size:0.75em;color:#aaa;font-weight:400;">v' + it.ver + '</span>';
+
+        // Info
+        html += '<div style="flex:1;min-width:0;overflow:hidden;">';
+        html += '<div class="conf-item">' + icone + ' ' + it.item + ' <span style="font-size:0.75em;color:#aaa;font-weight:400;">v' + it.ver + '</span>';
         if (it.manual) html += tagManual();
-	if (isNova(it.item, it.qtde)) html += tagNew();	
-        html += '</div><div class="conf-det"><span>📐 ' + it.larg + 'cm x ' + it.esp + 'mu</span><span>' + it.pig + '</span>';
+        if (isNova(it.item, it.qtde)) html += tagNew();
+        html += '</div>';
+        html += '<div class="conf-det">';
+        html += '<span>📐 ' + it.larg + 'cm x ' + it.esp + 'mu</span>';
+        if (!it.metal) html += '<span>' + it.pig + '</span>';
         if (isOk2 && it.endereco) html += '<span style="color:#10b981;">📌' + it.endereco + '</span>';
         html += '</div></div>';
-        html += '<div style="display:flex;align-items:center;gap:3px;flex-shrink:0;"><div class="conf-peso">' + it.qtde.toFixed(0) + '<span style="font-size:0.6em;color:#888;"> kg</span></div>';
-        html += '<div style="min-width:40px;text-align:center;">';
-        if (it.metal) html += '<div style="font-size:0.55em;padding:2px 4px;border-radius:6px;background:#f1f5f9;color:#94a3b8;font-weight:600;">METAL</div>';
-        else if (it.oculto) html += '<div style="font-size:0.55em;padding:2px 4px;border-radius:6px;background:#f5f3ff;color:#8b5cf6;font-weight:600;">OCULTA</div>';
+
+        // Peso + editar
+        html += '<div style="display:flex;align-items:center;gap:3px;flex-shrink:0;">';
+        html += '<div class="conf-peso">' + it.qtde.toFixed(0) + '<span style="font-size:0.6em;color:#888;"> kg</span></div>';
+
+        // Badge só para oculto e ok
+        html += '<div style="min-width:30px;text-align:center;">';
+        if (it.oculto) html += '<div style="font-size:0.55em;padding:2px 4px;border-radius:6px;background:#f5f3ff;color:#8b5cf6;font-weight:600;">OCULTA</div>';
         else if (isOk2) html += '<div style="font-size:0.55em;padding:2px 4px;border-radius:6px;background:#dcfce7;color:#10b981;font-weight:600;">✅</div>';
         else if (it.temEnc) html += '<div style="font-size:0.55em;padding:2px 4px;border-radius:6px;background:#fef3c7;color:#f59e0b;font-weight:600;">ENC</div>';
-        else html += '<div style="font-size:0.55em;padding:2px 4px;border-radius:6px;background:#fee2e2;color:#ef4444;font-weight:600;">SEM</div>';
         html += '</div>';
-        // MELHORIA 6: Campo editar peso vazio
-        if (!it.metal) html += '<button onclick="event.stopPropagation();confEditarPeso(\'' + it.key + '\',' + it.estoqueIdx + ')" style="width:20px;height:20px;border-radius:4px;border:1px solid #e0e0e0;background:#fff;color:#f59e0b;cursor:pointer;font-size:0.55em;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✏️</button>';
+
+        // Botão editar peso
+        html += '<button onclick="event.stopPropagation();confEditarPeso(\'' + it.key + '\',' + it.estoqueIdx + ')" style="width:20px;height:20px;border-radius:4px;border:1px solid #e0e0e0;background:#fff;color:#f59e0b;cursor:pointer;font-size:0.55em;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✏️</button>';
+
         html += '</div></div></div>';
     }
+
     html += '<div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;">';
     html += '<button onclick="event.stopPropagation();confAdicionarItem()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">➕ Adicionar</button>';
     if (cOk > 0) html += '<button onclick="event.stopPropagation();confCompartilhar()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">📤 Compartilhar</button>';
     html += '<button onclick="event.stopPropagation();confFinalizar()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#ef4444;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">🏁 Finalizar conferência</button>';
     html += '<button onclick="event.stopPropagation();confLimparStatus()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.85em;cursor:pointer;">🔄 Resetar</button></div>';
-    body.innerHTML = html;
-}
+    body.innerHTML = html;}
 
 // MELHORIA 7: Sugerir último endereço do Firebase
 async function confPedirEndereco(key) {
@@ -2649,20 +2992,20 @@ function debugarItem(itemBusca) {
         var e = estoque[i]; if (getItemEstoque(e) !== itemBusca) continue; encontrou = true;
         var ic = getItemEstoque(e), desc = e['DESCRICAO'] || '', larg = extrairLargura(desc), esp = extrairEspessura(desc);
         var comp = normalizarComposicao(e['COMPOSICAO'] || ''), pig = normalizarPigmentado(e['PIGMENTADO'] || ''), qtde = parseFloat(e['QTDE_ESTOQUE']) || 0;
-        var ce = larg + '|' + esp + '|' + comp + '|' + pig, cs = esp + '|' + comp + '|' + pig, cap = temCapa(ic);
-        html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;"><div style="font-size:0.85em;font-weight:700;color:#2563eb;margin-bottom:8px;">📦 Estoque</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:0.78em;"><div><span style="color:#888;">Item:</span> <strong>' + ic + '</strong></div><div><span style="color:#888;">Versão:</span> ' + (e['VERSAO'] || '') + '</div><div><span style="color:#888;">Largura:</span> ' + larg + '</div><div><span style="color:#888;">Espessura:</span> ' + esp + '</div><div><span style="color:#888;">Composição:</span> ' + comp + '</div><div><span style="color:#888;">Pigmento:</span> ' + pig + '</div><div><span style="color:#888;">Qtde:</span> ' + qtde + ' kg</div><div><span style="color:#888;">Tipo:</span> <span style="color:' + (cap ? '#ef4444' : '#2563eb') + ';font-weight:700;">' + (cap ? 'CAPA' : 'BASE') + '</span></div></div><div style="margin-top:8px;font-size:0.7em;color:#888;font-family:monospace;word-break:break-all;">Exata: ' + ce + '<br>Sem larg: ' + cs + '</div></div>';
+        var ce = larg + '|' + esp + '|' + comp + '|' + pig, cs = esp + '|' + comp + '|' + pig, cap = temCapa(ic), metal = isMetalizado(ic);
+        html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:14px;margin-bottom:10px;"><div style="font-size:0.85em;font-weight:700;color:#2563eb;margin-bottom:8px;">📦 Estoque</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:0.78em;"><div><span style="color:#888;">Item:</span> <strong>' + ic + '</strong></div><div><span style="color:#888;">Versão:</span> ' + (e['VERSAO'] || '') + '</div><div><span style="color:#888;">Largura:</span> ' + larg + '</div><div><span style="color:#888;">Espessura:</span> ' + esp + '</div><div><span style="color:#888;">Composição:</span> ' + comp + '</div><div><span style="color:#888;">Pigmento:</span> ' + pig + '</div><div><span style="color:#888;">Qtde:</span> ' + qtde + ' kg</div><div><span style="color:#888;">Tipo:</span> <span style="color:' + (metal ? '#94a3b8' : (cap ? '#ef4444' : '#2563eb')) + ';font-weight:700;">' + (metal ? 'METAL' : (cap ? 'CAPA' : 'BASE')) + '</span></div></div><div style="margin-top:8px;font-size:0.7em;color:#888;font-family:monospace;word-break:break-all;">Exata: ' + ce + '<br>Sem larg: ' + cs + '</div></div>';
         var sal = {}; for (var ss = 0; ss < fila.length; ss++) { var ok2 = fila[ss]['OP_PRINCIPAL'] || fila[ss]['OP'] || ''; var pk = parseFloat(fila[ss]['PESO']) || 0; if (ok2 && !sal[ok2]) sal[ok2] = pk; }
         var tents = [{ ex: true, mt: true, lb: '1ª Exata + Mesmo Tipo' }, { ex: true, mt: false, lb: '2ª Exata + Tipo Diferente' }, { ex: false, mt: true, lb: '3ª Sem Larg + Mesmo Tipo' }, { ex: false, mt: false, lb: '4ª Sem Larg + Tipo Diferente' }];
         var esc = null;
         for (var t = 0; t < tents.length; t++) {
             var tn = tents[t], cands = [], rej = { ch: 0, tp: 0, lg: 0, tl: 0, ps: 0, pg: 0 };
-            for (var j = 0; j < fila.length; j++) { var f = fila[j], if2 = getItemFila(f), df = f['DESCRICAO'] || ''; var lf = extrairLargura(df), ef = extrairEspessura(df), cf = normalizarComposicao(f['COMPOSICAO'] || ''), pf = normalizarPigmentado(f['PIGMENTADO'] || ''); var wf = parseFloat(f['PESO']) || 0, ap = String(f['APRESENTACAO'] || '').trim().toLowerCase(); var si = normalizarTexto(f['SITUACAO'] || '').toLowerCase(), pr = normalizarProgramada(f['PROGRAMADA'] || ''); var fn = parseFloat(f['FILA']) || 0, pe = f['PREV ENTREGA'] || '', op = f['OP_PRINCIPAL'] || f['OP'] || '', cf2 = temCapa(if2); var tol = 0; if (ap === 'saco' || ap === 'saco picotado' || ap === 'folha') tol = 2; else if (ap === 'filme' || ap === 'filme picotado') tol = 10; var cef = lf + '|' + ef + '|' + cf + '|' + pf, csf = ef + '|' + cf + '|' + pf; if (tn.mt) { if (cf2 !== cap) { rej.tp++; continue; } } else { if (cf2 === cap) { rej.tp++; continue; } } if (tn.ex) { if (cef !== ce) { rej.ch++; continue; } } else { if (csf !== cs) { rej.ch++; continue; } if (larg < lf) { rej.lg++; continue; } if (larg > lf + tol) { rej.tl++; continue; } } var pri = calcPrioridade(si, pr, fn); if (pri >= 99) { rej.pg++; continue; } var sa = sal[op] || 0; if (qtde > sa) { rej.ps++; continue; } cands.push({ op: op, itemFila: if2, largura: lf, peso: wf, saldo: sa, tipo: cf2 ? 'CAPA' : 'BASE', situacao: si, programada: pr, fila: fn, data: pe, difData: diferencaDiasHoje(pe), apresentacao: ap, tolerancia: tol, prioridade: pri }); }
+            for (var j = 0; j < fila.length; j++) { var f = fila[j], if2 = getItemFila(f), df = f['DESCRICAO'] || ''; var lf = extrairLargura(df), ef = extrairEspessura(df), cf = normalizarComposicao(f['COMPOSICAO'] || ''), pf = normalizarPigmentado(f['PIGMENTADO'] || ''); var wf = parseFloat(f['PESO']) || 0, ap = String(f['APRESENTACAO'] || '').trim().toLowerCase(); var si = normalizarTexto(f['SITUACAO'] || '').toLowerCase(), pr = normalizarProgramada(f['PROGRAMADA'] || ''); var fn = parseFloat(f['FILA']) || 0, pe = f['PREV ENTREGA'] || '', op = f['OP_PRINCIPAL'] || f['OP'] || '', cf2 = temCapa(if2); var tol = 0; if (ap === 'saco' || ap === 'saco picotado' || ap === 'folha') tol = 2; else if (ap === 'filme' || ap === 'filme picotado') tol = 10; var cef = lf + '|' + ef + '|' + cf + '|' + pf, csf = ef + '|' + cf + '|' + pf; if (tn.mt) { if (cf2 !== cap) { rej.tp++; continue; } } else { if (cf2 === cap) { rej.tp++; continue; } } if (tn.ex) { if (cef !== ce) { rej.ch++; continue; } } else { if (csf !== cs) { rej.ch++; continue; } if (larg < lf) { rej.lg++; continue; } if (larg > lf + tol) { rej.tl++; continue; } } var pri = calcPrioridade(si, pr, fn); if (pri >= 99) { rej.pg++; continue; } var sa = sal[op] || 0; if (qtde > sa) { rej.ps++; continue; } cands.push({ op: op, itemFila: if2, largura: lf, peso: wf, saldo: sa, tipo: isMetalizado(if2) ? 'METAL' : (cf2 ? 'CAPA' : 'BASE'), situacao: si, programada: pr, fila: fn, data: pe, difData: diferencaDiasHoje(pe), apresentacao: ap, tolerancia: tol, prioridade: pri }); }
             var tentColor = cands.length > 0 && !esc ? '#10b981' : (cands.length > 0 ? '#f59e0b' : '#ef4444');
             html += '<div style="background:#fff;border-radius:12px;border:1px solid #e0e0e0;padding:12px;margin-bottom:8px;border-left:3px solid ' + tentColor + ';"><div style="font-size:0.82em;font-weight:700;color:' + tentColor + ';margin-bottom:6px;">' + tn.lb + '</div>';
             html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;"><span style="font-size:0.68em;background:#fee2e2;color:#ef4444;padding:2px 6px;border-radius:6px;">Chave:' + rej.ch + '</span><span style="font-size:0.68em;background:#fee2e2;color:#ef4444;padding:2px 6px;border-radius:6px;">Tipo:' + rej.tp + '</span>';
             if (!tn.ex) html += '<span style="font-size:0.68em;background:#fee2e2;color:#ef4444;padding:2px 6px;border-radius:6px;">Larg:' + rej.lg + '</span><span style="font-size:0.68em;background:#fee2e2;color:#ef4444;padding:2px 6px;border-radius:6px;">Tol:' + rej.tl + '</span>';
             html += '<span style="font-size:0.68em;background:#fee2e2;color:#ef4444;padding:2px 6px;border-radius:6px;">Peso:' + rej.ps + '</span><span style="font-size:0.68em;background:#fee2e2;color:#ef4444;padding:2px 6px;border-radius:6px;">Prog:' + rej.pg + '</span><span style="font-size:0.68em;background:#dcfce7;color:#16a34a;padding:2px 6px;border-radius:6px;font-weight:700;">✅' + cands.length + '</span></div>';
-            if (cands.length > 0 && !esc) { ordenarCandidatas(cands); esc = cands[0]; html += '<div style="background:#dcfce7;padding:8px 10px;border-radius:8px;margin-bottom:8px;font-size:0.82em;color:#16a34a;font-weight:700;">🏆 OP ' + esc.op + '</div>'; for (var c = 0; c < cands.length; c++) { var cd = cands[c], isEsc = c === 0; html += '<div style="background:' + (isEsc ? '#f0fdf4' : '#f8fafc') + ';border:1px solid ' + (isEsc ? '#10b981' : '#e0e0e0') + ';border-radius:8px;padding:8px 10px;margin-bottom:4px;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:0.82em;font-weight:700;">OP ' + cd.op + '</span>'; if (isEsc) html += '<span style="font-size:0.6em;background:#10b981;color:#fff;padding:1px 6px;border-radius:6px;font-weight:700;">ESCOLHIDA</span>'; html += '<span style="font-size:0.65em;color:' + (cd.tipo === 'CAPA' ? '#ef4444' : '#2563eb') + ';font-weight:600;">' + cd.tipo + '</span><span style="font-size:0.65em;color:#888;">P' + cd.prioridade + '</span></div><div style="display:flex;flex-wrap:wrap;gap:4px;font-size:0.68em;color:#888;"><span>' + cd.itemFila + '</span><span>📏' + cd.largura + '</span><span>⚖️' + cd.peso + 'kg</span><span>💰' + cd.saldo.toFixed(0) + '</span><span>📋' + cd.programada + '</span><span>#' + cd.fila + '</span><span>📅' + cd.data + '</span><span>' + cd.situacao + '</span></div></div>'; } }
+            if (cands.length > 0 && !esc) { ordenarCandidatas(cands); esc = cands[0]; html += '<div style="background:#dcfce7;padding:8px 10px;border-radius:8px;margin-bottom:8px;font-size:0.82em;color:#16a34a;font-weight:700;">🏆 OP ' + esc.op + '</div>'; for (var c = 0; c < cands.length; c++) { var cd = cands[c], isEsc = c === 0; html += '<div style="background:' + (isEsc ? '#f0fdf4' : '#f8fafc') + ';border:1px solid ' + (isEsc ? '#10b981' : '#e0e0e0') + ';border-radius:8px;padding:8px 10px;margin-bottom:4px;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:0.82em;font-weight:700;">OP ' + cd.op + '</span>'; if (isEsc) html += '<span style="font-size:0.6em;background:#10b981;color:#fff;padding:1px 6px;border-radius:6px;font-weight:700;">ESCOLHIDA</span>'; html += '<span style="font-size:0.65em;color:' + (cd.tipo === 'METAL' ? '#94a3b8' : (cd.tipo === 'CAPA' ? '#ef4444' : '#2563eb')) + ';font-weight:600;">' + cd.tipo + '</span><span style="font-size:0.65em;color:#888;">P' + cd.prioridade + '</span></div><div style="display:flex;flex-wrap:wrap;gap:4px;font-size:0.68em;color:#888;"><span>' + cd.itemFila + '</span><span>📏' + cd.largura + '</span><span>⚖️' + cd.peso + 'kg</span><span>💰' + cd.saldo.toFixed(0) + '</span><span>📋' + cd.programada + '</span><span>#' + cd.fila + '</span><span>📅' + cd.data + '</span><span>' + cd.situacao + '</span></div></div>'; } }
             else if (cands.length > 0) html += '<div style="font-size:0.78em;color:#f59e0b;font-weight:600;">⏭️ Já encontrou antes</div>';
             html += '</div>';
         }
@@ -2821,12 +3164,6 @@ function compararEstoques(anterior, atual) {
     html += '<div style="display:flex;gap:8px;margin-top:12px;">';
     html += '<button onclick="fecharModal(\'compModal\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;cursor:pointer;">Fechar</button>';
 html += '<button onclick="limparNovas();fecharModal(\'compModal\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">✅ Limpar NEW</button>';
-function limparNovas() {
-    bobinasNovas = {};
-    localStorage.removeItem('enc_novas');
-    build();
-    toast('Tags NEW removidas', 'success');
-}
     html += '</div>';
 
     criarModal('compModal', html, { maxWidth: '400px' });
@@ -2855,7 +3192,11 @@ addL('fileEstado', 'change', function(e) {
             if (!estado.versao || estado.versao !== 'enc_backup_v1') { toast('Arquivo inválido!', 'error'); return; }
             var nEst = estado.estoque ? estado.estoque.length : 0, nFila = estado.fila ? estado.fila.length : 0, nEnc = estado.B ? estado.B.length : 0;
             if (!confirm('Restaurar backup?\n\n📦 ' + nEst + ' estoque\n🏭 ' + nFila + ' fila\n🔗 ' + nEnc + ' encaixes\n\n⚠️ Vai substituir tudo!')) return;
-            if (estado.B) B = estado.B; if (estado.estoque) estoque = estado.estoque; if (estado.fila) fila = estado.fila; if (estado.origNm) origNm = estado.origNm;
+            if (estado.B) B = estado.B; 
+if (estado.estoque) estoque = estado.estoque; 
+if (estado.fila) fila = estado.fila; 
+if (estado.filaLaminacao) filaLaminacao = estado.filaLaminacao;
+if (estado.origNm) origNm = estado.origNm;
             if (estado.confStatus) { confStatus = estado.confStatus; localStorage.setItem('enc_conf', JSON.stringify(confStatus)); }
             if (estado.confOcultos) { confOcultos = estado.confOcultos; localStorage.setItem('enc_ocultos', JSON.stringify(confOcultos)); }
             if (estado.estObservacoes) { estObservacoes = estado.estObservacoes; localStorage.setItem('enc_obs', JSON.stringify(estObservacoes)); }
@@ -2988,13 +3329,19 @@ function hcLimpar() { document.getElementById('hcData').value = ''; hcRegs = [];
 // ================================================================
 function exportarEstado() {
     var estado = {
-        versao: 'enc_backup_v1',
-        data: new Date().toLocaleString('pt-BR'),
-        timestamp: Date.now(),
-        B: B, estoque: estoque, fila: fila, origNm: origNm,
-        confStatus: confStatus, confOcultos: confOcultos,
-        estFiltros: estFiltros, estObservacoes: estObservacoes
-    };
+    versao: 'enc_backup_v1',
+    data: new Date().toLocaleString('pt-BR'),
+    timestamp: Date.now(),
+    B: B,
+    estoque: estoque,
+    fila: fila,
+    filaLaminacao: filaLaminacao,
+    origNm: origNm,
+    confStatus: confStatus,
+    confOcultos: confOcultos,
+    estFiltros: estFiltros,
+    estObservacoes: estObservacoes
+};
     try {
         var estadoLimpo = JSON.parse(JSON.stringify(estado));
         for (var i = 0; i < estadoLimpo.B.length; i++) { if (estadoLimpo.B[i].foto) { estadoLimpo.B[i].temFoto = true; estadoLimpo.B[i].foto = null; } }
@@ -3019,6 +3366,13 @@ try { carregarTema(); } catch (e) { console.error('Erro carregarTema:', e); }
 try { carregarConferencia(); } catch (e) { console.error('Erro carregarConferencia:', e); }
 try { carregarObservacoes(); } catch (e) { console.error('Erro carregarObservacoes:', e); }
 try { load(); } catch (e) { console.error('Erro load:', e); }
+
+function limparNovas() {
+    bobinasNovas = {};
+    localStorage.removeItem('enc_novas');
+    build();
+    toast('Tags NEW removidas', 'success');
+}
 </script>
 
 <div class="modal modal-full" id="dashModal" style="background:#f0f2f5;">
