@@ -644,6 +644,7 @@ var sessaoQrAtualId = '';
 var LS = 'enc_v3';
 var ultimoRelatorio = '';
 var confStatus = {};
+var confHistorico = {};
 var confOcultos = {};
 var ultimoEndereco = '';
 var estFiltros = { enc: true, sem: true, metal: true, oculto: true };
@@ -2801,7 +2802,51 @@ function estAbrirOpcoes(item) {
 //                    CONFERÊNCIA
 // ================================================================
 function confToggleFiltro(tipo) { confFiltros[tipo] = !confFiltros[tipo]; var ids = { enc: 'confFEnc', sem: 'confFSem', ok: 'confFOk', metal: 'confFMetal', oculto: 'confFOculto' }; document.getElementById(ids[tipo]).classList.toggle('on', confFiltros[tipo]); confRender(); }
-function abrirConferencia() { if (estoque.length === 0) { toast('Importe o estoque primeiro!', 'warning'); return; } document.getElementById('confModal').classList.add('active'); confRender(); }
+async function abrirConferencia() {
+    if (estoque.length === 0) { toast('Importe o estoque primeiro!', 'warning'); return; }
+    document.getElementById('confModal').classList.add('active');
+    await carregarHistoricoConferencia();
+    confRender();
+}
+
+var confHistoricoCarregado = false;
+
+async function carregarHistoricoConferencia() {
+    if (confHistoricoCarregado && Object.keys(confHistorico).length > 0) return;
+
+    try {
+        var snap = await db.collection('conferencias')
+            .orderBy('timestamp', 'desc')
+            .limit(1500)
+            .get();
+
+        confHistorico = {};
+
+        snap.forEach(function(doc) {
+            var d = doc.data();
+            var item = String(d.item || '').trim();
+            if (!item) return;
+
+            var status = String(d.status || '').toUpperCase();
+            if (status !== 'ENCONTRADA' && status !== 'ADICIONAL') return;
+
+            // Guarda só o mais recente de cada item
+            if (!confHistorico[item]) {
+                confHistorico[item] = {
+                    endereco: d.endereco || '',
+                    observacao: d.observacao || '',
+                    data: d.data || '',
+                    status: status
+                };
+            }
+        });
+
+        confHistoricoCarregado = true;
+        console.log('📋 Histórico conferência carregado:', Object.keys(confHistorico).length, 'itens');
+    } catch (e) {
+        console.error('Erro ao carregar histórico conferência:', e);
+    }
+}
 
 function confRender() {
     var body = document.getElementById('confBody'), busca = document.getElementById('confBusca').value.trim().toUpperCase();
@@ -2873,11 +2918,25 @@ function confRender() {
         if (it.manual) html += tagManual();
         if (isNova(it.item, it.qtde)) html += tagNew();
         html += '</div>';
-        html += '<div class="conf-det">';
+                html += '<div class="conf-det">';
         html += '<span>📐 ' + it.larg + 'cm x ' + it.esp + 'mu</span>';
         if (!it.metal) html += '<span>' + it.pig + '</span>';
         if (isOk2 && it.endereco) html += '<span style="color:#10b981;">📌' + it.endereco + '</span>';
-        html += '</div></div>';
+        html += '</div>';
+
+        // Mostra endereço e obs do histórico (quando não está conferida ainda)
+        if (!isOk2 && !it.oculto) {
+            var hist = confHistorico[it.item] || null;
+            if (hist) {
+                html += '<div style="margin-top:3px;font-size:0.62em;">';
+                if (hist.endereco) html += '<span style="color:#2563eb;">📌 ' + hist.endereco + '</span> ';
+                if (hist.observacao) html += '<span style="color:#f59e0b;">💬 ' + hist.observacao + '</span>';
+                if (hist.data) html += ' <span style="color:#ccc;">(' + hist.data + ')</span>';
+                html += '</div>';
+            }
+        }
+
+        html += '</div>';
 
         // Peso + editar
         html += '<div style="display:flex;align-items:center;gap:3px;flex-shrink:0;">';
@@ -2917,85 +2976,15 @@ function confRepetirEndereco() {
 async function confPedirEndereco(key) {
     var partes = key.split('_');
     var itemNome = partes[0] || '';
-    console.log('🔍 confPedirEndereco:', itemNome, 'key:', key);
-    var verAtual = partes[1] || '';
-    var qtdeAtual = parseFloat(partes[2]) || 0;
 
-    var enderecoAnterior = '';
-    var obsAnterior = '';
-    var statusAnterior = '';
-    var dataAnterior = '';
-
-    try {
-        var snap = await db.collection('conferencias')
-    .orderBy('timestamp', 'desc')
-    .limit(800)
-    .get();
-
-var candidatos = [];
-
-snap.forEach(function(doc) {
-    var d = doc.data();
-
-    if (String(d.item || '').trim() !== itemNome) return;
-
-    var status = String(d.status || '').toUpperCase();
-    if (status !== 'ENCONTRADA' && status !== 'ADICIONAL') return;
-
-    candidatos.push({
-        endereco: d.endereco || '',
-        observacao: d.observacao || '',
-        versao: String(d.versao || ''),
-        qtde: parseFloat(d.qtde) || 0,
-        status: status,
-        data: d.data || ''
-    });
-});
-
-        var escolhido = null;
-
-        // 1) item + versão + peso
-        for (var i = 0; i < candidatos.length; i++) {
-            var c1 = candidatos[i];
-            if (c1.versao === verAtual && Math.abs(c1.qtde - qtdeAtual) < 0.05) {
-                escolhido = c1;
-                break;
-            }
-        }
-
-        // 2) item + versão
-        if (!escolhido) {
-            for (var j = 0; j < candidatos.length; j++) {
-                var c2 = candidatos[j];
-                if (c2.versao === verAtual) {
-                    escolhido = c2;
-                    break;
-                }
-            }
-        }
-
-        // 3) qualquer do item
-        if (!escolhido && candidatos.length > 0) {
-            escolhido = candidatos[0];
-        }
-
-        if (escolhido) {
-            enderecoAnterior = escolhido.endereco || '';
-            obsAnterior = escolhido.observacao || '';
-            statusAnterior = escolhido.status || '';
-            dataAnterior = escolhido.data || '';
-        }
-        console.log('📋 Candidatos encontrados:', candidatos.length);
-        console.log('📋 Candidatos:', JSON.stringify(candidatos));
-        console.log('📋 Escolhido:', escolhido ? JSON.stringify(escolhido) : 'NENHUM');
-         } catch (e) {
-        console.error('❌ Erro ao buscar histórico:', e.message, e);
-    }
-
+    // Pega do histórico já carregado
+    var hist = confHistorico[itemNome] || null;
+    var enderecoAnterior = hist ? hist.endereco : '';
+    var obsAnterior = hist ? hist.observacao : '';
     var obsLocal = estObservacoes[itemNome] || '';
     if (!obsAnterior && obsLocal) obsAnterior = obsLocal;
 
-    var temHistorico = !!(enderecoAnterior || obsAnterior);
+    var valorInicial = enderecoAnterior || ultimoEndereco || '';
 
     var modal = document.createElement('div');
     modal.id = 'confEndModal';
@@ -3004,132 +2993,56 @@ snap.forEach(function(doc) {
         'background:rgba(0,0,0,0.5);z-index:2000;display:flex;' +
         'align-items:center;justify-content:center;padding:20px;';
 
-    var blocoHistorico = '';
-    if (temHistorico) {
-        blocoHistorico =
-            '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 12px;margin-bottom:12px;">' +
-                '<div style="font-size:0.68em;color:#2563eb;font-weight:700;margin-bottom:6px;">📋 ÚLTIMO HISTÓRICO</div>' +
-                (dataAnterior ? '<div style="font-size:0.68em;color:#666;margin-bottom:6px;">📅 ' + dataAnterior + (statusAnterior ? ' • ' + statusAnterior : '') + '</div>' : '') +
-                (enderecoAnterior ? '<div style="font-size:0.82em;color:#1a1a2e;font-weight:600;margin-bottom:' + (obsAnterior ? '6px' : '0') + ';">📌 ' + enderecoAnterior + '</div>' : '') +
-                (obsAnterior ? '<div style="font-size:0.78em;color:#555;">💬 ' + obsAnterior + '</div>' : '') +
+    var infoHist = '';
+    if (hist && (enderecoAnterior || obsAnterior)) {
+        infoHist =
+            '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:0.72em;color:#555;">' +
+                '<span style="color:#2563eb;font-weight:700;">📋 Último:</span> ' +
+                (enderecoAnterior ? '📌 ' + enderecoAnterior + ' ' : '') +
+                (obsAnterior ? '💬 ' + obsAnterior + ' ' : '') +
+                (hist.data ? '<span style="color:#ccc;">(' + hist.data + ')</span>' : '') +
             '</div>';
     }
 
     modal.innerHTML =
-        '<div style="background:#fff;border-radius:16px;padding:20px;max-width:360px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.2);max-height:90vh;overflow-y:auto;">' +
+        '<div style="background:#fff;border-radius:16px;padding:20px;max-width:360px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.2);">' +
             '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">' +
                 '<h3 style="font-size:0.95em;color:#1a1a2e;">📌 ' + itemNome + '</h3>' +
                 '<button onclick="document.getElementById(\'confEndModal\').remove()" style="width:28px;height:28px;border:none;border-radius:8px;background:#fee2e2;color:#ef4444;font-size:0.85em;cursor:pointer;">✖</button>' +
             '</div>' +
 
-            blocoHistorico +
+            infoHist +
 
-            (temHistorico
-                ? '<div id="confEscolhaBox">' +
-                    '<div style="font-size:0.78em;color:#555;margin-bottom:10px;">Essa bobina continua no mesmo lugar?</div>' +
-                    '<div style="display:flex;gap:8px;">' +
-                        '<button onclick="confMesmoLugar(\'' + key + '\', \'' + enderecoAnterior.replace(/'/g, "\\'") + '\', \'' + obsAnterior.replace(/'/g, "\\'") + '\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.88em;font-weight:700;cursor:pointer;">✅ Mesmo lugar</button>' +
-                        '<button onclick="confMostrarMudou(\'' + enderecoAnterior.replace(/'/g, "\\'") + '\', \'' + obsAnterior.replace(/'/g, "\\'") + '\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:0.88em;font-weight:700;cursor:pointer;">✏️ Mudou</button>' +
-                    '</div>' +
-                  '</div>'
-                : '') +
+            '<label style="font-size:0.7em;color:#888;display:block;margin-bottom:4px;">Endereço *</label>' +
+            '<input type="text" id="confEndInput" placeholder="Ex: Corredor A, Prateleira 3" ' +
+            'value="' + valorInicial.replace(/"/g, '&quot;') + '" ' +
+            'style="width:100%;padding:11px 12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;box-sizing:border-box;">' +
 
-            '<div id="confEditorBox" style="display:' + (temHistorico ? 'none' : 'block') + ';margin-top:' + (temHistorico ? '12px' : '0') + ';">' +
-                '<label style="font-size:0.7em;color:#888;display:block;margin-bottom:4px;">Endereço atual *</label>' +
-                '<input type="text" id="confEndInput" placeholder="Ex: Corredor A, Prateleira 3" ' +
-'style="width:100%;padding:11px 12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;box-sizing:border-box;">' +
+            '<label style="font-size:0.7em;color:#888;display:block;margin-top:10px;margin-bottom:4px;">Observação (opcional)</label>' +
+            '<input type="text" id="confObsInput" placeholder="Ex: Embalagem ok" ' +
+            'value="' + (obsAnterior || '').replace(/"/g, '&quot;') + '" ' +
+            'style="width:100%;padding:11px 12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;box-sizing:border-box;">' +
 
-                '<label style="font-size:0.7em;color:#888;display:block;margin-top:10px;margin-bottom:4px;">Observação (opcional)</label>' +
-                '<input type="text" id="confObsInput" placeholder="Ex: Embalagem ok, sem avarias" value="' + (temHistorico ? '' : (obsAnterior || '').replace(/"/g, '&quot;')) + '" ' +
-                'style="width:100%;padding:11px 12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;box-sizing:border-box;">' +
-
-                '<div style="display:flex;gap:8px;margin-top:14px;">' +
-    '<button onclick="document.getElementById(\'confEndModal\').remove()" style="padding:12px 16px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;font-weight:600;cursor:pointer;">Cancelar</button>' +
-    '<button onclick="confRepetirEndereco()" style="padding:12px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:1.1em;font-weight:600;cursor:pointer;" title="Repetir último">🔁</button>' +
-    '<button onclick="confConfirmarEndereco(\'' + key + '\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-size:0.88em;font-weight:700;cursor:pointer;">✅ Confirmar</button>' +
-'</div>' +
+            '<div style="display:flex;gap:8px;margin-top:14px;">' +
+                '<button onclick="document.getElementById(\'confEndModal\').remove()" style="padding:12px 16px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;font-weight:600;cursor:pointer;">Cancelar</button>' +
+                '<button onclick="confRepetirEndereco()" style="padding:12px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:1.1em;font-weight:600;cursor:pointer;" title="Repetir último">🔁</button>' +
+                '<button onclick="confConfirmarEndereco(\'' + key + '\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.88em;font-weight:700;cursor:pointer;">✅ Confirmar</button>' +
             '</div>' +
         '</div>';
 
     document.body.appendChild(modal);
 
-    if (!temHistorico) {
-        setTimeout(function() {
-            var input = document.getElementById('confEndInput');
-            if (input) input.focus();
-        }, 100);
-    }
-}
-
-function confMesmoLugar(key, endereco, observacao) {
-    ultimoEndereco = endereco || '';
-
-    var itemNome = key.split('_')[0];
-    confStatus[key] = { status: 'ok', endereco: endereco || '', observacao: observacao || '' };
-    localStorage.setItem('enc_conf', JSON.stringify(confStatus));
-
-    if (observacao) {
-        estObservacoes[itemNome] = observacao;
-        localStorage.setItem('enc_obs', JSON.stringify(estObservacoes));
-    }
-
-    var modal = document.getElementById('confEndModal');
-    if (modal) modal.remove();
-
-    document.getElementById('confBusca').value = '';
-    document.getElementById('confBuscaKg').value = '';
-    confRender();
-
     setTimeout(function() {
-        var cb = document.getElementById('confBusca');
-        if (cb) cb.focus();
-    }, 200);
+        var input = document.getElementById('confEndInput');
+        if (input) {
+            input.focus();
+            if (valorInicial) input.select();
+        }
+    }, 100);
 
-    var msg = itemNome + ' → ' + (endereco || 'sem endereço');
-    if (observacao) msg += ' | 💬 obs mantida';
-    toast(msg, 'success', 2500);
-}
-
-function confMostrarMudou(enderecoAnterior, obsAnterior) {
-    var escolha = document.getElementById('confEscolhaBox');
-    var editor = document.getElementById('confEditorBox');
-    var endInput = document.getElementById('confEndInput');
-    var obsInput = document.getElementById('confObsInput');
-
-    if (escolha) escolha.style.display = 'none';
-    if (editor) editor.style.display = 'block';
-
-    if (endInput) {
-        endInput.value = enderecoAnterior || '';
-        setTimeout(function() {
-            endInput.focus();
-            endInput.select();
-        }, 80);
-    }
-
-    if (obsInput) {
-        obsInput.value = obsAnterior || '';
-    }
-}
-
-// ================================================================
-//                    HELPERS DO MODAL DE ENDEREÇO
-// ================================================================
-function usarEnderecoAnterior(endereco) {
-    var input = document.getElementById('confEndInput');
-    if (input) { 
-        input.value = endereco; 
-        input.focus(); 
-        input.select();
-    }
-}
-
-function usarObsAnterior(obs, item) {
-    var input = document.getElementById('confObsInput');
-    if (input) { 
-        input.value = obs; 
-        input.focus();
-    }
+    document.getElementById('confEndInput').addEventListener('keydown', function(ev) {
+        if (ev.key === 'Enter') { ev.preventDefault(); confConfirmarEndereco(key); }
+    });
 }
 
 // ================================================================
