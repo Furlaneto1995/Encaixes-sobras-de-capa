@@ -2928,27 +2928,29 @@ async function confPedirEndereco(key) {
 
     try {
         var snap = await db.collection('conferencias')
-            .where('item', '==', itemNome)
-            .orderBy('timestamp', 'desc')
-            .limit(20)
-            .get();
+    .orderBy('timestamp', 'desc')
+    .limit(800)
+    .get();
 
-        var candidatos = [];
+var candidatos = [];
 
-        snap.forEach(function(doc) {
-            var d = doc.data();
-            var status = String(d.status || '').toUpperCase();
-            if (status !== 'ENCONTRADA' && status !== 'ADICIONAL') return;
+snap.forEach(function(doc) {
+    var d = doc.data();
 
-            candidatos.push({
-                endereco: d.endereco || '',
-                observacao: d.observacao || '',
-                versao: String(d.versao || ''),
-                qtde: parseFloat(d.qtde) || 0,
-                status: status,
-                data: d.data || ''
-            });
-        });
+    if (String(d.item || '').trim() !== itemNome) return;
+
+    var status = String(d.status || '').toUpperCase();
+    if (status !== 'ENCONTRADA' && status !== 'ADICIONAL') return;
+
+    candidatos.push({
+        endereco: d.endereco || '',
+        observacao: d.observacao || '',
+        versao: String(d.versao || ''),
+        qtde: parseFloat(d.qtde) || 0,
+        status: status,
+        data: d.data || ''
+    });
+});
 
         var escolhido = null;
 
