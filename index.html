@@ -53,7 +53,7 @@ input, textarea, [contenteditable] {
         .menu-header h3 { font-size: 1em; color: #1a1a2e; }
         .menu-close { width: 32px; height: 32px; border-radius: 8px; background: var(--vermelho-bg); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.9em; color: var(--vermelho); }
         .menu-close:active { background: #fca5a5; }
-        .menu-items { flex: 1; overflow-y: auto; padding: 8px; }
+                .menu-items { flex: 1; overflow-y: auto; padding: 8px; }
         .menu-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 10px; cursor: pointer; color: #333; font-size: 0.88em; transition: background 0.15s; }
         .menu-item .mi-icon { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 1.3em; }
         .menu-item .mi-text { flex: 1; }
@@ -409,21 +409,19 @@ input, textarea, [contenteditable] {
         <h3>Menu</h3>
         <button class="menu-close" onclick="toggleMenu()">✖</button>
     </div>
-    <div class="menu-items">
+            <div class="menu-items">
         <div class="menu-item" onclick="toggleMenu();debugar();"><div class="mi-icon">🔍</div><div class="mi-text"><div class="mi-title">Debug</div><div class="mi-desc">Investigar item específico</div></div></div>
         <div class="menu-item" onclick="toggleMenu();abrirEstoque();"><div class="mi-icon">📋</div><div class="mi-text"><div class="mi-title">Estoque</div><div class="mi-desc">Visualizar itens importados</div></div></div>
         <div class="menu-item" onclick="toggleMenu();abrirConferencia();"><div class="mi-icon">✅</div><div class="mi-text"><div class="mi-title">Conferência</div><div class="mi-desc">Verificar bobinas do estoque</div></div></div>
         <div class="menu-item" onclick="toggleMenu();abrirHistoricoUnificado();"><div class="mi-icon">🗄️</div><div class="mi-text"><div class="mi-title">Histórico</div><div class="mi-desc">Encaixes e conferências no Firebase</div></div></div>
         <div class="menu-sep"></div>
-<div class="menu-item" onclick="toggleMenu();abrirDashboard();"><div class="mi-icon">📊</div><div class="mi-text"><div class="mi-title">Dashboard</div><div class="mi-desc">Gráficos e análises</div></div></div>
-<div class="menu-item" onclick="toggleMenu();abrirIdadeBobinas();"><div class="mi-icon">⏳</div><div class="mi-text"><div class="mi-title">Bobinas Paradas</div><div class="mi-desc">Tempo sem encaixe</div></div></div>
+        <div class="menu-item" onclick="toggleMenu();abrirDashboard();"><div class="mi-icon">📊</div><div class="mi-text"><div class="mi-title">Dashboard</div><div class="mi-desc">Gráficos e análises</div></div></div>
+        <div class="menu-item" onclick="toggleMenu();abrirIdadeBobinas();"><div class="mi-icon">⏳</div><div class="mi-text"><div class="mi-title">Bobinas Paradas</div><div class="mi-desc">Tempo sem encaixe</div></div></div>
         <div class="menu-item" onclick="toggleMenu();abrirProblemas();"><div class="mi-icon">⚠️</div><div class="mi-text"><div class="mi-title">Relatório de Erros</div><div class="mi-desc">Problemas do último cálculo</div></div></div>
         <div class="menu-item" onclick="toggleTema();"><div class="mi-icon" id="temaIcon">🌙</div><div class="mi-text"><div class="mi-title" id="temaLabel">Modo Escuro</div><div class="mi-desc">Alternar tema claro/escuro</div></div></div>
         <div class="menu-sep"></div>
-
-<div class="menu-item" onclick="toggleMenu();gerarQRSessao();"><div class="mi-icon">📡</div><div class="mi-text"><div class="mi-title">Gerar QR Sessão</div><div class="mi-desc">Enviar cálculo para o celular</div></div></div>
-<div class="menu-item" onclick="toggleMenu();abrirLeitorQRSessao();"><div class="mi-icon">📷</div><div class="mi-text"><div class="mi-title">Ler QR Sessão</div><div class="mi-desc">Receber cálculo do PC</div></div></div>
-
+        <div class="menu-item" onclick="toggleMenu();gerarQRSessao();"><div class="mi-icon">📡</div><div class="mi-text"><div class="mi-title">Gerar QR Sessão</div><div class="mi-desc">Enviar cálculo para o celular</div></div></div>
+        <div class="menu-item" onclick="toggleMenu();abrirLeitorQRSessao();"><div class="mi-icon">📷</div><div class="mi-text"><div class="mi-title">Ler QR Sessão</div><div class="mi-desc">Receber cálculo do PC</div></div></div>
         <div class="menu-item" onclick="toggleMenu();exportarEstado();"><div class="mi-icon">💾</div><div class="mi-text"><div class="mi-title">Exportar Estado</div><div class="mi-desc">Backup completo em JSON</div></div></div>
         <div class="menu-item" onclick="toggleMenu();importarEstado();"><div class="mi-icon">📥</div><div class="mi-text"><div class="mi-title">Importar Estado</div><div class="mi-desc">Restaurar backup JSON</div></div></div>
         <div class="menu-sep"></div>
@@ -442,7 +440,6 @@ input, textarea, [contenteditable] {
 <button class="btn-import secondary" onclick="document.getElementById('fileFila').click()" style="flex:1;min-width:0;">🏭 Fila Extrusão</button>
 <button class="btn-import secondary" onclick="document.getElementById('fileFilaLaminacao').click()" style="flex:1;min-width:0;background:#fef3c7;color:#d97706;">✨ Fila Laminação</button>
 <button class="btn-calc" onclick="calcularEncaixes()">⚡ Calcular</button>
-<button class="btn-calc" onclick="openNew()" style="padding:10px 12px;font-size:0.82em;">➕</button>
     </div>
     <div class="file-info" id="fInfo">1️⃣ Importe o Estoque → 2️⃣ Importe a Fila Extrusão → 3️⃣ Importe a Fila Laminação → 4️⃣ Clique Calcular</div>
     <div class="stats-row" id="sr">
@@ -934,6 +931,7 @@ function calcularEncaixes() {
 
     var saldo={}; for(var s=0;s<fp.length;s++){if(!saldo[fp[s].op])saldo[fp[s].op]=fp[s].peso;}
 var fpLam = [];
+
 for (var jl = 0; jl < filaLaminacao.length; jl++) {
     var fl = filaLaminacao[jl];
 
@@ -949,8 +947,18 @@ for (var jl = 0; jl < filaLaminacao.length; jl++) {
 
     if (!produto || !opLam || pesoLam <= 0) continue;
 
+    // ✨ CORREÇÃO: OP mãe = OP atual - 2
+    var opMae = '';
+    var opNum = parseInt(opLam);
+    if (!isNaN(opNum)) {
+        opMae = String(opNum - 2);
+    } else {
+        opMae = opLam; // fallback se não for numérico
+    }
+
     fpLam.push({
-        op: opLam,
+        op: opMae,              // ✨ Usa OP mãe ao invés da OP da fila
+        opOriginal: opLam,      // ✨ Guarda OP original para debug
         itemFila: produto,
         versao: versaoLam,
         largura: largLam,
@@ -964,8 +972,7 @@ for (var jl = 0; jl < filaLaminacao.length; jl++) {
 var saldoLam = {};
 for (var sl = 0; sl < fpLam.length; sl++) {
     if (!saldoLam[fpLam[sl].op]) saldoLam[fpLam[sl].op] = fpLam[sl].peso;
-}
-    var res=[]; est.sort(function(a,b){return a.qtde-b.qtde;});
+}   var res=[]; est.sort(function(a,b){return a.qtde-b.qtde;});
 
     for (var e2 = 0; e2 < est.length; e2++) {
     var bob = est[e2], found = false;
@@ -1080,7 +1087,7 @@ for (var sl = 0; sl < fpLam.length; sl++) {
 
     var erros=problemas.filter(function(p){return p.tipo==='ERRO';}), avisos=problemas.filter(function(p){return p.tipo==='AVISO';});
 
-    if(problemasImportacao.length>0||problemas.length>0||ignorados>0){
+    if(problemasImportacao.length>0||problemas.length>0){
         var h='';
         if(problemasImportacao.length>0){
             h+='<div style="margin-bottom:15px;"><div style="color:'+COR.amarelo+';font-weight:700;font-size:0.9em;margin-bottom:8px;">⚠️ ESTOQUE COM AVISOS ('+problemasImportacao.length+')</div>';
@@ -1103,17 +1110,37 @@ for (var sl = 0; sl < fpLam.length; sl++) {
 }
 
 function atualizarInfo() {
-    var total=B.length, ok=0;
-    for(var i=0;i<total;i++){if(B[i].ok)ok++;}
-    var estTotal=0,metalizados=0;
-for(var j=0;j<estoque.length;j++){if(/-4$/.test(getItemEstoque(estoque[j]))){metalizados++;}estTotal++;}
-var semEnc=estTotal-total;
-var txt='✅ '+total+' encaixes';
-if(ok>0)txt+=' | 📷 '+ok+' ok';
-if(semEnc>0)txt+=' | ⚠️ '+semEnc+' sem';
-if(metalizados>0)txt+=' | ✨ '+metalizados+' metal.';
-    if(ultimosProblemasImportacaoEstoque.length>0)txt+=' | ⚠️ '+ultimosProblemasImportacaoEstoque.length+' aviso(s)';
-    document.getElementById('fInfo').textContent=txt;
+    var total = B.length, ok = 0;
+    for (var i = 0; i < total; i++) { 
+        if (B[i].ok) ok++; 
+    }
+    
+    var estNormal = 0, estMetal = 0;
+    for (var j = 0; j < estoque.length; j++) {
+        if (/-4$/.test(getItemEstoque(estoque[j]))) estMetal++;
+        else estNormal++;
+    }
+    
+    // Conta encaixes normais e metal
+    var encNormal = 0, encMetal = 0;
+    for (var k = 0; k < B.length; k++) {
+        if (isMetalizado(B[k].item)) encMetal++;
+        else encNormal++;
+    }
+    
+    var semNormal = estNormal - encNormal;
+    var semMetal = estMetal - encMetal;
+    
+    var txt = '📦 ' + estNormal + ' normal';
+    if (estMetal > 0) txt += ' | ✨ ' + estMetal + ' metal';
+    txt += ' | ✅ ' + encNormal + ' enc.';
+    if (encMetal > 0) txt += ' + ' + encMetal + ' metal';
+    if (semNormal > 0) txt += ' | ⚠️ ' + semNormal + ' sem';
+    if (semMetal > 0) txt += ' + ' + semMetal + ' metal sem';
+    if (ok > 0) txt += ' | 📷 ' + ok;
+    if (ultimosProblemasImportacaoEstoque.length > 0) txt += ' | ⚠️ ' + ultimosProblemasImportacaoEstoque.length + ' aviso(s)';
+    
+    document.getElementById('fInfo').textContent = txt;
 }
 
 // ================================================================
@@ -1121,72 +1148,158 @@ if(metalizados>0)txt+=' | ✨ '+metalizados+' metal.';
 // ================================================================
 function save() {
     try {
-        localStorage.setItem(LS, JSON.stringify({
-            B: B,
+        var dados = {
+            B: B.map(function(b) {
+                return {
+                    id: b.id,
+                    enc: b.enc,
+                    item: b.item,
+                    ver: b.ver,
+                    larg: b.larg,
+                    esp: b.esp,
+                    pig: b.pig,
+                    qtde: b.qtde,
+                    material: b.material || '',
+                    foto: b.foto || null,
+                    fotoEtiqueta: b.fotoEtiqueta || null,
+                    fotoNm: b.fotoNm || '',
+                    ok: b.ok || false,
+                    manual: b.manual || false
+                };
+            }),
             origNm: origNm,
-            estoque: estoque,
-            fila: fila,
-            filaLaminacao: filaLaminacao,
-            sessaoQrAtualId: sessaoQrAtualId
-        }));
-    }
-    catch (e) {
+            sessaoQrAtualId: sessaoQrAtualId || ''
+        };
+
+        // Tenta salvar com fotos
         try {
-            localStorage.setItem(LS, JSON.stringify({
-                B: B,
-                origNm: origNm,
-                estoque: estoque,
-                fila: fila,
-                sessaoQrAtualId: sessaoQrAtualId
-            }));
-        } catch (e2) {
-            try {
-                localStorage.setItem(LS, JSON.stringify({
-                    B: B,
-                    origNm: origNm,
-                    estoque: estoque,
-                    sessaoQrAtualId: sessaoQrAtualId
-                }));
-            } catch (e3) {
-                try {
-                    localStorage.setItem(LS, JSON.stringify({
-                        B: B,
-                        origNm: origNm,
-                        sessaoQrAtualId: sessaoQrAtualId
-                    }));
-                } catch (e4) {}
-            }
+            var comFoto = JSON.stringify(dados);
+            localStorage.setItem(LS, comFoto);
+            console.log('Salvo COM fotos: ' + (comFoto.length / 1024).toFixed(1) + 'KB');
+            return;
+        } catch (e1) {
+            console.warn('Sem espaço com fotos, tentando sem...');
         }
+
+        // Remove fotos e tenta novamente
+        dados.B.forEach(function(b) {
+            b.foto = null;
+            b.fotoEtiqueta = null;
+        });
+
+        try {
+            var semFoto = JSON.stringify(dados);
+            localStorage.setItem(LS, semFoto);
+            console.log('Salvo SEM fotos: ' + (semFoto.length / 1024).toFixed(1) + 'KB');
+            toast('Fotos removidas do backup (sem espaço)', 'warning');
+            return;
+        } catch (e2) {
+            console.error('Erro ao salvar mesmo sem fotos:', e2);
+        }
+
+    } catch (e) {
+        console.error('Erro geral no save():', e);
+        toast('Erro ao salvar dados!', 'error');
     }
+
+    // Salva estoque e fila separadamente
+    try {
+        localStorage.setItem('enc_estoque', JSON.stringify(estoque));
+    } catch (e) {}
+    try {
+        localStorage.setItem('enc_fila', JSON.stringify(fila));
+    } catch (e) {}
+    try {
+        localStorage.setItem('enc_filaLam', JSON.stringify(filaLaminacao));
+    } catch (e) {}
 }
 
 function load() {
     try {
-        var s = localStorage.getItem(LS); if (!s) return false;
-        var d = JSON.parse(s);
-        if (d.estoque && d.estoque.length) estoque = d.estoque;
-if (d.fila && d.fila.length) fila = d.fila;
-if (d.filaLaminacao && d.filaLaminacao.length) filaLaminacao = d.filaLaminacao;
-if (d.sessaoQrAtualId) sessaoQrAtualId = d.sessaoQrAtualId;
-if (d.filaLaminacao && d.filaLaminacao.length) filaLaminacao = d.filaLaminacao;
-        var estoqueValidos = 0, metalizados = 0;
-        for (var i = 0; i < estoque.length; i++) { if (/-4$/.test(getItemEstoque(estoque[i]))) metalizados++; else estoqueValidos++; }
-        var info = [];
-        if (estoque.length) info.push('✅ Estoque: ' + estoqueValidos);
-        if (fila.length) info.push('✅ Fila: ' + fila.length);
-        if (!d.B || !d.B.length) {
-            var txt0 = '💾 ' + info.join(' | ');
-            if (metalizados > 0) txt0 += ' | ⛔ ' + metalizados + ' metal.';
-            document.getElementById('fInfo').textContent = txt0; return false;
+        // Carrega estoque/fila separados (se existirem)
+        try {
+            var estSep = localStorage.getItem('enc_estoque');
+            if (estSep) { var estParsed = JSON.parse(estSep); if (estParsed.length) estoque = estParsed; }
+        } catch (e) {}
+        try {
+            var filSep = localStorage.getItem('enc_fila');
+            if (filSep) { var filParsed = JSON.parse(filSep); if (filParsed.length) fila = filParsed; }
+        } catch (e) {}
+        try {
+            var lamSep = localStorage.getItem('enc_filaLam');
+            if (lamSep) { var lamParsed = JSON.parse(lamSep); if (lamParsed.length) filaLaminacao = lamParsed; }
+        } catch (e) {}
+
+        var s = localStorage.getItem(LS);
+        if (!s) {
+            console.log('load(): nenhum dado salvo');
+            atualizarInfoEstoque();
+            return false;
         }
-        B = d.B; origNm = d.origNm || '';
-        grp(); build();
+
+        var d = JSON.parse(s);
+        console.log('load(): dados encontrados', Object.keys(d));
+
+        // Carrega estoque/fila do objeto principal (se não veio separado)
+        if (d.estoque && d.estoque.length && estoque.length === 0) estoque = d.estoque;
+        if (d.fila && d.fila.length && fila.length === 0) fila = d.fila;
+        if (d.filaLaminacao && d.filaLaminacao.length && filaLaminacao.length === 0) filaLaminacao = d.filaLaminacao;
+        if (d.sessaoQrAtualId) sessaoQrAtualId = d.sessaoQrAtualId;
+
+        if (!d.B || !d.B.length) {
+            console.log('load(): sem encaixes, só estoque/fila');
+            atualizarInfoEstoque();
+            return false;
+        }
+
+        B = d.B;
+        origNm = d.origNm || '';
+
+        // Garante que todos os campos existem
+        for (var i = 0; i < B.length; i++) {
+            if (B[i].id === undefined) B[i].id = i;
+            if (!B[i].enc) B[i].enc = '';
+            if (!B[i].item) B[i].item = '';
+            if (!B[i].ver) B[i].ver = '';
+            if (!B[i].larg) B[i].larg = '';
+            if (!B[i].esp) B[i].esp = '';
+            if (!B[i].pig) B[i].pig = '';
+            if (!B[i].qtde) B[i].qtde = '0';
+            if (!B[i].material) B[i].material = '';
+            if (B[i].foto === undefined) B[i].foto = null;
+            if (B[i].fotoEtiqueta === undefined) B[i].fotoEtiqueta = null;
+            if (B[i].fotoNm === undefined) B[i].fotoNm = '';
+            if (B[i].ok === undefined) B[i].ok = false;
+            if (B[i].manual === undefined) B[i].manual = false;
+        }
+
+        grp();
+        build();
+
+        console.log('load(): ' + B.length + ' encaixes carregados');
+
         var txt = '💾 ' + B.length + ' encaixes';
-        if (info.length) txt += ' | ' + info.join(' | ');
-        if (metalizados > 0) txt += ' | ⛔ ' + metalizados + ' metal.';
+        if (estoque.length) txt += ' | Est: ' + estoque.length;
+        if (fila.length) txt += ' | Fila: ' + fila.length;
         document.getElementById('fInfo').textContent = txt;
+
         return true;
-    } catch (e) { console.error('Erro no load():', e); return false; }
+
+    } catch (e) {
+        console.error('Erro no load():', e);
+        toast('Erro ao carregar dados: ' + e.message, 'error');
+        return false;
+    }
+}
+
+function atualizarInfoEstoque() {
+    var info = [];
+    if (estoque.length) info.push('✅ Est: ' + estoque.length);
+    if (fila.length) info.push('✅ Fila: ' + fila.length);
+    if (filaLaminacao.length) info.push('✅ Lam: ' + filaLaminacao.length);
+    if (info.length > 0) {
+        document.getElementById('fInfo').textContent = '💾 ' + info.join(' | ');
+    }
 }
 
 function limpar() {
@@ -1214,20 +1327,26 @@ function infoEstoque() {
     var txt = estoque.length ? ('✅ Est: ' + total) : '1️⃣ Estoque';
     if (metalizados > 0) txt += ' | ✨ Met: ' + metalizados;
     txt += ' | ' + (fila.length ? '✅ Fila Extrusão: ' + fila.length : '2️⃣ Fila Extrusão');
-txt += ' | ' + (filaLaminacao.length ? '✅ Fila Laminação: ' + filaLaminacao.length : '3️⃣ Fila Laminação');
+    txt += ' | ' + (filaLaminacao.length ? '✅ Fila Laminação: ' + filaLaminacao.length : '3️⃣ Fila Laminação');
 
     document.getElementById('fInfo').textContent = txt;
+
+    // Salva tudo separadamente para não perder
     save();
+    try { localStorage.setItem('enc_estoque', JSON.stringify(estoque)); } catch(e) { console.warn('Erro ao salvar estoque:', e); }
+    try { localStorage.setItem('enc_fila', JSON.stringify(fila)); } catch(e) { console.warn('Erro ao salvar fila:', e); }
+    try { localStorage.setItem('enc_filaLam', JSON.stringify(filaLaminacao)); } catch(e) { console.warn('Erro ao salvar filaLam:', e); }
 }
 
 document.getElementById('fileEstoque').addEventListener('change', function(e) {
     var f = e.target.files[0]; if (!f) return;
     var r = new FileReader();
     if (f.name.endsWith('.csv')) {
-       r.onload = function(ev) {
-    var estoqueAnterior = estoque.length > 0 ? estoque.slice() : [];
-    estoque = parseCSV(ev.target.result); infoEstoque();
-    if (estoqueAnterior.length > 0) compararEstoques(estoqueAnterior, estoque);
+        r.onload = function(ev) {
+            var estoqueAnterior = estoque.length > 0 ? estoque.slice() : [];
+            estoque = parseCSV(ev.target.result); 
+            infoEstoque();
+            if (estoqueAnterior.length > 0) compararEstoques(estoqueAnterior, estoque);
             ultimosProblemasImportacaoEstoque = validarEstoqueImportado();
             var nVal = 0, nMetal = 0;
             for (var vi = 0; vi < estoque.length; vi++) { if (/-4$/.test(getItemEstoque(estoque[vi]))) nMetal++; else nVal++; }
@@ -1237,11 +1356,11 @@ document.getElementById('fileEstoque').addEventListener('change', function(e) {
         r.readAsText(f, 'UTF-8');
     } else {
         r.onload = function(ev) {
-    var estoqueAnterior = estoque.length > 0 ? estoque.slice() : [];
-    var wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
-    estoque = parseTabela(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 }));
-    infoEstoque();
-    if (estoqueAnterior.length > 0) compararEstoques(estoqueAnterior, estoque);
+            var estoqueAnterior = estoque.length > 0 ? estoque.slice() : [];
+            var wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+            estoque = parseTabela(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 }));
+            infoEstoque();
+            if (estoqueAnterior.length > 0) compararEstoques(estoqueAnterior, estoque);
             ultimosProblemasImportacaoEstoque = validarEstoqueImportado();
             var nVal = 0, nMetal = 0;
             for (var vi = 0; vi < estoque.length; vi++) { if (/-4$/.test(getItemEstoque(estoque[vi]))) nMetal++; else nVal++; }
@@ -1329,7 +1448,8 @@ function mkCard(gi) {
         '<tr><td style="color:#555;padding:0 4px;font-family:monospace;">' + (B[g.bs[0]].item || '-') + '</td><td style="color:#555;padding:0 4px;font-family:monospace;">' + (B[g.bs[0]].ver || '-') + '</td><td style="color:#555;padding:0 4px;font-family:monospace;">' + (B[g.bs[0]].larg || '-') + '</td><td style="color:#555;padding:0 4px;font-family:monospace;">' + (B[g.bs[0]].esp || '-') + '</td><td style="color:#555;padding:0 4px;font-family:monospace;">' + (B[g.bs[0]].pig || '-') + '</td></tr></table></div>' +
         '<div class="op-head-right"><span class="badge ' + bc + '">' + dn + '/' + g.bs.length + '</span>' +
         '<button class="btn-del-op" data-g="' + gi + '" style="margin-left:2px;">🗑️</button>' +
-        '<button class="btn-del-op" data-g="' + gi + '" data-dbg="1" style="border-color:#f59e0b;color:#f59e0b;margin-left:2px;" title="Debug">🔍</button></div></div>';
+                        '<button class="btn-del-op" data-g="' + gi + '" data-dbg="1" style="border-color:#f59e0b;color:#f59e0b;margin-left:2px;" title="Debug">🔍</button>' +
+        '<button data-g="' + gi + '" data-foco="1" style="width:30px;height:30px;border-radius:6px;border:1px solid #f3e8ff;background:#fff;color:#8b5cf6;cursor:pointer;font-size:0.8em;display:inline-flex;align-items:center;justify-content:center;margin-left:2px;" title="Focar nesta OP">🎯</button></div></div>';
 
     var bl = '<div class="bob-wrap">';
     for (var b = 0; b < g.bs.length; b++) {
@@ -1358,6 +1478,7 @@ function mkCard(gi) {
     card.querySelector('.btn-add').addEventListener('click', function() { openAddPeso(parseInt(this.getAttribute('data-g'))); });
     card.querySelectorAll('.btn-del-op:not([data-dbg])').forEach(function(el) { el.addEventListener('click', function() { delOP(parseInt(this.getAttribute('data-g'))); }); });
     card.querySelectorAll('[data-dbg]').forEach(function(el) { el.addEventListener('click', function(ev) { ev.stopPropagation(); var g2 = G[parseInt(this.getAttribute('data-g'))]; debugarItem(B[g2.bs[0]].item); }); });
+    card.querySelectorAll('[data-foco]').forEach(function(el) { el.addEventListener('click', function(ev) { ev.stopPropagation(); aplicarFoco(parseInt(this.getAttribute('data-g'))); }); });
     card.querySelectorAll('.btn-del-bob').forEach(function(el) { el.addEventListener('click', function() { delBob(parseInt(this.getAttribute('data-b'))); }); });
 
     // MELHORIA 2 FIX: Event listeners para editar e dividir
@@ -1428,6 +1549,7 @@ function updUI() {
     document.getElementById('nAll').textContent = t; document.getElementById('nPend').textContent = p; document.getElementById('nOk').textContent = ok;
     document.getElementById('pf').style.width = pct + '%'; document.getElementById('pt').textContent = pct + '% (' + ok + '/' + t + ')';
     var fb = document.getElementById('fb'); if (ok === t && t > 0) fb.classList.add('visible'); else fb.classList.remove('visible');
+   
 }
 
 function fil(tipo) {
@@ -1436,6 +1558,9 @@ function fil(tipo) {
     document.getElementById('sPend').classList.toggle('on', tipo === 'pend');
     document.getElementById('sOk').classList.toggle('on', tipo === 'ok');
     build();
+
+    var btnFoco = document.getElementById('btnFoco');
+    if (btnFoco) btnFoco.style.display = t > 0 ? 'flex' : 'none';
 }
 
 // ================================================================
@@ -1511,7 +1636,44 @@ function conf() {
             b.fotoNm = 'foto_' + b.item + '_OP' + b.enc + '_' + Date.now() + '.jpg';
             toast(b.item + ' (' + b.qtde + 'kg) ✔', 'success', 2000);
             fotoRotacao = 0; fotoEtiqueta = null; camEtapa = 1;
-            xCam(); save(); build();
+                                   xCam(); save();
+            if (focoAtual >= 0) {
+                // Verifica se OP atual ficou completa
+                var gFoco = G[focoAtual];
+                var todasOk = true;
+                for (var fc = 0; fc < gFoco.bs.length; fc++) {
+                    if (!B[gFoco.bs[fc]].ok) { todasOk = false; break; }
+                }
+                
+                if (todasOk) {
+                    // Busca próxima pendente
+                    var proxPend = -1;
+                    for (var fp1 = focoAtual + 1; fp1 < G.length; fp1++) {
+                        var ok1 = true;
+                        for (var fb1 = 0; fb1 < G[fp1].bs.length; fb1++) { if (!B[G[fp1].bs[fb1]].ok) { ok1 = false; break; } }
+                        if (!ok1) { proxPend = fp1; break; }
+                    }
+                    if (proxPend === -1) {
+                        for (var fp2 = 0; fp2 < focoAtual; fp2++) {
+                            var ok2 = true;
+                            for (var fb2 = 0; fb2 < G[fp2].bs.length; fb2++) { if (!B[G[fp2].bs[fb2]].ok) { ok2 = false; break; } }
+                            if (!ok2) { proxPend = fp2; break; }
+                        }
+                    }
+                    
+                    if (proxPend !== -1) {
+                        toast('✅ OP ' + gFoco.enc + ' completa! → Próxima...', 'success', 2000);
+                        setTimeout(function() { aplicarFoco(proxPend); }, 500);
+                    } else {
+                        toast('🎉 Todas as OPs completas!', 'success', 3000);
+                        sairFoco();
+                    }
+                } else {
+                    buildFoco();
+                }
+            } else {
+                build();
+            }
             if (document.getElementById('fsView').classList.contains('active')) renderFS();
         }
     }
@@ -1681,8 +1843,20 @@ function splitGerarCampos(bi) {
     container.innerHTML = html;
 
     var inputs = container.querySelectorAll('.splitPesoInput');
-    inputs.forEach(function(inp) {
+    
+    inputs.forEach(function(inp, idx) {
         inp.addEventListener('input', function() {
+            // Se for divisão em 2 bobinas E for o primeiro campo
+            if (qtd === 2 && idx === 0) {
+                var valor1 = parseFloat(this.value) || 0;
+                var restante = total - valor1;
+                
+                // Preenche automaticamente o segundo campo
+                if (inputs[1] && restante >= 0) {
+                    inputs[1].value = restante.toFixed(1);
+                }
+            }
+            
             splitAtualizarInfo(total);
         });
     });
@@ -2223,7 +2397,7 @@ async function askFin() {
     var lo = document.getElementById('lo'), lt = document.getElementById('lt');
     lo.classList.add('active'); lt.textContent = 'Verificando duplicidade...';
     try {
-   if (sessaoQrAtualId) {
+        if (sessaoQrAtualId) {
             var jaQr = await db.collection('encaixes')
                 .where('sessaoQrId', '==', sessaoQrAtualId)
                 .limit(1)
@@ -2274,7 +2448,7 @@ async function askFin() {
         var batch = db.batch();
         for (var i = 0; i < B.length; i++) {
             var b = B[i];
-          batch.set(db.collection('encaixes').doc(), {
+            batch.set(db.collection('encaixes').doc(), {
     data: ds,
     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
     lote: lote,
@@ -2282,6 +2456,9 @@ async function askFin() {
     encaixe: b.enc || '',
     item: b.item || '',
     versao: b.ver || '',
+    largura: b.larg || '',
+    espessura: b.esp || '',
+    pigmento: b.pig || '',
     chave: mkChave(b),
     qtde: b.qtde || '',
     manual: b.manual ? 'S' : 'N',
@@ -2727,53 +2904,6 @@ function confRender() {
     body.innerHTML = html;}
 
 // MELHORIA 7: Sugerir último endereço do Firebase
-async function confPedirEndereco(key) {
-    var partes = key.split('_'), itemNome = partes[0] || '';
-    var enderecoSugerido = '';
-    try {
-        var snap = await db.collection('conferencias')
-            .where('item', '==', itemNome)
-            .where('status', '==', 'ENCONTRADA')
-            .orderBy('timestamp', 'desc')
-            .limit(1)
-            .get();
-        if (!snap.empty) {
-            snap.forEach(function(doc) {
-                var end = doc.data().endereco || '';
-                if (end) enderecoSugerido = end;
-            });
-        }
-    } catch(e) {}
-
-    var modal = document.createElement('div');
-    modal.id = 'confEndModal';
-    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px;';
-
-    var btnSugestao = '';
-    if (enderecoSugerido) {
-        btnSugestao = '<button onclick="document.getElementById(\'confEndInput\').value=\'' + enderecoSugerido.replace(/'/g, "\\'") + '\';confConfirmarEndereco(\'' + key + '\')" style="padding:12px 16px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-size:0.82em;font-weight:600;cursor:pointer;white-space:nowrap;" title="Usar sugestão">📌 ' + enderecoSugerido + '</button>';
-    } else {
-        btnSugestao = '<button onclick="confRepetirEndereco()" style="padding:12px 16px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:1.1em;font-weight:600;cursor:pointer;" title="Repetir último">🔁</button>';
-    }
-
-    modal.innerHTML =
-        '<div style="background:#fff;border-radius:16px;padding:24px;max-width:340px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.2);">' +
-        '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:4px;">📌 Endereço da bobina</h3>' +
-        '<p style="font-size:0.75em;color:#888;margin-bottom:14px;">' + itemNome + '</p>' +
-        (enderecoSugerido ? '<div style="font-size:0.72em;color:#2563eb;margin-bottom:8px;background:#eff6ff;padding:6px 10px;border-radius:8px;">💡 Último endereço: <strong>' + enderecoSugerido + '</strong></div>' : '') +
-        '<input type="text" id="confEndInput" placeholder="Ex: Corredor A, Prateleira 3" ' +
-        'style="width:100%;padding:12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;">' +
-        '<div style="display:flex;gap:8px;margin-top:14px;">' +
-        '<button onclick="document.getElementById(\'confEndModal\').remove()" style="padding:12px 16px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;font-weight:600;cursor:pointer;">Cancelar</button>' +
-        btnSugestao +
-        '<button onclick="confConfirmarEndereco(\'' + key + '\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">✅ Confirmar</button>' +
-        '</div></div>';
-    document.body.appendChild(modal);
-    setTimeout(function() { document.getElementById('confEndInput').focus(); }, 100);
-    document.getElementById('confEndInput').addEventListener('keydown', function(ev) {
-        if (ev.key === 'Enter') { ev.preventDefault(); confConfirmarEndereco(key); }
-    });
-}
 
 function confRepetirEndereco() {
     if (!ultimoEndereco) { var input = document.getElementById('confEndInput'); input.style.borderColor = '#f59e0b'; input.placeholder = '⚠️ Nenhum endereço anterior'; setTimeout(function() { input.style.borderColor = '#e0e0e0'; input.placeholder = 'Ex: Corredor A, Prateleira 3'; }, 1500); return; }
@@ -2781,16 +2911,413 @@ function confRepetirEndereco() {
     var btn = document.getElementById('btnConfEnd'); if (btn) btn.click();
 }
 
+// ================================================================
+//                    CONFERÊNCIA - PEDIR ENDEREÇO (MELHORADO)
+// ================================================================
+async function confPedirEndereco(key) {
+    var partes = key.split('_');
+    var itemNome = partes[0] || '';
+    var verAtual = partes[1] || '';
+    var qtdeAtual = parseFloat(partes[2]) || 0;
+
+    var enderecoAnterior = '';
+    var obsAnterior = '';
+    var statusAnterior = '';
+    var dataAnterior = '';
+
+    try {
+        var snap = await db.collection('conferencias')
+            .where('item', '==', itemNome)
+            .orderBy('timestamp', 'desc')
+            .limit(20)
+            .get();
+
+        var candidatos = [];
+
+        snap.forEach(function(doc) {
+            var d = doc.data();
+            var status = String(d.status || '').toUpperCase();
+
+            // aceita ENCONTRADA e ADICIONAL
+            if (status !== 'ENCONTRADA' && status !== 'ADICIONAL') return;
+
+            candidatos.push({
+                endereco: d.endereco || '',
+                observacao: d.observacao || '',
+                versao: String(d.versao || ''),
+                qtde: parseFloat(d.qtde) || 0,
+                status: status,
+                data: d.data || ''
+            });
+        });
+
+        var escolhido = null;
+
+        // 1) item + versão + peso
+        for (var i = 0; i < candidatos.length; i++) {
+            var c1 = candidatos[i];
+            if (c1.versao === verAtual && Math.abs(c1.qtde - qtdeAtual) < 0.05) {
+                escolhido = c1;
+                break;
+            }
+        }
+
+        // 2) item + versão
+        if (!escolhido) {
+            for (var j = 0; j < candidatos.length; j++) {
+                var c2 = candidatos[j];
+                if (c2.versao === verAtual) {
+                    escolhido = c2;
+                    break;
+                }
+            }
+        }
+
+        // 3) qualquer do item
+        if (!escolhido && candidatos.length > 0) {
+            escolhido = candidatos[0];
+        }
+
+        if (escolhido) {
+            enderecoAnterior = escolhido.endereco || '';
+            obsAnterior = escolhido.observacao || '';
+            statusAnterior = escolhido.status || '';
+            dataAnterior = escolhido.data || '';
+        }
+
+    } catch (e) {
+        console.warn('Erro ao buscar histórico da conferência:', e);
+    }
+
+    var obsLocal = estObservacoes[itemNome] || '';
+    var obsUsada = obsAnterior || obsLocal || '';
+    var valorInicial = enderecoAnterior || ultimoEndereco || '';
+
+    var modal = document.createElement('div');
+    modal.id = 'confEndModal';
+    modal.style.cssText =
+        'position:fixed;top:0;left:0;width:100%;height:100%;' +
+        'background:rgba(0,0,0,0.5);z-index:2000;display:flex;' +
+        'align-items:center;justify-content:center;padding:20px;';
+
+    var blocoHistorico = '';
+    if (enderecoAnterior || obsUsada) {
+        blocoHistorico =
+            '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 12px;margin-bottom:12px;">' +
+                '<div style="font-size:0.68em;color:#2563eb;font-weight:700;margin-bottom:6px;">📋 ÚLTIMO HISTÓRICO</div>' +
+                (dataAnterior ? '<div style="font-size:0.68em;color:#666;margin-bottom:6px;">📅 ' + dataAnterior + (statusAnterior ? ' • ' + statusAnterior : '') + '</div>' : '') +
+
+                (enderecoAnterior ?
+                    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:' + (obsUsada ? '6px' : '0') + ';">' +
+                        '<span style="font-size:0.78em;color:#555;">📌</span>' +
+                        '<span style="font-size:0.82em;font-weight:600;color:#1a1a2e;flex:1;">' + enderecoAnterior + '</span>' +
+                        '<button onclick="usarEnderecoAnterior(\'' + enderecoAnterior.replace(/'/g, "\\'") + '\')" ' +
+                        'style="padding:4px 10px;border:none;border-radius:6px;background:#2563eb;color:#fff;font-size:0.7em;font-weight:600;cursor:pointer;white-space:nowrap;">✅ Usar</button>' +
+                    '</div>'
+                : '') +
+
+                (obsUsada ?
+                    '<div style="display:flex;align-items:center;gap:6px;">' +
+                        '<span style="font-size:0.78em;color:#f59e0b;">💬</span>' +
+                        '<span style="font-size:0.78em;color:#555;flex:1;">' + obsUsada + '</span>' +
+                        '<button onclick="usarObsAnterior(\'' + obsUsada.replace(/'/g, "\\'") + '\',\'' + itemNome.replace(/'/g, "\\'") + '\')" ' +
+                        'style="padding:4px 10px;border:none;border-radius:6px;background:#f59e0b;color:#fff;font-size:0.7em;font-weight:600;cursor:pointer;white-space:nowrap;">✅ Manter</button>' +
+                    '</div>'
+                : '') +
+            '</div>';
+    }
+
+    modal.innerHTML =
+        '<div style="background:#fff;border-radius:16px;padding:20px;max-width:360px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.2);max-height:90vh;overflow-y:auto;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">' +
+                '<h3 style="font-size:0.95em;color:#1a1a2e;">📌 ' + itemNome + '</h3>' +
+                '<button onclick="document.getElementById(\'confEndModal\').remove()" style="width:28px;height:28px;border:none;border-radius:8px;background:#fee2e2;color:#ef4444;font-size:0.85em;cursor:pointer;">✖</button>' +
+            '</div>' +
+
+            blocoHistorico +
+
+            '<label style="font-size:0.7em;color:#888;display:block;margin-bottom:4px;">Endereço atual *</label>' +
+            '<input type="text" id="confEndInput" placeholder="Ex: Corredor A, Prateleira 3" value="' + valorInicial.replace(/"/g, '&quot;') + '" ' +
+            'style="width:100%;padding:11px 12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;box-sizing:border-box;">' +
+
+            '<label style="font-size:0.7em;color:#888;display:block;margin-top:10px;margin-bottom:4px;">Observação (opcional)</label>' +
+            '<input type="text" id="confObsInput" placeholder="Ex: Embalagem ok, sem avarias" value="' + (obsUsada || '').replace(/"/g, '&quot;') + '" ' +
+            'style="width:100%;padding:11px 12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;box-sizing:border-box;">' +
+
+            '<div style="display:flex;gap:8px;margin-top:14px;">' +
+                '<button onclick="document.getElementById(\'confEndModal\').remove()" style="padding:12px 16px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;font-weight:600;cursor:pointer;">Cancelar</button>' +
+                (ultimoEndereco && ultimoEndereco !== valorInicial ?
+                    '<button onclick="confRepetirEndereco()" style="padding:12px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;" title="Repetir último">🔁</button>'
+                : '') +
+                '<button onclick="confConfirmarEndereco(\'' + key + '\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">✅ Confirmar</button>' +
+            '</div>' +
+        '</div>';
+
+    document.body.appendChild(modal);
+
+    setTimeout(function() {
+        var input = document.getElementById('confEndInput');
+        if (input) {
+            input.focus();
+            if (valorInicial) input.select();
+        }
+    }, 100);
+
+    document.getElementById('confEndInput').addEventListener('keydown', function(ev) {
+        if (ev.key === 'Enter') {
+            ev.preventDefault();
+            confConfirmarEndereco(key);
+        }
+    });
+}
+// ================================================================
+//                    HELPERS DO MODAL DE ENDEREÇO
+// ================================================================
+function usarEnderecoAnterior(endereco) {
+    var input = document.getElementById('confEndInput');
+    if (input) { 
+        input.value = endereco; 
+        input.focus(); 
+        input.select();
+    }
+}
+
+function usarObsAnterior(obs, item) {
+    var input = document.getElementById('confObsInput');
+    if (input) { 
+        input.value = obs; 
+        input.focus();
+    }
+}
+
+// ================================================================
+//                    CONFIRMAR ENDEREÇO (salva obs também)
+// ================================================================
 function confConfirmarEndereco(key) {
-    var input = document.getElementById('confEndInput'), endereco = input ? input.value.trim() : '';
-    if (!endereco) { input.style.borderColor = '#ef4444'; input.placeholder = '⚠️ Obrigatório!'; input.focus(); return; }
+    var inputEnd = document.getElementById('confEndInput');
+    var inputObs = document.getElementById('confObsInput');
+    var endereco = inputEnd ? inputEnd.value.trim() : '';
+    var observacao = inputObs ? inputObs.value.trim() : '';
+    
+    if (!endereco) { 
+        if (inputEnd) {
+            inputEnd.style.borderColor = '#ef4444'; 
+            inputEnd.placeholder = '⚠️ Obrigatório!'; 
+            inputEnd.focus(); 
+        }
+        return; 
+    }
+    
     ultimoEndereco = endereco;
-    confStatus[key] = { status: 'ok', endereco: endereco }; localStorage.setItem('enc_conf', JSON.stringify(confStatus));
-    var modal = document.getElementById('confEndModal'); if (modal) modal.remove();
-    document.getElementById('confBusca').value = ''; document.getElementById('confBuscaKg').value = '';
+    confStatus[key] = { status: 'ok', endereco: endereco, observacao: observacao };
+    localStorage.setItem('enc_conf', JSON.stringify(confStatus));
+    
+    var itemNome = key.split('_')[0];
+    if (observacao) {
+        estObservacoes[itemNome] = observacao;
+        localStorage.setItem('enc_obs', JSON.stringify(estObservacoes));
+    }
+    
+    var modal = document.getElementById('confEndModal'); 
+    if (modal) modal.remove();
+    
+    document.getElementById('confBusca').value = ''; 
+    document.getElementById('confBuscaKg').value = '';
     confRender();
-    setTimeout(function() { var cb = document.getElementById('confBusca'); if (cb) cb.focus(); }, 200);
-    toast(key.split('_')[0] + ' → ' + endereco, 'success', 2000);
+    
+    setTimeout(function() { 
+        var cb = document.getElementById('confBusca'); 
+        if (cb) cb.focus(); 
+    }, 200);
+    
+    var msg = itemNome + ' → ' + endereco;
+    if (observacao) msg += ' | 💬 obs salva';
+    toast(msg, 'success', 2500);
+}
+
+// ================================================================
+//                    FINALIZAR CONFERÊNCIA
+// ================================================================
+async function confFinalizar() {
+    var itensComEncaixe = {}; 
+    for (var b = 0; b < B.length; b++) itensComEncaixe[B[b].item] = true;
+    
+    var existem = 0, naoEncontradas = 0, adicionais = 0;
+    var listaRemover = [], listaNaoEncontradas = [], listaAdicionais = [];
+    
+    for (var i = 0; i < estoque.length; i++) {
+        var ic = getItemEstoque(estoque[i]); 
+        if (/-4$/.test(ic)) continue; 
+        if (itensComEncaixe[ic]) continue;
+        var qtde = parseFloat(estoque[i]['QTDE_ESTOQUE']) || 0;
+        var ver = estoque[i]['VERSAO'] || '';
+        var desc = estoque[i]['DESCRICAO'] || '';
+        var key = ic + '_' + ver + '_' + qtde;
+        var info = confStatus[key] || { status: 'pend', endereco: '' };
+        var isOculto = confOcultos[ic] === true;
+        var isManual = desc.indexOf('BOBINA MANUAL') > -1 || desc.indexOf('ITEM MANUAL') > -1;
+        if (isOculto) continue;
+        if (info.status === 'ok') { 
+            existem++; 
+            if (isManual) { 
+                adicionais++; 
+                listaAdicionais.push({ 
+                    item: ic, versao: ver, descricao: desc, qtde: qtde, 
+                    tipo: temCapa(ic) ? 'CAPA' : 'BASE', 
+                    endereco: info.endereco || '',
+                    observacao: info.observacao || ''
+                }); 
+            } 
+        } else { 
+            naoEncontradas++; 
+            listaRemover.push(i); 
+            listaNaoEncontradas.push({ 
+                item: ic, versao: ver, descricao: desc, qtde: qtde, 
+                tipo: temCapa(ic) ? 'CAPA' : 'BASE' 
+            }); 
+        }
+    }
+    
+    if (naoEncontradas === 0 && existem === 0) { 
+        toast('Nenhuma bobina para conferir', 'warning'); 
+        return; 
+    }
+    if (!confirm('🏁 Finalizar conferência?\n\n✅ ' + existem + 
+        ' encontradas\n➕ ' + adicionais + ' adicionais\n❌ ' + naoEncontradas + 
+        ' NÃO encontradas\n\nAs não encontradas serão removidas.')) return;
+    
+    var lo = document.getElementById('lo'), lt = document.getElementById('lt'); 
+    lo.classList.add('active'); 
+    lt.textContent = 'Salvando conferência...';
+    
+    try {
+        var agora = new Date();
+        var dataStr = agora.toLocaleString('pt-BR');
+        var lote = 'conf_' + agora.getTime().toString();
+        var batch = db.batch();
+        var salvos = 0;
+        
+        for (var key2 in confStatus) { 
+            if (confStatus[key2].status !== 'ok') continue; 
+            var p2 = key2.split('_'); 
+            batch.set(db.collection('conferencias').doc(), { 
+                data: dataStr, 
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(), 
+                lote: lote, 
+                item: p2[0] || '', 
+                versao: p2[1] || '', 
+                qtde: p2[2] || '', 
+                endereco: confStatus[key2].endereco || '', 
+                observacao: confStatus[key2].observacao || '',
+                status: 'ENCONTRADA' 
+            }); 
+            salvos++; 
+            if (salvos % 400 === 0) { await batch.commit(); batch = db.batch(); } 
+        }
+        
+        for (var n = 0; n < listaNaoEncontradas.length; n++) { 
+            var ne = listaNaoEncontradas[n]; 
+            batch.set(db.collection('conferencias').doc(), { 
+                data: dataStr, 
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(), 
+                lote: lote, 
+                item: ne.item, 
+                versao: ne.versao, 
+                qtde: String(ne.qtde), 
+                endereco: '', 
+                observacao: '',
+                status: 'NAO ENCONTRADA', 
+                tipo: ne.tipo, 
+                descricao: ne.descricao 
+            }); 
+            salvos++; 
+            if (salvos % 400 === 0) { await batch.commit(); batch = db.batch(); } 
+        }
+        
+        for (var a = 0; a < listaAdicionais.length; a++) { 
+            var ad = listaAdicionais[a]; 
+            batch.set(db.collection('conferencias').doc(), { 
+                data: dataStr, 
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(), 
+                lote: lote, 
+                item: ad.item, 
+                versao: ad.versao, 
+                qtde: String(ad.qtde), 
+                endereco: ad.endereco, 
+                observacao: ad.observacao || '',
+                status: 'ADICIONAL', 
+                tipo: ad.tipo, 
+                descricao: ad.descricao 
+            }); 
+            salvos++; 
+            if (salvos % 400 === 0) { await batch.commit(); batch = db.batch(); } 
+        }
+        
+        if (salvos % 400 !== 0) await batch.commit();
+        
+        for (var r = listaRemover.length - 1; r >= 0; r--) 
+            estoque.splice(listaRemover[r], 1);
+        
+        var relatorio = '📋 CONFERÊNCIA\n📅 ' + dataStr + 
+            '\n═══════════════════\n\n✅ ' + existem + 
+            ' encontradas\n➕ ' + adicionais + 
+            ' adicionais\n❌ ' + naoEncontradas + ' não encontradas\n\n';
+        
+        if (listaNaoEncontradas.length > 0) { 
+            relatorio += '❌ NÃO ENCONTRADAS\n───────────────────\n'; 
+            for (var ne2 = 0; ne2 < listaNaoEncontradas.length; ne2++) { 
+                var bob2 = listaNaoEncontradas[ne2]; 
+                relatorio += '  ' + bob2.tipo + ' ' + bob2.item + 
+                    ' v' + bob2.versao + ' | ' + bob2.qtde + 'kg\n'; 
+            } 
+            relatorio += '\n'; 
+        }
+        
+        if (listaAdicionais.length > 0) { 
+            relatorio += '➕ ADICIONAIS\n───────────────────\n'; 
+            for (var ad2 = 0; ad2 < listaAdicionais.length; ad2++) { 
+                var ada = listaAdicionais[ad2]; 
+                relatorio += '  ' + ada.tipo + ' ' + ada.item + 
+                    ' v' + ada.versao + ' | ' + ada.qtde + 'kg'; 
+                if (ada.endereco) relatorio += ' 📌' + ada.endereco; 
+                if (ada.observacao) relatorio += ' 💬' + ada.observacao;
+                relatorio += '\n'; 
+            } 
+        }
+        
+        confStatus = {}; 
+        localStorage.setItem('enc_conf', JSON.stringify(confStatus)); 
+        save(); 
+        lo.classList.remove('active');
+        toast('Conferência finalizada! ' + salvos + ' salvos', 'success', 4000);
+        
+        if (naoEncontradas > 0 || adicionais > 0) { 
+            var urlWpp = 'https://wa.me/?text=' + encodeURIComponent(relatorio); 
+            var janela = window.open(urlWpp, '_blank'); 
+            if (!janela || janela.closed || typeof janela.closed === 'undefined') { 
+                criarModal('confWppModal', 
+                    '<div style="text-align:center;">' +
+                    '<div style="font-size:2em;margin-bottom:8px;">📤</div>' +
+                    '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:8px;">Compartilhar</h3>' +
+                    '<div style="display:flex;flex-direction:column;gap:8px;">' +
+                    '<a href="' + urlWpp + '" target="_blank" ' +
+                    'style="display:block;padding:13px;border-radius:10px;background:#25D366;' +
+                    'color:#fff;font-size:0.9em;font-weight:600;text-decoration:none;">💬 WhatsApp</a>' +
+                    '<button onclick="fecharModal(\'confWppModal\')" ' +
+                    'style="padding:12px;border:none;border-radius:10px;background:#e0e0e0;' +
+                    'color:#888;font-size:0.85em;cursor:pointer;">Fechar</button>' +
+                    '</div></div>'
+                ); 
+            } 
+        }
+        
+        confRender(); 
+        atualizarInfo();
+        
+    } catch (err) { 
+        lo.classList.remove('active'); 
+        toast('Erro: ' + err.message, 'error'); 
+    }
 }
 
 function confDesmarcar(key) {
@@ -2855,38 +3382,6 @@ function confSalvarNovo() {
     localStorage.setItem('enc_conf', JSON.stringify(confStatus)); save();
     fecharModal('confAddModal'); confRender();
     toast('Bobina adicionada ao estoque', 'success');
-}
-
-async function confFinalizar() {
-    var itensComEncaixe = {}; for (var b = 0; b < B.length; b++) itensComEncaixe[B[b].item] = true;
-    var existem = 0, naoEncontradas = 0, adicionais = 0, listaRemover = [], listaNaoEncontradas = [], listaAdicionais = [];
-    for (var i = 0; i < estoque.length; i++) {
-        var ic = getItemEstoque(estoque[i]); if (/-4$/.test(ic)) continue; if (itensComEncaixe[ic]) continue;
-        var qtde = parseFloat(estoque[i]['QTDE_ESTOQUE']) || 0, ver = estoque[i]['VERSAO'] || '', desc = estoque[i]['DESCRICAO'] || '';
-        var key = ic + '_' + ver + '_' + qtde, info = confStatus[key] || { status: 'pend', endereco: '' };
-        var isOculto = confOcultos[ic] === true, isManual = desc.indexOf('BOBINA MANUAL') > -1 || desc.indexOf('ITEM MANUAL') > -1;
-        if (isOculto) continue;
-        if (info.status === 'ok') { existem++; if (isManual) { adicionais++; listaAdicionais.push({ item: ic, versao: ver, descricao: desc, qtde: qtde, tipo: temCapa(ic) ? 'CAPA' : 'BASE', endereco: info.endereco || '' }); } }
-        else { naoEncontradas++; listaRemover.push(i); listaNaoEncontradas.push({ item: ic, versao: ver, descricao: desc, qtde: qtde, tipo: temCapa(ic) ? 'CAPA' : 'BASE' }); }
-    }
-    if (naoEncontradas === 0 && existem === 0) { toast('Nenhuma bobina para conferir', 'warning'); return; }
-    if (!confirm('🏁 Finalizar conferência?\n\n✅ ' + existem + ' encontradas\n➕ ' + adicionais + ' adicionais\n❌ ' + naoEncontradas + ' NÃO encontradas\n\nAs não encontradas serão removidas.')) return;
-    var lo = document.getElementById('lo'), lt = document.getElementById('lt'); lo.classList.add('active'); lt.textContent = 'Salvando conferência...';
-    try {
-        var agora = new Date(), dataStr = agora.toLocaleString('pt-BR'), lote = 'conf_' + agora.getTime().toString(), batch = db.batch(), salvos = 0;
-        for (var key2 in confStatus) { if (confStatus[key2].status !== 'ok') continue; var p2 = key2.split('_'); batch.set(db.collection('conferencias').doc(), { data: dataStr, timestamp: firebase.firestore.FieldValue.serverTimestamp(), lote: lote, item: p2[0] || '', versao: p2[1] || '', qtde: p2[2] || '', endereco: confStatus[key2].endereco || '', status: 'ENCONTRADA' }); salvos++; if (salvos % 400 === 0) { await batch.commit(); batch = db.batch(); } }
-        for (var n = 0; n < listaNaoEncontradas.length; n++) { var ne = listaNaoEncontradas[n]; batch.set(db.collection('conferencias').doc(), { data: dataStr, timestamp: firebase.firestore.FieldValue.serverTimestamp(), lote: lote, item: ne.item, versao: ne.versao, qtde: String(ne.qtde), endereco: '', status: 'NAO ENCONTRADA', tipo: ne.tipo, descricao: ne.descricao }); salvos++; if (salvos % 400 === 0) { await batch.commit(); batch = db.batch(); } }
-        for (var a = 0; a < listaAdicionais.length; a++) { var ad = listaAdicionais[a]; batch.set(db.collection('conferencias').doc(), { data: dataStr, timestamp: firebase.firestore.FieldValue.serverTimestamp(), lote: lote, item: ad.item, versao: ad.versao, qtde: String(ad.qtde), endereco: ad.endereco, status: 'ADICIONAL', tipo: ad.tipo, descricao: ad.descricao }); salvos++; if (salvos % 400 === 0) { await batch.commit(); batch = db.batch(); } }
-        if (salvos % 400 !== 0) await batch.commit();
-        for (var r = listaRemover.length - 1; r >= 0; r--) estoque.splice(listaRemover[r], 1);
-        var relatorio = '📋 CONFERÊNCIA\n📅 ' + dataStr + '\n═══════════════════\n\n✅ ' + existem + ' encontradas\n➕ ' + adicionais + ' adicionais\n❌ ' + naoEncontradas + ' não encontradas\n\n';
-        if (listaNaoEncontradas.length > 0) { relatorio += '❌ NÃO ENCONTRADAS\n───────────────────\n'; for (var ne2 = 0; ne2 < listaNaoEncontradas.length; ne2++) { var bob2 = listaNaoEncontradas[ne2]; relatorio += '  ' + bob2.tipo + ' ' + bob2.item + ' v' + bob2.versao + ' | ' + bob2.qtde + 'kg\n'; } relatorio += '\n'; }
-        if (listaAdicionais.length > 0) { relatorio += '➕ ADICIONAIS\n───────────────────\n'; for (var ad2 = 0; ad2 < listaAdicionais.length; ad2++) { var ada = listaAdicionais[ad2]; relatorio += '  ' + ada.tipo + ' ' + ada.item + ' v' + ada.versao + ' | ' + ada.qtde + 'kg'; if (ada.endereco) relatorio += ' 📌' + ada.endereco; relatorio += '\n'; } }
-        confStatus = {}; localStorage.setItem('enc_conf', JSON.stringify(confStatus)); save(); lo.classList.remove('active');
-        toast('Conferência finalizada! ' + salvos + ' salvos', 'success', 4000);
-        if (naoEncontradas > 0 || adicionais > 0) { var urlWpp = 'https://wa.me/?text=' + encodeURIComponent(relatorio); var janela = window.open(urlWpp, '_blank'); if (!janela || janela.closed || typeof janela.closed === 'undefined') { criarModal('confWppModal', '<div style="text-align:center;"><div style="font-size:2em;margin-bottom:8px;">📤</div><h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:8px;">Compartilhar no WhatsApp</h3><p style="font-size:0.75em;color:#888;margin-bottom:16px;">Clique no botão abaixo</p><div style="display:flex;flex-direction:column;gap:8px;"><a href="' + urlWpp + '" target="_blank" style="display:block;padding:13px;border-radius:10px;background:#25D366;color:#fff;font-size:0.9em;font-weight:600;text-decoration:none;">💬 Abrir WhatsApp</a><button onclick="fecharModal(\'confWppModal\')" style="padding:12px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.85em;cursor:pointer;">Fechar</button></div></div>'); } }
-        confRender(); atualizarInfo();
-    } catch (err) { lo.classList.remove('active'); toast('Erro: ' + err.message, 'error'); }
 }
 
 function confExportar() {
@@ -3253,12 +3748,45 @@ function compararEstoques(anterior, atual) {
         html += '</div>';
     }
 
- // Salva bobinas novas para marcar com NEW
+     // Salva bobinas novas para marcar com NEW
     bobinasNovas = {};
     novas.forEach(function(n) {
         bobinasNovas[n.item + '_' + n.qtde] = true;
     });
     localStorage.setItem('enc_novas', JSON.stringify(bobinasNovas));
+
+    // Se a bobina nova é CAPA, define data de entrada = ontem
+    var manualDatas = {};
+    try { manualDatas = JSON.parse(localStorage.getItem('enc_datas') || '{}'); } catch(e) {}
+    var ontem = new Date();
+    ontem.setDate(ontem.getDate() - 1);
+    var ontemStr = ontem.getFullYear() + '-' + 
+        String(ontem.getMonth() + 1).padStart(2, '0') + '-' + 
+        String(ontem.getDate()).padStart(2, '0');
+    
+    var datasAlteradas = false;
+    novas.forEach(function(n) {
+        if (temCapa(n.item) && !manualDatas[n.item]) {
+            manualDatas[n.item] = ontemStr;
+            datasAlteradas = true;
+        }
+    });
+    
+    if (datasAlteradas) {
+        localStorage.setItem('enc_datas', JSON.stringify(manualDatas));
+        // Salva no Firebase também
+        novas.forEach(function(n) {
+            if (temCapa(n.item)) {
+                try {
+                    db.collection('datas_manuais').doc(n.item).set({
+                        item: n.item,
+                        data: ontemStr,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch(e) {}
+            }
+        });
+    }
 
     html += '<div style="display:flex;gap:8px;margin-top:12px;">';
     html += '<button onclick="fecharModal(\'compModal\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;cursor:pointer;">Fechar</button>';
@@ -3333,40 +3861,136 @@ var hRegs = [];
 function abrirHistorico() { document.getElementById('histModal').classList.add('active'); }
 
 async function hBuscar() {
-    var body = document.getElementById('hBody'); body.innerHTML = '<div style="text-align:center;padding:40px;color:#8b5cf6;">⏳</div>';
-    var fD = document.getElementById('hData').value, fO = document.getElementById('hOP').value.trim(), fI = document.getElementById('hItem').value.trim();
+    var body = document.getElementById('hBody'); 
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:#8b5cf6;">⏳</div>';
+    var fD = document.getElementById('hData').value, 
+        fO = document.getElementById('hOP').value.trim(), 
+        fI = document.getElementById('hItem').value.trim();
     try {
         var q = db.collection('encaixes').orderBy('timestamp', 'desc');
-        if (fD) q = db.collection('encaixes').where('timestamp', '>=', new Date(fD + 'T00:00:00')).where('timestamp', '<=', new Date(fD + 'T23:59:59')).orderBy('timestamp', 'desc');
-        var snap = await q.limit(2000).get(); hRegs = [];
-        snap.forEach(function(doc) { var d = doc.data(); hRegs.push({ id: doc.id, data: d.data || '', lote: d.lote || '', encaixe: d.encaixe || '', item: d.item || '', versao: d.versao || '', chave: d.chave || '', qtde: d.qtde || '', manual: d.manual || 'N', material: d.material || '' }); });
+        if (fD) q = db.collection('encaixes')
+            .where('timestamp', '>=', new Date(fD + 'T00:00:00'))
+            .where('timestamp', '<=', new Date(fD + 'T23:59:59'))
+            .orderBy('timestamp', 'desc');
+        var snap = await q.limit(2000).get(); 
+        hRegs = [];
+        snap.forEach(function(doc) { 
+            var d = doc.data(); 
+            hRegs.push({ 
+                id: doc.id, 
+                data: d.data || '', 
+                lote: d.lote || '', 
+                encaixe: d.encaixe || '', 
+                item: d.item || '', 
+                versao: d.versao || '', 
+                largura: d.largura || '',       // ✨ NOVO
+                espessura: d.espessura || '',   // ✨ NOVO
+                pigmento: d.pigmento || '',     // ✨ NOVO
+                chave: d.chave || '', 
+                qtde: d.qtde || '', 
+                manual: d.manual || 'N', 
+                material: d.material || '' 
+            }); 
+        });
         if (fO) hRegs = hRegs.filter(function(r) { return r.encaixe.indexOf(fO) > -1; });
-if (fI) {
-    var fILimpo = fI.toUpperCase().replace(/-/g, '');
-    hRegs = hRegs.filter(function(r) {
-        var itemLimpo = (r.item || '').toUpperCase().replace(/-/g, '');
-        var materialLimpo = (r.material || '').toUpperCase().replace(/-/g, '');
-        var chaveLimpa = (r.chave || '').toUpperCase().replace(/-/g, '');
-        return itemLimpo.indexOf(fILimpo) > -1 || materialLimpo.indexOf(fILimpo) > -1 || chaveLimpa.indexOf(fILimpo) > -1;
-    });
-}
+        if (fI) {
+            var fILimpo = fI.toUpperCase().replace(/-/g, '');
+            hRegs = hRegs.filter(function(r) {
+                var itemLimpo = (r.item || '').toUpperCase().replace(/-/g, '');
+                var materialLimpo = (r.material || '').toUpperCase().replace(/-/g, '');
+                var chaveLimpa = (r.chave || '').toUpperCase().replace(/-/g, '');
+                return itemLimpo.indexOf(fILimpo) > -1 || 
+                       materialLimpo.indexOf(fILimpo) > -1 || 
+                       chaveLimpa.indexOf(fILimpo) > -1;
+            });
+        }
         hRender();
-    } catch (err) { body.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">❌ ' + err.message + '</div>'; }
+    } catch (err) { 
+        body.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">❌ ' + err.message + '</div>'; 
+    }
 }
 
 function hRender() {
-    var body = document.getElementById('hBody'); body.innerHTML = '';
-    if (hRegs.length === 0) { body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;">📭 Nenhum</div>'; document.getElementById('hStats').style.display = 'none'; return; }
+    var body = document.getElementById('hBody'); 
+    body.innerHTML = '';
+    if (hRegs.length === 0) { 
+        body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;">📭 Nenhum</div>'; 
+        document.getElementById('hStats').style.display = 'none'; 
+        return; 
+    }
     var lotes = {}, ordem = [], ops = {};
-    for (var i = 0; i < hRegs.length; i++) { var r = hRegs[i], lk = r.lote || r.data || i; if (!lotes[lk]) { lotes[lk] = { data: r.data, regs: [] }; ordem.push(lk); } lotes[lk].regs.push(r); ops[r.encaixe] = true; }
-    document.getElementById('hStats').style.display = 'flex'; document.getElementById('hTotal').textContent = hRegs.length; document.getElementById('hLotes').textContent = ordem.length; document.getElementById('hOPs').textContent = Object.keys(ops).length;
+    for (var i = 0; i < hRegs.length; i++) { 
+        var r = hRegs[i], lk = r.lote || r.data || i; 
+        if (!lotes[lk]) { 
+            lotes[lk] = { data: r.data, regs: [] }; 
+            ordem.push(lk); 
+        } 
+        lotes[lk].regs.push(r); 
+        ops[r.encaixe] = true; 
+    }
+    document.getElementById('hStats').style.display = 'flex'; 
+    document.getElementById('hTotal').textContent = hRegs.length; 
+    document.getElementById('hLotes').textContent = ordem.length; 
+    document.getElementById('hOPs').textContent = Object.keys(ops).length;
+    
     for (var l = 0; l < ordem.length; l++) {
-        var lk2 = ordem[l], lote = lotes[lk2], pt = 0; for (var r2 = 0; r2 < lote.regs.length; r2++) pt += parseFloat(lote.regs[r2].qtde) || 0;
-        var card = document.createElement('div'); card.style.cssText = 'background:#fff;border-radius:10px;border:1px solid #e0e0e0;margin-bottom:6px;overflow:hidden;'; var bid = 'hlb-' + l;
-        card.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f8fafc;gap:6px;cursor:pointer;" data-t="' + bid + '" class="hToggle"><div style="flex:1;"><div style="font-size:0.85em;color:#8b5cf6;font-weight:700;">📅 ' + lote.data + '</div><div style="font-size:0.65em;color:#888;">' + lote.regs.length + ' bob | ' + pt.toFixed(0) + 'kg</div></div><span style="font-size:0.6em;padding:3px 8px;border-radius:8px;background:#f3e8ff;color:#8b5cf6;font-weight:700;">' + lote.regs.length + '</span><button data-lote="' + lk2 + '" class="hDelLote" style="width:26px;height:26px;border-radius:6px;border:1px solid #fca5a5;background:#fff;color:#ef4444;cursor:pointer;font-size:0.65em;display:flex;align-items:center;justify-content:center;">🗑️</button></div><div id="' + bid + '" style="display:none;max-height:250px;overflow-y:auto;">' + lote.regs.map(function(reg) { return '<div style="display:flex;align-items:center;padding:6px 12px;gap:6px;border-bottom:1px solid #f0f0f0;font-size:0.78em;"><span style="color:#2563eb;font-weight:600;min-width:65px;">OP ' + reg.encaixe + '</span><span style="color:#555;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + reg.item + '/v' + reg.versao + '</span><span style="color:#10b981;font-weight:600;">' + reg.qtde + 'kg</span><button data-id="' + reg.id + '" class="hDelReg" style="width:20px;height:20px;min-width:20px;border-radius:5px;border:1px solid #fca5a5;background:#fff;color:#ef4444;cursor:pointer;font-size:0.55em;display:flex;align-items:center;justify-content:center;">✖</button></div>'; }).join('') + '</div>';
-        card.querySelectorAll('.hToggle').forEach(function(el) { el.addEventListener('click', function() { var t = document.getElementById(this.getAttribute('data-t')); t.style.display = t.style.display === 'none' ? 'block' : 'none'; }); });
-        card.querySelectorAll('.hDelLote').forEach(function(el) { el.addEventListener('click', function(ev) { ev.stopPropagation(); hDelLote(this.getAttribute('data-lote')); }); });
-        card.querySelectorAll('.hDelReg').forEach(function(el) { el.addEventListener('click', function() { hDelReg(this.getAttribute('data-id')); }); });
+        var lk2 = ordem[l], lote = lotes[lk2], pt = 0; 
+        for (var r2 = 0; r2 < lote.regs.length; r2++) pt += parseFloat(lote.regs[r2].qtde) || 0;
+        var card = document.createElement('div'); 
+        card.style.cssText = 'background:#fff;border-radius:10px;border:1px solid #e0e0e0;margin-bottom:6px;overflow:hidden;'; 
+        var bid = 'hlb-' + l;
+        
+        card.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f8fafc;gap:6px;cursor:pointer;" data-t="' + bid + '" class="hToggle">' +
+            '<div style="flex:1;">' +
+                '<div style="font-size:0.85em;color:#8b5cf6;font-weight:700;">📅 ' + lote.data + '</div>' +
+                '<div style="font-size:0.65em;color:#888;">' + lote.regs.length + ' bob | ' + pt.toFixed(0) + 'kg</div>' +
+            '</div>' +
+            '<span style="font-size:0.6em;padding:3px 8px;border-radius:8px;background:#f3e8ff;color:#8b5cf6;font-weight:700;">' + lote.regs.length + '</span>' +
+            '<button data-lote="' + lk2 + '" class="hDelLote" style="width:26px;height:26px;border-radius:6px;border:1px solid #fca5a5;background:#fff;color:#ef4444;cursor:pointer;font-size:0.65em;display:flex;align-items:center;justify-content:center;">🗑️</button>' +
+        '</div>' +
+        '<div id="' + bid + '" style="display:none;max-height:250px;overflow-y:auto;">' + 
+            lote.regs.map(function(reg) { 
+                // ✨ NOVO: Monta a linha de medidas
+                var medidas = '';
+                if (reg.largura || reg.espessura || reg.pigmento) {
+                    var partes = [];
+                    if (reg.largura) partes.push('📏' + reg.largura + 'cm');
+                    if (reg.espessura) partes.push('📐' + reg.espessura + 'mu');
+                    if (reg.pigmento) partes.push('🎨' + reg.pigmento);
+                    medidas = '<div style="font-size:0.65em;color:#888;margin-top:2px;">' + partes.join(' • ') + '</div>';
+                }
+                
+                return '<div style="display:flex;align-items:center;padding:6px 12px;gap:6px;border-bottom:1px solid #f0f0f0;font-size:0.78em;">' +
+                    '<span style="color:#2563eb;font-weight:600;min-width:65px;">OP ' + reg.encaixe + '</span>' +
+                    '<div style="flex:1;overflow:hidden;">' +
+                        '<div style="color:#555;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + 
+                            reg.item + '/v' + reg.versao + 
+                        '</div>' +
+                        medidas +
+                    '</div>' +
+                    '<span style="color:#10b981;font-weight:600;">' + reg.qtde + 'kg</span>' +
+                    '<button data-id="' + reg.id + '" class="hDelReg" style="width:20px;height:20px;min-width:20px;border-radius:5px;border:1px solid #fca5a5;background:#fff;color:#ef4444;cursor:pointer;font-size:0.55em;display:flex;align-items:center;justify-content:center;">✖</button>' +
+                '</div>'; 
+            }).join('') + 
+        '</div>';
+        
+        card.querySelectorAll('.hToggle').forEach(function(el) { 
+            el.addEventListener('click', function() { 
+                var t = document.getElementById(this.getAttribute('data-t')); 
+                t.style.display = t.style.display === 'none' ? 'block' : 'none'; 
+            }); 
+        });
+        card.querySelectorAll('.hDelLote').forEach(function(el) { 
+            el.addEventListener('click', function(ev) { 
+                ev.stopPropagation(); 
+                hDelLote(this.getAttribute('data-lote')); 
+            }); 
+        });
+        card.querySelectorAll('.hDelReg').forEach(function(el) { 
+            el.addEventListener('click', function() { 
+                hDelReg(this.getAttribute('data-id')); 
+            }); 
+        });
         body.appendChild(card);
     }
 }
@@ -3851,8 +4475,6 @@ window.qrSessaoAnterior = qrSessaoAnterior;
 window.qrSessaoProximo = qrSessaoProximo;
 window.qrSessaoContinuarLeitura = qrSessaoContinuarLeitura;
 window.qrSessaoUsarParcial = qrSessaoUsarParcial;
-window.copiarQRSessaoAtual = copiarQRSessaoAtual;
-window.colarQRManual = colarQRManual;
 
 function importarSessaoQR(buffer) {
     var p1 = buffer[1] || null;
@@ -3949,7 +4571,22 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js').
 try { carregarTema(); } catch (e) { console.error('Erro carregarTema:', e); }
 try { carregarConferencia(); } catch (e) { console.error('Erro carregarConferencia:', e); }
 try { carregarObservacoes(); } catch (e) { console.error('Erro carregarObservacoes:', e); }
-try { load(); } catch (e) { console.error('Erro load:', e); }
+
+try { 
+    var carregou = load(); 
+    console.log('Init: carregou=' + carregou + ' B=' + B.length + ' est=' + estoque.length + ' fila=' + fila.length);
+    
+    if (carregou && B.length > 0) {
+        setTimeout(function() {
+            grp();
+            build();
+            atualizarInfo();
+            console.log('Init: UI atualizada com ' + B.length + ' encaixes');
+        }, 200);
+    }
+} catch (e) { 
+    console.error('Erro no init:', e); 
+}
 
 function limparNovas() {
     bobinasNovas = {};
@@ -3957,6 +4594,153 @@ function limparNovas() {
     build();
     toast('Tags NEW removidas', 'success');
 }
+// ================================================================
+//                    FOCAR ENCAIXE (UMA OP POR VEZ)
+// ================================================================
+var focoAtual = -1;
+
+function toggleFoco() {
+    if (G.length === 0) { toast('Calcule os encaixes primeiro', 'warning'); return; }
+    
+    if (focoAtual >= 0) {
+        // Já está focado — sai do foco
+        sairFoco();
+    } else {
+        // Entra no foco — primeira pendente
+        for (var i = 0; i < G.length; i++) {
+            var todosOk = true;
+            for (var b = 0; b < G[i].bs.length; b++) {
+                if (!B[G[i].bs[b]].ok) { todosOk = false; break; }
+            }
+            if (!todosOk) { aplicarFoco(i); return; }
+        }
+        // Se todas completas, foca na primeira
+        aplicarFoco(0);
+    }
+}
+
+function aplicarFoco(idx) {
+    focoAtual = idx;
+    if (focoAtual >= G.length) focoAtual = 0;
+    if (focoAtual < 0) focoAtual = G.length - 1;
+    
+    var btn = document.getElementById('btnFoco');
+    if (btn) { btn.style.background = '#ef4444'; btn.textContent = '✖'; }
+    
+    buildFoco();
+}
+
+function sairFoco() {
+    focoAtual = -1;
+    var btn = document.getElementById('btnFoco');
+    if (btn) { btn.style.background = '#8b5cf6'; btn.textContent = '🎯'; }
+    build();
+    toast('📋 Mostrando todas', 'info', 1500);
+}
+
+function buildFoco() {
+    var sa = document.getElementById('sa');
+    sa.innerHTML = '';
+    
+    if (focoAtual === -1 || focoAtual >= G.length) { build(); return; }
+    
+    var g = G[focoAtual];
+    var dn = 0;
+    for (var k = 0; k < g.bs.length; k++) { if (B[g.bs[k]].ok) dn++; }
+    
+    // Barra de navegação
+    var nav = document.createElement('div');
+    nav.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:10px;padding:4px 0;';
+    nav.innerHTML = 
+        '<button onclick="focoAnterior()" style="width:44px;height:44px;border-radius:10px;border:1px solid #e0e0e0;background:#fff;color:#555;font-size:1.1em;cursor:pointer;display:flex;align-items:center;justify-content:center;">◀</button>' +
+        '<div style="flex:1;text-align:center;">' +
+            '<div style="font-size:0.9em;font-weight:700;color:#2563eb;">🎯 OP ' + g.enc + '</div>' +
+            '<div style="font-size:0.68em;color:#888;">' + (focoAtual + 1) + ' de ' + G.length + ' | ' + dn + '/' + g.bs.length + ' 📷</div>' +
+        '</div>' +
+        '<button onclick="focoProximo()" style="width:44px;height:44px;border-radius:10px;border:1px solid #e0e0e0;background:#fff;color:#555;font-size:1.1em;cursor:pointer;display:flex;align-items:center;justify-content:center;">▶</button>';
+    sa.appendChild(nav);
+    
+    // Card da OP
+    var card = mkCard(focoAtual);
+    if (card) {
+        card.style.border = '2px solid #2563eb';
+        card.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.15)';
+        sa.appendChild(card);
+    }
+    
+    // Rodapé
+    var info = document.createElement('div');
+    info.style.cssText = 'text-align:center;padding:16px;color:#aaa;font-size:0.75em;margin-top:10px;';
+    
+    // Busca próxima pendente
+    var proxPend = -1;
+    for (var p = focoAtual + 1; p < G.length; p++) {
+        var ok1 = true;
+        for (var pb = 0; pb < G[p].bs.length; pb++) { if (!B[G[p].bs[pb]].ok) { ok1 = false; break; } }
+        if (!ok1) { proxPend = p; break; }
+    }
+    if (proxPend === -1) {
+        for (var p2 = 0; p2 < focoAtual; p2++) {
+            var ok2 = true;
+            for (var pb2 = 0; pb2 < G[p2].bs.length; pb2++) { if (!B[G[p2].bs[pb2]].ok) { ok2 = false; break; } }
+            if (!ok2) { proxPend = p2; break; }
+        }
+    }
+    
+    if (dn === g.bs.length && proxPend !== -1) {
+        info.innerHTML = '✅ OP completa!' +
+            '<br><button onclick="aplicarFoco(' + proxPend + ')" style="margin-top:8px;padding:12px 24px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-size:1em;font-weight:600;cursor:pointer;">▶ Próxima pendente</button>';
+    } else if (dn === g.bs.length) {
+        info.innerHTML = '🎉 Todas completas!<br><button onclick="sairFoco()" style="margin-top:8px;padding:10px 20px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.9em;font-weight:600;cursor:pointer;">📋 Ver todas</button>';
+    } else {
+        info.innerHTML = '📸 Tire foto das bobinas | ◀ ▶ navegar';
+    }
+    
+    sa.appendChild(info);
+    updUI();
+}
+
+function focoAnterior() {
+    if (G.length === 0) return;
+    focoAtual--;
+    if (focoAtual < 0) focoAtual = G.length - 1;
+    buildFoco();
+}
+
+function focoProximo() {
+    if (G.length === 0) return;
+    focoAtual++;
+    if (focoAtual >= G.length) focoAtual = 0;
+    buildFoco();
+}
+
+function executarFoco(op) {
+    for (var i = 0; i < G.length; i++) {
+        if (G[i].enc === op) {
+            if (document.getElementById('fsView').classList.contains('active')) {
+                fecharFS();
+            }
+            
+            fil('all');
+            
+            var idx = i;
+            setTimeout(function() {
+                var card = document.getElementById('g-' + idx);
+                if (card) {
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    card.style.boxShadow = '0 0 0 3px #2563eb';
+                    card.style.transition = 'box-shadow 0.3s';
+                    setTimeout(function() { card.style.boxShadow = ''; }, 2500);
+                    toast('OP ' + op + ' encontrada', 'success');
+                }
+            }, 300);
+            return;
+        }
+    }
+    toast('OP ' + op + ' não encontrada', 'warning');
+}
+
+
 </script>
 
 <div class="modal modal-full" id="dashModal" style="background:#f0f2f5;">
