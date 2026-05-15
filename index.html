@@ -3659,7 +3659,6 @@ function gerarRelatorioSemEncaixe() {
         var ic = getItemEstoque(e);
         if (!ic) continue;
         if (isMetalizado(ic)) continue;
-        if (confOcultos[ic]) continue;
 
         var desc = e['DESCRICAO'] || '';
         var larg = extrairLargura(desc);
