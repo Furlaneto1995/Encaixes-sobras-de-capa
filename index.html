@@ -2837,7 +2837,8 @@
                             pig: bob.pigmentado,
                             qtde: String(bob.qtde),
                             material: bob.material || '',
-                            largOP: String(esc.largura || bob.largura)
+                            largOP: String(esc.largura || bob.largura),
+                            apresentacao: esc.apresentacao || ''
                         });
 
                         found = true;
@@ -2859,6 +2860,7 @@
                     qtde: rs.qtde,
                     material: rs.material || '',
                     largOP: rs.largOP || rs.larg,
+                    apresentacao: rs.apresentacao || '',
                     foto: null,
                     fotoNm: '',
                     ok: false,
@@ -2945,6 +2947,8 @@
                             pig: b.pig,
                             qtde: b.qtde,
                             material: b.material || '',
+                            largOP: b.largOP || b.larg || '',
+                            apresentacao: b.apresentacao || '',
                             foto: b.foto || null,
                             fotoEtiqueta: b.fotoEtiqueta || null,
                             fotoNm: b.fotoNm || '',
@@ -3057,6 +3061,7 @@
                     if (B[i].ok === undefined) B[i].ok = false;
                     if (B[i].manual === undefined) B[i].manual = false;
                     if (B[i].largOP === undefined) B[i].largOP = B[i].larg || '';
+                    if (B[i].apresentacao === undefined) B[i].apresentacao = '';
                 }
 
                 grp();
@@ -3256,7 +3261,7 @@
                 var bi = g.bs[b], bob = B[bi];
                 if (filt === 'ok' && !bob.ok) continue; if (filt === 'pend' && bob.ok) continue;
                 bl += '<div class="bob-row' + (bob.ok ? ' done' : '') + '"><button class="bob-chk' + (bob.ok ? ' done' : '') + '" data-b="' + bi + '">' + (bob.ok ? '✔' : '📷') + '</button>' +
-                    '<div class="bob-mid"><span class="bob-peso">' + bob.qtde + ' kg' + (bob.largOP && bob.larg !== bob.largOP ? ' <span style="font-size:0.6em;padding:2px 6px;border-radius:6px;background:#fef3c7;color:#d97706;font-weight:700;">📐 ' + bob.larg + 'cm→' + bob.largOP + 'cm</span>' : '') + (isMetalizado(bob.item) ? ' <span style="font-size:0.6em;padding:2px 6px;border-radius:6px;background:#f1f5f9;color:#94a3b8;font-weight:700;">METAL</span>' : '') + (bob.manual ? tagManual() : '') + (isNova(bob.item, bob.qtde) ? tagNew() : '') + '</span>' + (estObservacoes[bob.item] ? '<div style="font-size:0.6em;color:#f59e0b;margin-top:2px;">💬 ' + estObservacoes[bob.item] + '</div>' : '') + getEnderecoMini(bob) + '</div>' +
+                    '<div class="bob-mid"><span class="bob-peso">' + bob.qtde + ' kg' + (bob.largOP && bob.larg !== bob.largOP ? ' <span style="font-size:0.6em;padding:2px 6px;border-radius:6px;background:#fef3c7;color:#d97706;font-weight:700;">📐 ' + bob.larg + 'cm→' + bob.largOP + 'cm' + ((bob.apresentacao === 'saco' || bob.apresentacao === 'saco picotado' || bob.apresentacao === 'folha') ? ' 📦 SACO' : '') + '</span>' : '') + (isMetalizado(bob.item) ? ' <span style="font-size:0.6em;padding:2px 6px;border-radius:6px;background:#f1f5f9;color:#94a3b8;font-weight:700;">METAL</span>' : '') + (bob.manual ? tagManual() : '') + (isNova(bob.item, bob.qtde) ? tagNew() : '') + '</span>' + (estObservacoes[bob.item] ? '<div style="font-size:0.6em;color:#f59e0b;margin-top:2px;">💬 ' + estObservacoes[bob.item] + '</div>' : '') + getEnderecoMini(bob) + '</div>' +
 
                     (bob.foto ? '<img src="' + bob.foto + '" class="bob-mini" data-b="' + bi + '">' : '') +
                     '<div class="bob-actions">' +
@@ -4226,7 +4231,6 @@
 
                 '<div style="display:flex;gap:8px;">' +
                 '<button onclick="fecharModal(\'tolModal\')" style="padding:12px 16px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;font-weight:600;cursor:pointer;">Cancelar</button>' +
-                '<button onclick="tolAutoAmbos()" style="padding:12px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">🔄 Tudo Auto</button>' +
                 '<button onclick="salvarTolerancia()" style="flex:1;padding:12px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.88em;font-weight:700;cursor:pointer;">💾 Salvar</button>' +
                 '</div>'
             );
@@ -4246,10 +4250,6 @@
             input.select();
         }
 
-        function tolAutoAmbos() {
-            tolAutoFilme();
-            tolAutoSaco();
-        }
 
         function salvarTolerancia() {
             var filmeVal = document.getElementById('tolFilmeInput').value.trim();
@@ -6510,7 +6510,8 @@
                         b.pig || '',
                         b.qtde || '',
                         b.manual ? 1 : 0,
-                        b.material || ''
+                        b.material || '',
+                        b.apresentacao || ''
                     ];
                 })
             };
@@ -6854,7 +6855,7 @@
                         pig: r[5] || '',
                         qtde: r[6] || '',
                         manual: !!r[7],
-                        material: r[8] || '',
+                        apresentacao: r[9] || '',
                         foto: null,
                         fotoNm: '',
                         ok: false
