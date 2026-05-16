@@ -1803,6 +1803,98 @@
             height: 100% !important;
             object-fit: cover !important;
         }
+
+.menu-sub {
+    border-radius: 10px;
+    margin: 2px 0;
+}
+
+.menu-sub-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    color: #333;
+    font-size: 0.88em;
+}
+
+.menu-sub-toggle:active {
+    background: #f0f2f5;
+}
+
+.menu-sub-toggle .mi-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3em;
+}
+
+.menu-sub-toggle .mi-text {
+    flex: 1;
+}
+
+.menu-sub-toggle .mi-text .mi-title {
+    font-weight: 600;
+    font-size: 0.9em;
+}
+
+.menu-sub-toggle .mi-text .mi-desc {
+    font-size: 0.7em;
+    color: #888;
+    margin-top: 1px;
+}
+
+.menu-sub-toggle .sub-arrow {
+    font-size: 0.7em;
+    color: #aaa;
+    flex-shrink: 0;
+}
+
+.menu-sub-list {
+    display: none;
+    padding-left: 16px;
+    border-left: 2px solid #e0e0e0;
+    margin-left: 32px;
+    margin-bottom: 4px;
+}
+
+.menu-sub-list.show {
+    display: block;
+}
+
+.menu-sub-list .menu-item {
+    padding: 10px 12px;
+}
+
+.menu-sub-list .menu-item .mi-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 1em;
+}
+
+.menu-sub-list .menu-item .mi-text .mi-title {
+    font-size: 0.85em;
+}
+
+.menu-sub-list .menu-item .mi-text .mi-desc {
+    font-size: 0.6em;
+}
+
+body.dark .menu-sub-toggle {
+    color: #ccc;
+}
+
+body.dark .menu-sub-toggle:active {
+    background: #1e2642;
+}
+
+body.dark .menu-sub-list {
+    border-left-color: #2a2a4a;
+}
     </style>
 </head>
 
@@ -1820,121 +1912,160 @@
 
     <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
     <div class="menu-panel" id="menuPanel">
-        <div class="menu-header">
-            <h3>Menu</h3>
-            <button class="menu-close" onclick="toggleMenu()">✖</button>
+    <div class="menu-header">
+        <h3>Menu</h3>
+        <button class="menu-close" onclick="toggleMenu()">✖</button>
+    </div>
+    <div class="menu-items">
+        <div class="menu-item" onclick="toggleMenu();abrirEstoque();">
+            <div class="mi-icon">📋</div>
+            <div class="mi-text">
+                <div class="mi-title">Estoque</div>
+                <div class="mi-desc">Visualizar itens importados</div>
+            </div>
         </div>
-        <div class="menu-items">
-            <div class="menu-item" onclick="toggleMenu();debugar();">
-                <div class="mi-icon">🔍</div>
-                <div class="mi-text">
-                    <div class="mi-title">Debug</div>
-                    <div class="mi-desc">Investigar item específico</div>
-                </div>
+        <div class="menu-item" onclick="toggleMenu();abrirConferencia();">
+            <div class="mi-icon">✅</div>
+            <div class="mi-text">
+                <div class="mi-title">Conferência</div>
+                <div class="mi-desc">Verificar bobinas do estoque</div>
             </div>
-            <div class="menu-item" onclick="toggleMenu();abrirEstoque();">
-                <div class="mi-icon">📋</div>
-                <div class="mi-text">
-                    <div class="mi-title">Estoque</div>
-                    <div class="mi-desc">Visualizar itens importados</div>
-                </div>
-            </div>
-            <div class="menu-item" onclick="toggleMenu();abrirConferencia();">
-                <div class="mi-icon">✅</div>
-                <div class="mi-text">
-                    <div class="mi-title">Conferência</div>
-                    <div class="mi-desc">Verificar bobinas do estoque</div>
-                </div>
-            </div>
-            <div class="menu-item" onclick="toggleMenu();abrirHistoricoUnificado();">
-                <div class="mi-icon">🗄️</div>
-                <div class="mi-text">
-                    <div class="mi-title">Histórico</div>
-                    <div class="mi-desc">Encaixes e conferências no Firebase</div>
-                </div>
-            </div>
-            <div class="menu-sep"></div>
-            <div class="menu-item" onclick="toggleMenu();abrirDashboard();">
+        </div>
+
+        <div class="menu-sep"></div>
+
+        <div class="menu-sub">
+            <div class="menu-sub-toggle" onclick="toggleSub('subAnalises')">
                 <div class="mi-icon">📊</div>
                 <div class="mi-text">
-                    <div class="mi-title">Dashboard</div>
-                    <div class="mi-desc">Gráficos e análises</div>
+                    <div class="mi-title">Análises</div>
+                    <div class="mi-desc">Relatórios e investigações</div>
+                </div>
+                <span class="sub-arrow" id="saAnalises">▶</span>
+            </div>
+            <div class="menu-sub-list" id="subAnalises">
+                <div class="menu-item" onclick="toggleMenu();abrirDashboard();">
+                    <div class="mi-icon">📊</div>
+                    <div class="mi-text">
+                        <div class="mi-title">Dashboard</div>
+                        <div class="mi-desc">Gráficos e análises</div>
+                    </div>
+                </div>
+                <div class="menu-item" onclick="toggleMenu();abrirIdadeBobinas();">
+                    <div class="mi-icon">⏳</div>
+                    <div class="mi-text">
+                        <div class="mi-title">Bobinas Paradas</div>
+                        <div class="mi-desc">Tempo sem encaixe</div>
+                    </div>
+                </div>
+                <div class="menu-item" onclick="toggleMenu();abrirProblemas();">
+                    <div class="mi-icon">⚠️</div>
+                    <div class="mi-text">
+                        <div class="mi-title">Relatório de Erros</div>
+                        <div class="mi-desc">Problemas do último cálculo</div>
+                    </div>
+                </div>
+                <div class="menu-item" onclick="toggleMenu();gerarRelatorioSemEncaixe();">
+                    <div class="mi-icon">❌</div>
+                    <div class="mi-text">
+                        <div class="mi-title">Sem Encaixe</div>
+                        <div class="mi-desc">Por que ficaram de fora</div>
+                    </div>
+                </div>
+                <div class="menu-item" onclick="toggleMenu();debugar();">
+                    <div class="mi-icon">🔍</div>
+                    <div class="mi-text">
+                        <div class="mi-title">Debug</div>
+                        <div class="mi-desc">Investigar item específico</div>
+                    </div>
                 </div>
             </div>
-            <div class="menu-item" onclick="toggleMenu();abrirIdadeBobinas();">
-                <div class="mi-icon">⏳</div>
+        </div>
+
+        <div class="menu-sub">
+            <div class="menu-sub-toggle" onclick="toggleSub('subTransferir')">
+                <div class="mi-icon">🔄</div>
                 <div class="mi-text">
-                    <div class="mi-title">Bobinas Paradas</div>
-                    <div class="mi-desc">Tempo sem encaixe</div>
+                    <div class="mi-title">Transferir</div>
+                    <div class="mi-desc">QR, backup e histórico</div>
+                </div>
+                <span class="sub-arrow" id="saTransferir">▶</span>
+            </div>
+            <div class="menu-sub-list" id="subTransferir">
+                <div class="menu-item" onclick="toggleMenu();gerarQRSessao();">
+                    <div class="mi-icon">📡</div>
+                    <div class="mi-text">
+                        <div class="mi-title">Gerar QR Sessão</div>
+                        <div class="mi-desc">Enviar cálculo para o celular</div>
+                    </div>
+                </div>
+                <div class="menu-item" onclick="toggleMenu();abrirLeitorQRSessao();">
+                    <div class="mi-icon">📷</div>
+                    <div class="mi-text">
+                        <div class="mi-title">Ler QR Sessão</div>
+                        <div class="mi-desc">Receber cálculo do PC</div>
+                    </div>
+                </div>
+                <div class="menu-item" onclick="toggleMenu();exportarEstado();">
+                    <div class="mi-icon">💾</div>
+                    <div class="mi-text">
+                        <div class="mi-title">Exportar Estado</div>
+                        <div class="mi-desc">Backup completo em JSON</div>
+                    </div>
+                </div>
+                <div class="menu-item" onclick="toggleMenu();importarEstado();">
+                    <div class="mi-icon">📥</div>
+                    <div class="mi-text">
+                        <div class="mi-title">Importar Estado</div>
+                        <div class="mi-desc">Restaurar backup JSON</div>
+                    </div>
+                </div>
+                <div class="menu-item" onclick="toggleMenu();abrirHistoricoUnificado();">
+                    <div class="mi-icon">🗄️</div>
+                    <div class="mi-text">
+                        <div class="mi-title">Histórico</div>
+                        <div class="mi-desc">Encaixes e conferências no Firebase</div>
+                    </div>
                 </div>
             </div>
-            <div class="menu-item" onclick="toggleMenu();abrirProblemas();">
-                <div class="mi-icon">⚠️</div>
+        </div>
+
+        <div class="menu-sub">
+            <div class="menu-sub-toggle" onclick="toggleSub('subConfig')">
+                <div class="mi-icon">⚙️</div>
                 <div class="mi-text">
-                    <div class="mi-title">Relatório de Erros</div>
-                    <div class="mi-desc">Problemas do último cálculo</div>
+                    <div class="mi-title">Configurações</div>
+                    <div class="mi-desc">Ajustes e preferências</div>
                 </div>
+                <span class="sub-arrow" id="saConfig">▶</span>
             </div>
-            <div class="menu-item" onclick="toggleMenu();gerarRelatorioSemEncaixe();">
-                <div class="mi-icon">❌</div>
-                <div class="mi-text">
-                    <div class="mi-title">Sem Encaixe</div>
-                    <div class="mi-desc">Por que ficaram de fora</div>
+            <div class="menu-sub-list" id="subConfig">
+                <div class="menu-item" onclick="toggleTema();toggleMenu();">
+                    <div class="mi-icon" id="temaIcon">🌙</div>
+                    <div class="mi-text">
+                        <div class="mi-title" id="temaLabel">Modo Escuro</div>
+                        <div class="mi-desc">Alternar tema claro/escuro</div>
+                    </div>
                 </div>
-            </div>
-            <div class="menu-item" onclick="toggleMenu();abrirTolerancia();">
-                <div class="mi-icon">📏</div>
-                <div class="mi-text">
-                    <div class="mi-title">Tolerância</div>
-                    <div class="mi-desc">Ajustar tolerância de largura</div>
+                <div class="menu-item" onclick="toggleMenu();abrirTolerancia();">
+                    <div class="mi-icon">📏</div>
+                    <div class="mi-text">
+                        <div class="mi-title">Tolerância</div>
+                        <div class="mi-desc">Ajustar tolerância de largura</div>
+                    </div>
                 </div>
-            </div>
-            <div class="menu-item" onclick="toggleTema();">
-                <div class="mi-icon" id="temaIcon">🌙</div>
-                <div class="mi-text">
-                    <div class="mi-title" id="temaLabel">Modo Escuro</div>
-                    <div class="mi-desc">Alternar tema claro/escuro</div>
-                </div>
-            </div>
-            <div class="menu-sep"></div>
-            <div class="menu-item" onclick="toggleMenu();gerarQRSessao();">
-                <div class="mi-icon">📡</div>
-                <div class="mi-text">
-                    <div class="mi-title">Gerar QR Sessão</div>
-                    <div class="mi-desc">Enviar cálculo para o celular</div>
-                </div>
-            </div>
-            <div class="menu-item" onclick="toggleMenu();abrirLeitorQRSessao();">
-                <div class="mi-icon">📷</div>
-                <div class="mi-text">
-                    <div class="mi-title">Ler QR Sessão</div>
-                    <div class="mi-desc">Receber cálculo do PC</div>
-                </div>
-            </div>
-            <div class="menu-item" onclick="toggleMenu();exportarEstado();">
-                <div class="mi-icon">💾</div>
-                <div class="mi-text">
-                    <div class="mi-title">Exportar Estado</div>
-                    <div class="mi-desc">Backup completo em JSON</div>
-                </div>
-            </div>
-            <div class="menu-item" onclick="toggleMenu();importarEstado();">
-                <div class="mi-icon">📥</div>
-                <div class="mi-text">
-                    <div class="mi-title">Importar Estado</div>
-                    <div class="mi-desc">Restaurar backup JSON</div>
-                </div>
-            </div>
-            <div class="menu-sep"></div>
-            <div class="menu-item" onclick="toggleMenu();limpar();">
-                <div class="mi-icon">🗑️</div>
-                <div class="mi-text">
-                    <div class="mi-title">Limpar Tudo</div>
-                    <div class="mi-desc">Apagar dados e recomeçar</div>
+                <div class="menu-sep"></div>
+                <div class="menu-item" onclick="toggleMenu();limpar();">
+                    <div class="mi-icon">🗑️</div>
+                    <div class="mi-text">
+                        <div class="mi-title" style="color:#ef4444;">Limpar Tudo</div>
+                        <div class="mi-desc">Apagar dados e recomeçar</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
     <div class="toolbar">
         <div class="import-row">
@@ -2442,10 +2573,38 @@
         // ================================================================
         //                    MENU
         // ================================================================
-        function toggleMenu() {
-            document.getElementById('menuOverlay').classList.toggle('active');
-            document.getElementById('menuPanel').classList.toggle('active');
-        }
+       function toggleMenu() {
+    document.getElementById('menuOverlay').classList.toggle('active');
+    document.getElementById('menuPanel').classList.toggle('active');
+
+    // Fecha submenus ao fechar o menu
+    if (!document.getElementById('menuPanel').classList.contains('active')) {
+        var listas = document.querySelectorAll('.menu-sub-list');
+        listas.forEach(function (el) { el.classList.remove('show'); });
+        var setas = document.querySelectorAll('.sub-arrow');
+        setas.forEach(function (el) { el.textContent = '▶'; });
+    }
+}
+
+function toggleSub(id) {
+    var lista = document.getElementById(id);
+    if (!lista) return;
+
+    var isOpen = lista.classList.contains('show');
+
+    // Fecha todos
+    var todas = document.querySelectorAll('.menu-sub-list');
+    todas.forEach(function (el) { el.classList.remove('show'); });
+    var setas = document.querySelectorAll('.sub-arrow');
+    setas.forEach(function (el) { el.textContent = '▶'; });
+
+    // Abre o clicado (se estava fechado)
+    if (!isOpen) {
+        lista.classList.add('show');
+        var seta = document.getElementById('sa' + id.replace('sub', ''));
+        if (seta) seta.textContent = '▼';
+    }
+}
 
         // ================================================================
         //                    TEMA
