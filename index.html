@@ -3472,7 +3472,9 @@
                     '</div>';
             }
             bl += '</div>';
-            card.innerHTML = hd + bl + '<button class="btn-add" data-g="' + gi + '">➕ Adicionar bobina</button>';
+            card.innerHTML = hd + bl + 
+    '<button class="btn-add" data-g="' + gi + '">➕ Adicionar bobina</button>' +
+    '<button class="btn-add" data-enc-estoque="1" style="color:#2563eb;border-top:none;">🔗 Encaixar do Estoque</button>';
 
             card.querySelectorAll('.bob-chk').forEach(function (el) {
                 el.addEventListener('click', function () { var bi2 = parseInt(this.getAttribute('data-b')); if (B[bi2].ok) { B[bi2].ok = false; B[bi2].foto = null; B[bi2].fotoNm = ''; save(); build(); } else { openCam(bi2); } });
@@ -3481,6 +3483,7 @@
                 el.addEventListener('click', function (ev) { ev.stopPropagation(); document.getElementById('ai').src = B[parseInt(this.getAttribute('data-b'))].foto; document.getElementById('ao').classList.add('active'); });
             });
             card.querySelector('.btn-add').addEventListener('click', function () { openAddPeso(parseInt(this.getAttribute('data-g'))); });
+	    card.querySelector('[data-enc-estoque]').addEventListener('click', function () { abrirEncaixarDoEstoque(); });
             card.querySelectorAll('.btn-del-op:not([data-dbg])').forEach(function (el) { el.addEventListener('click', function () { delOP(parseInt(this.getAttribute('data-g'))); }); });
             card.querySelectorAll('[data-dbg]').forEach(function (el) { el.addEventListener('click', function (ev) { ev.stopPropagation(); var g2 = G[parseInt(this.getAttribute('data-g'))]; debugarItem(B[g2.bs[0]].item); }); });
             card.querySelectorAll('[data-foco]').forEach(function (el) { el.addEventListener('click', function (ev) { ev.stopPropagation(); aplicarFoco(parseInt(this.getAttribute('data-g'))); }); });
@@ -4391,6 +4394,291 @@
             }
             toast(pesos.length + ' bobina(s) adicionada(s)', 'success');
         }
+
+// ================================================================
+//                    ENCAIXAR DO ESTOQUE
+// ================================================================
+function abrirEncaixarDoEstoque() {
+    // Monta set de itens já encaixados (item + qtde)
+    var encaixados = {};
+    for (var b = 0; b < B.length; b++) {
+        var chave = B[b].item + '_' + B[b].qtde;
+        encaixados[chave] = (encaixados[chave] || 0) + 1;
+    }
+
+    // Filtra estoque — só sem encaixe, sem metalizado, sem oculto
+    var disponiveis = [];
+    var encaixadosUsados = {};
+
+    for (var i = 0; i < estoque.length; i++) {
+        var e = estoque[i];
+        var ic = getItemEstoque(e);
+        if (!ic) continue;
+
+        var qtde = parseFloat(e['QTDE_ESTOQUE']) || 0;
+        if (qtde === 0) continue;
+
+        var isMetal = /-4$/.test(ic);
+        var isOculto = confOcultos[ic] === true;
+        if (isMetal || isOculto) continue;
+
+        var chaveEnc = ic + '_' + qtde;
+        var usado = encaixadosUsados[chaveEnc] || 0;
+        var total = encaixados[chaveEnc] || 0;
+
+        if (usado < total) {
+            encaixadosUsados[chaveEnc] = usado + 1;
+            continue; // já encaixado
+        }
+
+        var desc = e['DESCRICAO'] || '';
+        var larg = extrairLargura(desc);
+        var esp = extrairEspessura(desc);
+        var comp = normalizarComposicao(e['COMPOSICAO'] || '');
+        var pig = normalizarPigmentado(e['PIGMENTADO'] || '');
+        var ver = e['VERSAO'] || '';
+        var material = normalizarTexto(e['MATERIAL'] || '');
+        var cap = temCapa(ic);
+
+        disponiveis.push({
+            idx: i,
+            item: ic,
+            ver: ver,
+            larg: larg,
+            esp: esp,
+            comp: comp,
+            pig: pig,
+            qtde: qtde,
+            material: material,
+            tipo: cap ? 'CAPA' : 'BASE',
+            desc: desc
+        });
+    }
+
+    if (disponiveis.length === 0) {
+        toast('Nenhuma bobina disponível sem encaixe', 'warning');
+        return;
+    }
+
+    // Salva lista globalmente para uso no render
+    window._encEstoqueDisponiveis = disponiveis;
+
+    // Monta modal
+    var existente = document.getElementById('encEstoqueModal');
+    if (existente) existente.remove();
+
+    var modal = document.createElement('div');
+    modal.id = 'encEstoqueModal';
+    modal.className = 'modal modal-full active';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#f0f2f5;z-index:1500;display:flex;flex-direction:column;';
+
+    modal.innerHTML =
+        '<div class="modal-head">' +
+            '<div class="modal-head-info">' +
+                '<h3>🔗 Encaixar do Estoque</h3>' +
+                '<p id="encEstoqueSub">' + disponiveis.length + ' bobinas disponíveis</p>' +
+            '</div>' +
+            '<button class="btn-close" onclick="fecharEncaixarDoEstoque()">✖</button>' +
+        '</div>' +
+        '<div style="padding:10px 14px;flex-shrink:0;">' +
+            '<input type="text" id="encEstoqueBusca" placeholder="🔍 Buscar item, material, composição..." ' +
+                'style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid #e0e0e0;background:#fff;color:#1a1a2e;font-size:0.85em;" ' +
+                'oninput="renderEncaixarDoEstoque()">' +
+        '</div>' +
+        '<div style="flex:1;overflow-y:auto;padding:6px 12px 20px;-webkit-overflow-scrolling:touch;" id="encEstoqueBody"></div>';
+
+    document.body.appendChild(modal);
+    renderEncaixarDoEstoque();
+}
+
+function renderEncaixarDoEstoque() {
+    var body = document.getElementById('encEstoqueBody');
+    if (!body) return;
+
+    var disponiveis = window._encEstoqueDisponiveis || [];
+    var busca = (document.getElementById('encEstoqueBusca').value || '').trim().toUpperCase().replace(/-/g, '');
+
+    var filtrados = disponiveis;
+    if (busca) {
+        filtrados = disponiveis.filter(function (d) {
+            var linha = (d.item + ' ' + d.comp + ' ' + d.pig + ' ' + d.material + ' ' + d.desc).toUpperCase().replace(/-/g, '');
+            return linha.indexOf(busca) > -1;
+        });
+    }
+
+    var sub = document.getElementById('encEstoqueSub');
+    if (sub) sub.textContent = filtrados.length + ' de ' + disponiveis.length + ' bobinas';
+
+    if (filtrados.length === 0) {
+        body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;"><div style="font-size:2em;margin-bottom:8px;">📭</div><p>Nenhuma bobina encontrada</p></div>';
+        return;
+    }
+
+    // Ordena por item
+    filtrados.sort(function (a, b) { return a.item.localeCompare(b.item); });
+
+    var html = '';
+    for (var i = 0; i < filtrados.length; i++) {
+        var d = filtrados[i];
+        var icone = d.tipo === 'CAPA' ? '🔴' : '🟢';
+        var corTipo = d.tipo === 'CAPA' ? '#ef4444' : '#10b981';
+
+        html += '<div onclick="selecionarItemEncaixe(' + d.idx + ')" ' +
+            'style="background:#fff;border-radius:10px;border:1px solid #e0e0e0;margin-bottom:6px;padding:10px 14px;cursor:pointer;transition:background 0.15s;" ' +
+            'onmousedown="this.style.background=\'#eff6ff\'" onmouseup="this.style.background=\'#fff\'" ' +
+            'ontouchstart="this.style.background=\'#eff6ff\'" ontouchend="this.style.background=\'#fff\'">';
+
+        // Linha 1: tipo + item + versão + peso
+        html += '<div style="display:flex;align-items:center;gap:6px;">';
+        html += '<div style="font-size:1em;">' + icone + '</div>';
+        html += '<span style="font-size:0.85em;font-weight:600;font-family:monospace;color:#1a1a2e;">' + d.item + '</span>';
+        html += '<span style="font-size:0.6em;color:#aaa;">v' + d.ver + '</span>';
+        html += '<span style="font-size:0.6em;padding:2px 6px;border-radius:6px;background:' + (d.tipo === 'CAPA' ? '#fee2e2' : '#dcfce7') + ';color:' + corTipo + ';font-weight:600;">' + d.tipo + '</span>';
+        html += '<div style="margin-left:auto;text-align:right;flex-shrink:0;">';
+        html += '<span style="font-size:0.9em;font-weight:700;color:#1a1a2e;">' + d.qtde.toFixed(0) + '</span>';
+        html += '<span style="font-size:0.5em;color:#888;"> kg</span>';
+        html += '</div>';
+        html += '</div>';
+
+        // Linha 2: medidas + pigmento + material + composição
+        html += '<div style="padding-left:24px;display:flex;gap:8px;flex-wrap:wrap;font-size:0.6em;color:#aaa;margin-top:3px;">';
+        html += '<span>📐 ' + d.larg + 'cm x ' + d.esp + 'mu</span>';
+        html += '<span>🎨 ' + d.pig + '</span>';
+        if (d.comp) html += '<span>📦 ' + d.comp + '</span>';
+        if (d.material) html += '<span style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🧪 ' + d.material + '</span>';
+        html += '</div>';
+
+        html += '</div>';
+    }
+
+    body.innerHTML = html;
+}
+
+function selecionarItemEncaixe(estoqueIdx) {
+    var e = estoque[estoqueIdx];
+    if (!e) { toast('Item não encontrado', 'error'); return; }
+
+    var ic = getItemEstoque(e);
+    var qtde = parseFloat(e['QTDE_ESTOQUE']) || 0;
+    var desc = e['DESCRICAO'] || '';
+    var ver = e['VERSAO'] || '';
+    var larg = extrairLargura(desc);
+    var esp = extrairEspessura(desc);
+    var pig = normalizarPigmentado(e['PIGMENTADO'] || '');
+    var material = normalizarTexto(e['MATERIAL'] || '');
+
+    // Fecha o modal do estoque
+    fecharEncaixarDoEstoque();
+
+    // Pede a OP
+    criarModal('encOPModal',
+        '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:4px;">🔗 Encaixar Manualmente</h3>' +
+        '<div style="background:#eff6ff;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:0.78em;color:#555;">' +
+            '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
+                '<span style="font-size:1.1em;">' + (temCapa(ic) ? '🔴' : '🟢') + '</span>' +
+                '<strong style="font-family:monospace;">' + ic + '</strong>' +
+                '<span style="color:#aaa;">v' + ver + '</span>' +
+            '</div>' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap;font-size:0.85em;color:#888;">' +
+                '<span>📐 ' + larg + 'cm x ' + esp + 'mu</span>' +
+                '<span>🎨 ' + pig + '</span>' +
+                '<span>⚖️ ' + qtde.toFixed(0) + 'kg</span>' +
+            '</div>' +
+        '</div>' +
+        '<label style="font-size:0.7em;color:#888;display:block;margin-bottom:4px;">OP de Encaixe *</label>' +
+        '<input type="text" id="encOPInput" placeholder="Ex: 1074340" inputmode="numeric" ' +
+            'style="width:100%;padding:12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:1em;font-weight:600;">' +
+        '<div style="display:flex;gap:8px;margin-top:14px;">' +
+            '<button onclick="fecharModal(\'encOPModal\')" ' +
+                'style="padding:12px 16px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;cursor:pointer;">Cancelar</button>' +
+            '<button onclick="confirmarEncaixeDoEstoque(' + estoqueIdx + ')" ' +
+                'style="flex:1;padding:12px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.88em;font-weight:700;cursor:pointer;">✅ Encaixar</button>' +
+        '</div>'
+    );
+
+    setTimeout(function () {
+        var input = document.getElementById('encOPInput');
+        if (input) input.focus();
+    }, 100);
+
+    // Enter para confirmar
+    setTimeout(function () {
+        var input = document.getElementById('encOPInput');
+        if (input) {
+            input.addEventListener('keydown', function (ev) {
+                if (ev.key === 'Enter') {
+                    ev.preventDefault();
+                    confirmarEncaixeDoEstoque(estoqueIdx);
+                }
+            });
+        }
+    }, 150);
+}
+
+function confirmarEncaixeDoEstoque(estoqueIdx) {
+    var input = document.getElementById('encOPInput');
+    var op = input ? input.value.trim() : '';
+
+    if (!op) {
+        if (input) {
+            input.style.borderColor = '#ef4444';
+            input.placeholder = '⚠️ OP é obrigatória!';
+            input.focus();
+        }
+        return;
+    }
+
+    var e = estoque[estoqueIdx];
+    if (!e) { toast('Item não encontrado', 'error'); return; }
+
+    var ic = getItemEstoque(e);
+    var qtde = parseFloat(e['QTDE_ESTOQUE']) || 0;
+    var desc = e['DESCRICAO'] || '';
+    var ver = e['VERSAO'] || '';
+    var larg = String(extrairLargura(desc));
+    var esp = String(extrairEspessura(desc));
+    var pig = normalizarPigmentado(e['PIGMENTADO'] || '');
+    var material = normalizarTexto(e['MATERIAL'] || '');
+
+    // Cria a bobina de encaixe
+    B.push({
+        id: B.length,
+        enc: op,
+        item: ic,
+        ver: ver,
+        larg: larg,
+        esp: esp,
+        pig: pig,
+        qtde: String(qtde),
+        material: material,
+        largOP: larg,
+        apresentacao: '',
+        foto: null,
+        fotoEtiqueta: null,
+        fotoNm: '',
+        ok: false,
+        manual: true
+    });
+
+    // Remove do estoque
+    estoque.splice(estoqueIdx, 1);
+
+    // Fecha modal e reconstrói
+    fecharModal('encOPModal');
+    grp();
+    save();
+    build();
+    atualizarInfo();
+    atualizarModaisAbertos();
+
+    toast(ic + ' (' + qtde.toFixed(0) + 'kg) → OP ' + op, 'success');
+}
+
+function fecharEncaixarDoEstoque() {
+    var modal = document.getElementById('encEstoqueModal');
+    if (modal) modal.remove();
+    window._encEstoqueDisponiveis = null;
+}
 
         // ================================================================
         //                    MODAIS
