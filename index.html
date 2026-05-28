@@ -3411,13 +3411,23 @@
         function grp() { var m = {}; G = []; for (var i = 0; i < B.length; i++) { var b = B[i], k = mkChaveGrp(b); if (!m[k]) { m[k] = { enc: b.enc, chave: mkChave(b), bs: [] }; G.push(m[k]); } m[k].bs.push(i); } }
 
         function build() {
-            var sa = document.getElementById('sa'); sa.innerHTML = '';
-            if (G.length === 0) { sa.innerHTML = '<div class="empty-msg"><div class="icon">📂</div><p>Importe as planilhas para começar</p></div>'; updUI(); return; }
-            var any = false;
-            for (var o = 0; o < G.length; o++) { var c = mkCard(o); if (c) { sa.appendChild(c); any = true; } }
-            if (!any) sa.innerHTML = '<div class="empty-msg"><div class="icon">' + (filt === 'ok' ? '✅' : '⏳') + '</div><p>Nenhuma nesta categoria</p></div>';
-            updUI();
-        }
+    var sa = document.getElementById('sa'); sa.innerHTML = '';
+    if (G.length === 0) { sa.innerHTML = '<div class="empty-msg"><div class="icon">📂</div><p>Importe as planilhas para começar</p></div>'; updUI(); return; }
+    var any = false;
+    for (var o = 0; o < G.length; o++) { var c = mkCard(o); if (c) { sa.appendChild(c); any = true; } }
+    if (!any) sa.innerHTML = '<div class="empty-msg"><div class="icon">' + (filt === 'ok' ? '✅' : '⏳') + '</div><p>Nenhuma nesta categoria</p></div>';
+    
+    // Botão global "Encaixar do Estoque" no final
+    if (any && estoque.length > 0) {
+        var btnEnc = document.createElement('button');
+        btnEnc.style.cssText = 'width:100%;padding:14px;border:2px dashed #2563eb;border-radius:12px;background:rgba(37,99,235,0.05);color:#2563eb;font-size:0.9em;font-weight:600;cursor:pointer;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:6px;';
+        btnEnc.innerHTML = '🔗 Encaixar do Estoque';
+        btnEnc.addEventListener('click', function () { abrirEncaixarDoEstoque(); });
+        sa.appendChild(btnEnc);
+    }
+    
+    updUI();
+}
 
         function showG(gi) {
             var g = G[gi], ao = true, ap = false;
@@ -3472,9 +3482,7 @@
                     '</div>';
             }
             bl += '</div>';
-            card.innerHTML = hd + bl + 
-    '<button class="btn-add" data-g="' + gi + '">➕ Adicionar bobina</button>' +
-    '<button class="btn-add" data-enc-estoque="1" style="color:#2563eb;border-top:none;">🔗 Encaixar do Estoque</button>';
+            card.innerHTML = hd + bl + '<button class="btn-add" data-g="' + gi + '">➕ Adicionar bobina</button>';
 
             card.querySelectorAll('.bob-chk').forEach(function (el) {
                 el.addEventListener('click', function () { var bi2 = parseInt(this.getAttribute('data-b')); if (B[bi2].ok) { B[bi2].ok = false; B[bi2].foto = null; B[bi2].fotoNm = ''; save(); build(); } else { openCam(bi2); } });
