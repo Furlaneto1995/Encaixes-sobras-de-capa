@@ -3491,7 +3491,6 @@
                 el.addEventListener('click', function (ev) { ev.stopPropagation(); document.getElementById('ai').src = B[parseInt(this.getAttribute('data-b'))].foto; document.getElementById('ao').classList.add('active'); });
             });
             card.querySelector('.btn-add').addEventListener('click', function () { openAddPeso(parseInt(this.getAttribute('data-g'))); });
-	    card.querySelector('[data-enc-estoque]').addEventListener('click', function () { abrirEncaixarDoEstoque(); });
             card.querySelectorAll('.btn-del-op:not([data-dbg])').forEach(function (el) { el.addEventListener('click', function () { delOP(parseInt(this.getAttribute('data-g'))); }); });
             card.querySelectorAll('[data-dbg]').forEach(function (el) { el.addEventListener('click', function (ev) { ev.stopPropagation(); var g2 = G[parseInt(this.getAttribute('data-g'))]; debugarItem(B[g2.bs[0]].item); }); });
             card.querySelectorAll('[data-foco]').forEach(function (el) { el.addEventListener('click', function (ev) { ev.stopPropagation(); aplicarFoco(parseInt(this.getAttribute('data-g'))); }); });
