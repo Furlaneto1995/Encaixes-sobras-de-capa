@@ -2817,7 +2817,15 @@
         // ================================================================
         //                    PRIORIDADE
         // ================================================================
-        function calcPrioridade(s, p, f) { var i = (s === 'interrompida'), ps = (p === 'S' && f >= 10), pn = (p === 'N'); if (i && ps) return 1; if (!i && ps) return 2; if (i && pn) return 3; if (!i && pn) return 4; return 99; }
+        function calcPrioridade(s, p, f) { 
+    // Se a situação for interrompida, retorna 99 para ser ignorada pelo motor de encaixe
+    if (s === 'interrompida') return 99; 
+    
+    var ps = (p === 'S' && f >= 10), pn = (p === 'N'); 
+    if (ps) return 2; 
+    if (pn) return 4; 
+    return 99; 
+}
         function ordenarCandidatas(a) { a.sort(function (x, y) { if (x.prioridade !== y.prioridade) return x.prioridade - y.prioridade; if (x.difData !== y.difData) return x.difData - y.difData; return x.filaNum - y.filaNum; }); }
 
         // ================================================================
@@ -6042,9 +6050,19 @@ function fecharEncaixarDoEstoque() {
                         if (larg > lf + tol) { detalhes.tolerancia++; continue; }
                     }
 
-                    // Prioridade
-                    var pri = calcPrioridade(si, pr, fn);
-                    if (pri >= 99) { detalhes.prioridade++; continue; }
+                    // Prioridade / Situação
+var pri = calcPrioridade(si, pr, fn);
+if (pri >= 99) { 
+    detalhes.prioridade++; 
+    if (si === 'interrompida') {
+        quaseServiu.push({
+            op: op,
+            motivo: 'INTERROMPIDA',
+            item: if2
+        });
+    }
+    continue; 
+}
 
                     // Saldo
                     var sa = saldo[op] || 0;
