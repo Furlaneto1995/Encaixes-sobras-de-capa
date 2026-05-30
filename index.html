@@ -2864,71 +2864,73 @@
                 });
             }
 
-            var fp = [];
- // BLOCO NOVO: Descobre todas as OPs que estão interrompidas em qualquer lugar
-                        var opsInterrompidas = {};
-            for (var x = 0; x < fila.length; x++) {
-                // Pega o texto, remove espaços extras e deixa em minúsculo
-                var statusTxt = String(fila[x]['SITUACAO'] || '').trim().toLowerCase();
-                var opId = String(fila[x]['OP_PRINCIPAL'] || fila[x]['OP'] || '').trim();
-                
-                // Se a palavra começar com "interromp", bloqueia (cobre "interrompida", "interrompido", etc)
-                if (statusTxt.indexOf('interromp') === 0 && opId) {
-                    opsInterrompidas[opId] = true;
-                    console.log('OP Bloqueada por estar interrompida:', opId); // Isso aparecerá no F12 do navegador
-                }
+        var fp = [];
+
+        // Descobre todas as OPs interrompidas em qualquer lugar da planilha
+        var opsInterrompidas = {};
+        for (var x = 0; x < fila.length; x++) {
+            var statusTxt = String(fila[x]['SITUACAO'] || '').trim().toLowerCase();
+            var opId = String(fila[x]['OP_PRINCIPAL'] || fila[x]['OP'] || '').trim();
+            if (statusTxt.indexOf('interromp') === 0 && opId) {
+                opsInterrompidas[opId] = true;
             }
-            for (var j = 0; j < fila.length; j++) {
-                var f = fila[j], if2 = getItemFila(f), df = f['DESCRICAO'] || '';
-                var lf = extrairLargura(df),
-                    ef = extrairEspessura(df),
-                    compsFila = getComposicoesFila(f),
-                    pf = normalizarPigmentado(f['PIGMENTADO'] || '');
+        }
 
-                var wf = parseFloat(f['PESO']) || 0,
-                    ap = String(f['APRESENTACAO'] || '').trim().toLowerCase();
+        // Loop único e correto para montar fp
+        for (var j = 0; j < fila.length; j++) {
+            var f = fila[j], if2 = getItemFila(f), df = f['DESCRICAO'] || '';
+            var lf = extrairLargura(df),
+                ef = extrairEspessura(df),
+                compsFila = getComposicoesFila(f),
+                pf = normalizarPigmentado(f['PIGMENTADO'] || '');
 
-                var si = normalizarTexto(f['SITUACAO'] || '').toLowerCase(),
-                    pr = normalizarProgramada(f['PROGRAMADA'] || '');
+            var wf = parseFloat(f['PESO']) || 0,
+                ap = String(f['APRESENTACAO'] || '').trim().toLowerCase();
 
-                var fn = parseFloat(f['FILA']) || 0,
-                    pe = f['PREV ENTREGA'] || '',
-                    op = f['OP_PRINCIPAL'] || f['OP'] || '';
+            var si = normalizarTexto(f['SITUACAO'] || '').toLowerCase(),
+                pr = normalizarProgramada(f['PROGRAMADA'] || '');
 
-                if (compsFila.length === 0 || !pf || lf === 0 || ef === 0 || wf === 0) continue;
+            var fn = parseFloat(f['FILA']) || 0,
+                pe = f['PREV ENTREGA'] || '',
+                op = f['OP_PRINCIPAL'] || f['OP'] || '';
 
-                var tol;
-                if (ap === 'saco' || ap === 'saco picotado' || ap === 'folha') {
-                    tol = toleranciaSaco >= 0 ? toleranciaSaco : 2;
-                } else if (ap === 'filme' || ap === 'filme picotado') {
-                    tol = toleranciaFilme >= 0 ? toleranciaFilme : 10;
-                } else {
-                    tol = 0;
-                }
+            // Bloqueia OPs interrompidas em qualquer recurso
+            if (opsInterrompidas[String(op).trim()]) continue;
 
-                fp.push({
-                    op: op,
-                    itemFila: if2,
-                    descricao: df,
-                    largura: lf,
-                    espessura: ef,
-                    composicoes: compsFila,
-                    pigmentado: pf,
-                    peso: wf,
-                    apresentacao: ap,
-                    tolerancia: tol,
-                    largMaxAceita: lf + tol,
-                    prioridade: calcPrioridade(si, pr, fn),
-                    difData: diferencaDiasHoje(pe),
-                    filaNum: fn,
-                    programada: pr,
-                    situacao: si,
-                    isCapa: temCapa(if2),
-                    chavesExatas: compsFila.map(function (c) { return lf + '|' + ef + '|' + c + '|' + pf; }),
-                    chavesSemLarg: compsFila.map(function (c) { return ef + '|' + c + '|' + pf; }),
-                    versao: f['VERSAO'] || ''
-                });
+            if (compsFila.length === 0 || !pf || lf === 0 || ef === 0 || wf === 0) continue;
+
+            var tol;
+            if (ap === 'saco' || ap === 'saco picotado' || ap === 'folha') {
+                tol = toleranciaSaco >= 0 ? toleranciaSaco : 2;
+            } else if (ap === 'filme' || ap === 'filme picotado') {
+                tol = toleranciaFilme >= 0 ? toleranciaFilme : 10;
+            } else {
+                tol = 0;
             }
+
+            fp.push({
+                op: op,
+                itemFila: if2,
+                descricao: df,
+                largura: lf,
+                espessura: ef,
+                composicoes: compsFila,
+                pigmentado: pf,
+                peso: wf,
+                apresentacao: ap,
+                tolerancia: tol,
+                largMaxAceita: lf + tol,
+                prioridade: calcPrioridade(si, pr, fn),
+                difData: diferencaDiasHoje(pe),
+                filaNum: fn,
+                programada: pr,
+                situacao: si,
+                isCapa: temCapa(if2),
+                chavesExatas: compsFila.map(function (c) { return lf + '|' + ef + '|' + c + '|' + pf; }),
+                chavesSemLarg: compsFila.map(function (c) { return ef + '|' + c + '|' + pf; }),
+                versao: f['VERSAO'] || ''
+            });
+        }
 
             var saldo = {}; for (var s = 0; s < fp.length; s++) { if (!saldo[fp[s].op]) saldo[fp[s].op] = fp[s].peso; }
             var fpLam = [];
@@ -3598,6 +3600,7 @@
             document.getElementById('sOk').classList.toggle('on', tipo === 'ok');
             build();
 
+            var t = B.length;
             var btnFoco = document.getElementById('btnFoco');
             if (btnFoco) btnFoco.style.display = t > 0 ? 'flex' : 'none';
         }
@@ -4223,7 +4226,22 @@
                 body.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">❌ ' + err.message + '</div>';
             }
         }
-
+async function idadeRemoverData(item) {
+    var manualDatas = {};
+    try { 
+        manualDatas = JSON.parse(localStorage.getItem('enc_datas') || '{}'); 
+    } catch(e) {}
+    delete manualDatas[item];
+    localStorage.setItem('enc_datas', JSON.stringify(manualDatas));
+    try { 
+        await db.collection('datas_manuais').doc(item).delete(); 
+    } catch(e) { 
+        console.error('Erro ao remover data:', e); 
+    }
+    fecharModal('idadeDataModal');
+    toast(item + ' → data removida', 'info');
+    carregarIdadeBobinas();
+}
         function idadeEditarData(item) {
             var dataAtual = '';
             var manualDatas = {};
@@ -4267,6 +4285,7 @@
         }
 
         async function idadeSalvarData(item) {
+
             var val = document.getElementById('idadeDataInput').value;
             if (!val) { toast('Selecione uma data!', 'error'); return; }
 
@@ -5001,7 +5020,7 @@ function fecharEncaixarDoEstoque() {
                 var labelTipo = it.isMetal ? 'METAL' : (it.isOculto ? 'OCULTA' : it.tipo);
 
                 // Card container
-                html += '<div style="background:' + bg + ';border-radius:10px;border:1px solid ' + bord + ';margin-bottom:6px;' + (it.isOculto ? 'opacity:0.72;' : '') + '" oncontextmenu="event.preventDefault();estLongPress(\'' + it.item.replace(/'/g, "\\'") + '\');" data-estitem="' + it.item + '">';
+                html += '<div style="background:' + bg + ';border-radius:10px;border:1px solid ' + bord + ';margin-bottom:6px;' + (it.isOculto ? 'opacity:0.72;' : '') + '" oncontextmenu="event.preventDefault();estAbrirOpcoes(\'' + it.item.replace(/'/g, "\\'") + '\');" data-estitem="' + it.item + '">';
 
                 // Linha 1: tipo + item + versão + medidas + pigmento + peso
                 html += '<div style="padding:8px 12px 2px;display:flex;align-items:center;gap:6px;">';
@@ -5966,60 +5985,57 @@ function fecharEncaixarDoEstoque() {
                 itensComEncaixe[kb] = true;
             }
 
-            var semEncaixe = [];
+           var semEncaixe = [];
 
-            for (var i = 0; i < estoque.length; i++) {
-                var e = estoque[i];
-                var ic = getItemEstoque(e);
-                if (!ic) continue;
-                if (isMetalizado(ic)) continue;
-                if (confOcultos[ic]) continue;
+// Cria lista de OPs interrompidas para o relatório
+var opsInterrompidas = {};
+for (var x = 0; x < fila.length; x++) {
+    var statusTxt = String(fila[x]['SITUACAO'] || '').trim().toLowerCase();
+    var opId = String(fila[x]['OP_PRINCIPAL'] || fila[x]['OP'] || '').trim();
+    if (statusTxt.indexOf('interromp') === 0 && opId) {
+        opsInterrompidas[opId] = true;
+    }
+}
 
-                var desc = e['DESCRICAO'] || '';
-                var larg = extrairLargura(desc);
-                var esp = extrairEspessura(desc);
-                var comp = normalizarComposicao(e['COMPOSICAO'] || '');
-                var pig = normalizarPigmentado(e['PIGMENTADO'] || '');
-                var qtde = parseFloat(e['QTDE_ESTOQUE']) || 0;
-                var ver = e['VERSAO'] || '';
-                var cap = temCapa(ic);
+for (var i = 0; i < estoque.length; i++) {
+    var e = estoque[i];
+    var ic = getItemEstoque(e);
+    if (!ic) continue;
+    if (isMetalizado(ic)) continue;
+    if (confOcultos[ic]) continue;
 
-                if (!comp || larg === 0 || esp === 0 || qtde === 0) continue;
+    var desc = e['DESCRICAO'] || '';
+    var larg = extrairLargura(desc);
+    var esp = extrairEspessura(desc);
+    var comp = normalizarComposicao(e['COMPOSICAO'] || '');
+    var pig = normalizarPigmentado(e['PIGMENTADO'] || '');
+    var qtde = parseFloat(e['QTDE_ESTOQUE']) || 0;
+    var ver = e['VERSAO'] || '';
+    var cap = temCapa(ic);
 
-                var ke = ic + '_' + ver + '_' + qtde;
-                if (itensComEncaixe[ke]) continue;
+    if (!comp || larg === 0 || esp === 0 || qtde === 0) continue;
 
-                // Essa bobina não tem encaixe — vamos investigar por quê
-                var chaveExata = larg + '|' + esp + '|' + comp + '|' + pig;
-                var chaveSemLarg = esp + '|' + comp + '|' + pig;
+    var ke = ic + '_' + ver + '_' + qtde;
+            if (itensComEncaixe[ke]) continue;
 
-                var melhorMotivo = '';
-                var melhorOP = '';
-                var detalhes = {
-                    chave: 0,
-                    tipo: 0,
-                    largura: 0,
-                    tolerancia: 0,
-                    peso: 0,
-                    prioridade: 0,
-                    total: 0
-                };
+            var chaveExata = larg + '|' + esp + '|' + comp + '|' + pig;
+            var chaveSemLarg = esp + '|' + comp + '|' + pig;
+            var quaseServiu = [];
+            var melhorMotivo = '';
+            var detalhes = { 
+                total: 0, chave: 0, largura: 0, 
+                tolerancia: 0, prioridade: 0, peso: 0, tipo: 0 
+            };
+            var saldo = {};
+            for (var s = 0; s < fila.length; s++) {
+                var opS = fila[s]['OP_PRINCIPAL'] || fila[s]['OP'] || '';
+                var pesoS = parseFloat(fila[s]['PESO']) || 0;
+                if (opS && !saldo[opS]) saldo[opS] = pesoS;
+            }
 
-                // Calcula saldo disponível
-                var saldo = {};
-                for (var ss = 0; ss < fila.length; ss++) {
-                    var opk = fila[ss]['OP_PRINCIPAL'] || fila[ss]['OP'] || '';
-                    var pk = parseFloat(fila[ss]['PESO']) || 0;
-                    if (opk && !saldo[opk]) saldo[opk] = pk;
-                }
-                // Desconta bobinas já encaixadas
-                for (var bb = 0; bb < B.length; bb++) {
-                    if (saldo[B[bb].enc]) saldo[B[bb].enc] -= parseFloat(B[bb].qtde) || 0;
-                }
+            var quaseServiu = [];
 
-                var quaseServiu = [];
-
-                for (var j = 0; j < fila.length; j++) {
+                    for (var j = 0; j < fila.length; j++) {
                     var f = fila[j];
                     var if2 = getItemFila(f);
                     var df = f['DESCRICAO'] || '';
@@ -6033,10 +6049,13 @@ function fecharEncaixarDoEstoque() {
                     var pr = normalizarProgramada(f['PROGRAMADA'] || '');
                     var fn = parseFloat(f['FILA']) || 0;
                     var op = f['OP_PRINCIPAL'] || f['OP'] || '';
-  if (opsInterrompidas[String(op).trim()]) {
-                    continue; 
-                }
+
+                    // ✅ BLOQUEIA OP INTERROMPIDA EM QUALQUER RECURSO
+                    if (opsInterrompidas[String(op).trim()]) continue;
+
                     var cf2 = temCapa(if2);
+
+                    if (!cf || !pf || lf === 0 || ef === 0 || wf === 0) continue;
 
                     if (!cf || !pf || lf === 0 || ef === 0 || wf === 0) continue;
 
