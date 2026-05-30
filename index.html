@@ -2865,6 +2865,15 @@
             }
 
             var fp = [];
+ // BLOCO NOVO: Descobre todas as OPs que estão interrompidas em qualquer lugar
+            var opsInterrompidas = {};
+            for (var x = 0; x < fila.length; x++) {
+                var s = normalizarTexto(fila[x]['SITUACAO'] || '').toLowerCase();
+                var opId = fila[x]['OP_PRINCIPAL'] || fila[x]['OP'] || '';
+                if (s === 'interrompida' && opId) {
+                    opsInterrompidas[opId] = true;
+                }
+            }
             for (var j = 0; j < fila.length; j++) {
                 var f = fila[j], if2 = getItemFila(f), df = f['DESCRICAO'] || '';
                 var lf = extrairLargura(df),
@@ -6020,6 +6029,7 @@ function fecharEncaixarDoEstoque() {
                     var pr = normalizarProgramada(f['PROGRAMADA'] || '');
                     var fn = parseFloat(f['FILA']) || 0;
                     var op = f['OP_PRINCIPAL'] || f['OP'] || '';
+if (opsInterrompidas[op]) continue;
                     var cf2 = temCapa(if2);
 
                     if (!cf || !pf || lf === 0 || ef === 0 || wf === 0) continue;
