@@ -2866,12 +2866,16 @@
 
             var fp = [];
  // BLOCO NOVO: Descobre todas as OPs que estão interrompidas em qualquer lugar
-            var opsInterrompidas = {};
+                        var opsInterrompidas = {};
             for (var x = 0; x < fila.length; x++) {
-                var s = normalizarTexto(fila[x]['SITUACAO'] || '').toLowerCase();
-                var opId = fila[x]['OP_PRINCIPAL'] || fila[x]['OP'] || '';
-                if (s === 'interrompida' && opId) {
+                // Pega o texto, remove espaços extras e deixa em minúsculo
+                var statusTxt = String(fila[x]['SITUACAO'] || '').trim().toLowerCase();
+                var opId = String(fila[x]['OP_PRINCIPAL'] || fila[x]['OP'] || '').trim();
+                
+                // Se a palavra começar com "interromp", bloqueia (cobre "interrompida", "interrompido", etc)
+                if (statusTxt.indexOf('interromp') === 0 && opId) {
                     opsInterrompidas[opId] = true;
+                    console.log('OP Bloqueada por estar interrompida:', opId); // Isso aparecerá no F12 do navegador
                 }
             }
             for (var j = 0; j < fila.length; j++) {
@@ -6029,7 +6033,9 @@ function fecharEncaixarDoEstoque() {
                     var pr = normalizarProgramada(f['PROGRAMADA'] || '');
                     var fn = parseFloat(f['FILA']) || 0;
                     var op = f['OP_PRINCIPAL'] || f['OP'] || '';
-if (opsInterrompidas[op]) continue;
+  if (opsInterrompidas[String(op).trim()]) {
+                    continue; 
+                }
                     var cf2 = temCapa(if2);
 
                     if (!cf || !pf || lf === 0 || ef === 0 || wf === 0) continue;
