@@ -3022,6 +3022,7 @@
 
                 } else {
                     var tent = [{ ex: true, mt: true }, { ex: true, mt: false }, { ex: false, mt: true }, { ex: false, mt: false }];
+                    
 
                     for (var t = 0; t < tent.length; t++) {
                         if (found) break;
@@ -3042,29 +3043,76 @@
 
                             if (o.prioridade >= 99) continue;
                             var sa = saldo[o.op] || 0;
-                            if (bob.qtde > sa) continue;
+                            if (sa <= 0) continue;
                             cands.push(o);
                         }
 
                         if (cands.length === 0) continue;
                         ordenarCandidatas(cands);
-                        var esc = cands[0];
-                        saldo[esc.op] -= bob.qtde;
 
-                        res.push({
-                            enc: esc.op,
-                            item: bob.item,
-                            ver: bob.versao,
-                            larg: String(bob.largura),
-                            esp: String(bob.espessura),
-                            pig: bob.pigmentado,
-                            qtde: String(bob.qtde),
-                            material: bob.material || '',
-                            largOP: String(esc.largura || bob.largura),
-                            apresentacao: esc.apresentacao || ''
-                        });
+                       {
+                            // Bobina normal: encaixa na melhor OP
+                            // Se não cabe pelo saldo, junta várias OPs
+                            var esc2 = cands[0];
+                            var saDisp2 = saldo[esc2.op] || 0;
 
-                        found = true;
+                            if (bob.qtde <= saDisp2) {
+                                // Cabe inteira na melhor OP
+                                saldo[esc2.op] -= bob.qtde;
+
+                                res.push({
+                                    enc: esc2.op,
+                                    item: bob.item,
+                                    ver: bob.versao,
+                                    larg: String(bob.largura),
+                                    esp: String(bob.espessura),
+                                    pig: bob.pigmentado,
+                                    qtde: String(bob.qtde),
+                                    material: bob.material || '',
+                                    largOP: String(esc2.largura || bob.largura),
+                                    apresentacao: esc2.apresentacao || ''
+                                });
+
+                                found = true;
+                            } else {
+                                // Não cabe numa só — junta OPs até cobrir o peso
+                                var opsJuntadas = [];
+                                var saldoCoberto = 0;
+
+                                for (var c2 = 0; c2 < cands.length; c2++) {
+                                    var escN = cands[c2];
+                                    var saDispN = saldo[escN.op] || 0;
+                                    if (saDispN <= 0) continue;
+
+                                    opsJuntadas.push(escN);
+                                    saldoCoberto += saDispN;
+
+                                    if (saldoCoberto >= bob.qtde) break;
+                                }
+
+                                if (opsJuntadas.length > 0) {
+                                    // Monta label com todas as OPs
+                                    var opsLabel = opsJuntadas.map(function(o) { 
+                                        return o.op; 
+                                    }).join(' + ');
+
+                                    res.push({
+                                        enc: opsLabel,
+                                        item: bob.item,
+                                        ver: bob.versao,
+                                        larg: String(bob.largura),
+                                        esp: String(bob.espessura),
+                                        pig: bob.pigmentado,
+                                        qtde: String(bob.qtde),
+                                        material: bob.material || '',
+                                        largOP: String(opsJuntadas[0].largura || bob.largura),
+                                        apresentacao: opsJuntadas[0].apresentacao || ''
+                                    });
+
+                                    found = true;
+                                }
+                            }
+                        }
                     }
                 }
             }
