@@ -3053,15 +3053,24 @@
                        {
                             // Bobina normal: encaixa na melhor OP
                             // Se não cabe pelo saldo, junta várias OPs
-                            var esc2 = cands[0];
-                            var saDisp2 = saldo[esc2.op] || 0;
+                            // Primeiro: tenta achar UMA OP sozinha que comporte a bobina
+                            var opUnica = null;
 
-                            if (bob.qtde <= saDisp2) {
-                                // Cabe inteira na melhor OP
-                                saldo[esc2.op] -= bob.qtde;
+                            for (var c1 = 0; c1 < cands.length; c1++) {
+                                var cand1 = cands[c1];
+                                var saldoCand1 = saldo[cand1.op] || 0;
+                                if (bob.qtde <= saldoCand1) {
+                                    opUnica = cand1;
+                                    break;
+                                }
+                            }
+
+                            if (opUnica) {
+                                // Cabe inteira em uma única OP
+                                saldo[opUnica.op] -= bob.qtde;
 
                                 res.push({
-                                    enc: esc2.op,
+                                    enc: opUnica.op,
                                     item: bob.item,
                                     ver: bob.versao,
                                     larg: String(bob.largura),
@@ -3069,20 +3078,23 @@
                                     pig: bob.pigmentado,
                                     qtde: String(bob.qtde),
                                     material: bob.material || '',
-                                    largOP: String(esc2.largura || bob.largura),
-                                    apresentacao: esc2.apresentacao || ''
+                                    largOP: String(opUnica.largura || bob.largura),
+                                    apresentacao: opUnica.apresentacao || ''
                                 });
 
                                 found = true;
                             } else {
-                                // Não cabe numa só — junta OPs até cobrir o peso
+                                // Não cabe em uma só — junta OPs distintas até cobrir o peso
                                 var opsJuntadas = [];
                                 var saldoCoberto = 0;
+                                var opsJaUsadas = {};
 
                                 for (var c2 = 0; c2 < cands.length; c2++) {
                                     var escN = cands[c2];
                                     var saDispN = saldo[escN.op] || 0;
                                     if (saDispN <= 0) continue;
+                                    if (opsJaUsadas[escN.op]) continue;
+                                    opsJaUsadas[escN.op] = true;
 
                                     opsJuntadas.push(escN);
                                     saldoCoberto += saDispN;
@@ -3090,10 +3102,9 @@
                                     if (saldoCoberto >= bob.qtde) break;
                                 }
 
-                                if (opsJuntadas.length > 0) {
-                                    // Monta label com todas as OPs
-                                    var opsLabel = opsJuntadas.map(function(o) { 
-                                        return o.op; 
+                                if (saldoCoberto >= bob.qtde && opsJuntadas.length > 1) {
+                                    var opsLabel = opsJuntadas.map(function (o) {
+                                        return o.op;
                                     }).join(' + ');
 
                                     res.push({
