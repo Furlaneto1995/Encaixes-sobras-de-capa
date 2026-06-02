@@ -2680,6 +2680,7 @@
                 if (tf !== null) toleranciaFilme = parseFloat(tf);
                 if (ts !== null) toleranciaSaco = parseFloat(ts);
             } catch (e) { }
+    try { var dv = localStorage.getItem('enc_divisoes'); if (dv) window.confDivisoes = JSON.parse(dv); else window.confDivisoes = {}; } catch (e) { window.confDivisoes = {}; }
         }
 
         // ================================================================
@@ -5432,7 +5433,15 @@ function fecharEncaixarDoEstoque() {
 
                 // Peso + editar
                 html += '<div style="display:flex;align-items:center;gap:3px;flex-shrink:0;">';
-                html += '<div class="conf-peso">' + it.qtde.toFixed(0) + '<span style="font-size:0.6em;color:#888;"> kg</span></div>';
+                var divInfo = (window.confDivisoes || {})[it.item + '_' + it.estoqueIdx];
+if (divInfo) {
+    html += '<div class="conf-peso" style="text-align:right;">' +
+        '<div>' + it.qtde.toFixed(0) + '<span style="font-size:0.6em;color:#888;"> kg</span></div>' +
+        '<div style="font-size:0.55em;color:#8b5cf6;font-weight:600;margin-top:1px;">= ' + divInfo.label + '</div>' +
+        '</div>';
+} else {
+    html += '<div class="conf-peso">' + it.qtde.toFixed(0) + '<span style="font-size:0.6em;color:#888;"> kg</span></div>';
+}
 
                 // Badge só para oculto e ok
                 html += '<div style="min-width:30px;text-align:center;">';
@@ -5443,6 +5452,10 @@ function fecharEncaixarDoEstoque() {
 
                 // Botão editar peso
                 html += '<button onclick="event.stopPropagation();confEditarPeso(\'' + it.key + '\',' + it.estoqueIdx + ')" style="width:20px;height:20px;border-radius:4px;border:1px solid #e0e0e0;background:#fff;color:#f59e0b;cursor:pointer;font-size:0.55em;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✏️</button>';
+html += '<button onclick="event.stopPropagation();confDividirBobina(\'' + it.key + '\',' + it.estoqueIdx + ')" style="width:20px;height:20px;border-radius:4px;border:1px solid #e0e0e0;background:#fff;color:#8b5cf6;cursor:pointer;font-size:0.55em;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✂️</button>';
+if (divInfo) {
+    html += '<button onclick="event.stopPropagation();confRemoverDivisao(\'' + it.item.replace(/'/g, "\\'") + '\',' + it.estoqueIdx + ')" style="width:20px;height:20px;border-radius:4px;border:1px solid #e0e0e0;background:#fff;color:#ef4444;cursor:pointer;font-size:0.55em;display:flex;align-items:center;justify-content:center;flex-shrink:0;">🗑️</button>';
+}
 
                 html += '</div></div></div>';
             }
@@ -5595,187 +5608,185 @@ function fecharEncaixarDoEstoque() {
         // ================================================================
         //                    FINALIZAR CONFERÊNCIA
         // ================================================================
-        async function confFinalizar() {
-            var itensComEncaixe = {};
-            for (var b = 0; b < B.length; b++) itensComEncaixe[B[b].item] = true;
+        
+async function confFinalizar() {
+    var itensComEncaixe = {};
+    for (var b = 0; b < B.length; b++) itensComEncaixe[B[b].item] = true;
 
-            var existem = 0, naoEncontradas = 0, adicionais = 0;
-            var listaRemover = [], listaNaoEncontradas = [], listaAdicionais = [];
+    var encontradas = 0, naoEncontradas = 0, adicionais = 0;
+    var listaRemover = [], listaTodas = [];
 
-            for (var i = 0; i < estoque.length; i++) {
-                var ic = getItemEstoque(estoque[i]);
-                if (/-4$/.test(ic)) continue;
-                if (itensComEncaixe[ic]) continue;
-                var qtde = parseFloat(estoque[i]['QTDE_ESTOQUE']) || 0;
-                var ver = estoque[i]['VERSAO'] || '';
-                var desc = estoque[i]['DESCRICAO'] || '';
-                var key = ic + '_' + ver + '_' + qtde;
-                var info = confStatus[key] || { status: 'pend', endereco: '' };
-                var isOculto = confOcultos[ic] === true;
-                var isManual = desc.indexOf('BOBINA MANUAL') > -1 || desc.indexOf('ITEM MANUAL') > -1;
-                if (isOculto) continue;
-                if (info.status === 'ok') {
-                    existem++;
-                    if (isManual) {
-                        adicionais++;
-                        listaAdicionais.push({
-                            item: ic, versao: ver, descricao: desc, qtde: qtde,
-                            tipo: temCapa(ic) ? 'CAPA' : 'BASE',
-                            endereco: info.endereco || '',
-                            observacao: info.observacao || ''
-                        });
-                    }
-                } else {
-                    naoEncontradas++;
-                    listaRemover.push(i);
-                    listaNaoEncontradas.push({
-                        item: ic, versao: ver, descricao: desc, qtde: qtde,
-                        tipo: temCapa(ic) ? 'CAPA' : 'BASE'
-                    });
-                }
+    for (var i = 0; i < estoque.length; i++) {
+        var ic = getItemEstoque(estoque[i]);
+        
+       
+
+        var qtde = parseFloat(estoque[i]['QTDE_ESTOQUE']) || 0;
+        var ver = estoque[i]['VERSAO'] || '';
+        var desc = estoque[i]['DESCRICAO'] || '';
+        var key = ic + '_' + ver + '_' + qtde;
+        var info = confStatus[key] || { status: 'pend', endereco: '', observacao: '' };
+        var isOculto = confOcultos[ic] === true;
+        var isManual = desc.indexOf('BOBINA MANUAL') > -1 || desc.indexOf('ITEM MANUAL') > -1;
+
+        if (isOculto) continue;
+
+        var status = '';
+        if (info.status === 'ok') {
+            encontradas++;
+            status = 'ENCONTRADA';
+            if (isManual) {
+                adicionais++;
+                status = 'ADICIONAL';
             }
+        } else {
+            naoEncontradas++;
+            listaRemover.push(i);
+            status = 'NAO ENCONTRADA';
+        }
 
-            if (naoEncontradas === 0 && existem === 0) {
-                toast('Nenhuma bobina para conferir', 'warning');
-                return;
+        var divInfo = (window.confDivisoes || {})[ic + '_' + i];
+
+        listaTodas.push({
+            item: ic,
+            versao: ver,
+            descricao: desc,
+            qtde: qtde,
+            tipo: temCapa(ic) ? 'CAPA' : 'BASE',
+            endereco: info.endereco || '',
+            observacao: info.observacao || '',
+            status: status,
+            isManual: isManual,
+            estoqueIdx: i,
+            divisao: divInfo ? divInfo.label : ''
+        });
+    }
+
+    if (naoEncontradas === 0 && encontradas === 0) {
+        toast('Nenhuma bobina para conferir', 'warning');
+        return;
+    }
+
+    if (!confirm('🏁 Finalizar conferência?\n\n✅ ' + encontradas +
+        ' encontradas\n➕ ' + adicionais + ' adicionais\n❌ ' + naoEncontradas +
+        ' NÃO encontradas\n\nAs não encontradas serão removidas.')) return;
+
+    var lo = document.getElementById('lo'), lt = document.getElementById('lt');
+    lo.classList.add('active');
+    lt.textContent = 'Salvando conferência...';
+
+    try {
+        var agora = new Date();
+        var dataStr = agora.toLocaleString('pt-BR');
+        var lote = 'conf_' + agora.getTime().toString();
+        var batch = db.batch();
+        var salvos = 0;
+
+        for (var t = 0; t < listaTodas.length; t++) {
+            var reg = listaTodas[t];
+            batch.set(db.collection('conferencias').doc(), {
+                data: dataStr,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                lote: lote,
+                item: reg.item,
+                versao: reg.versao,
+                qtde: String(reg.qtde),
+                endereco: reg.endereco,
+                observacao: reg.observacao,
+                status: reg.status,
+                tipo: reg.tipo,
+                descricao: reg.descricao,
+                divisao: reg.divisao || ''
+            });
+            salvos++;
+            if (salvos % 400 === 0) { await batch.commit(); batch = db.batch(); }
+        }
+
+        if (salvos % 400 !== 0) await batch.commit();
+
+        for (var r = listaRemover.length - 1; r >= 0; r--) {
+            estoque.splice(listaRemover[r], 1);
+        }
+
+        var relatorio = '📋 CONFERÊNCIA\n📅 ' + dataStr +
+            '\n═══════════════════\n\n' +
+            '✅ ' + encontradas + ' encontradas\n' +
+            '➕ ' + adicionais + ' adicionais\n' +
+            '❌ ' + naoEncontradas + ' não encontradas\n' +
+            '📊 ' + listaTodas.length + ' total\n\n';
+
+        var encontradasList = listaTodas.filter(function (r) { return r.status === 'ENCONTRADA'; });
+        var adicionaisList = listaTodas.filter(function (r) { return r.status === 'ADICIONAL'; });
+        var naoEncList = listaTodas.filter(function (r) { return r.status === 'NAO ENCONTRADA'; });
+
+        if (encontradasList.length > 0) {
+            relatorio += '✅ ENCONTRADAS (' + encontradasList.length + ')\n───────────────────\n';
+            for (var e1 = 0; e1 < encontradasList.length; e1++) {
+                var bob1 = encontradasList[e1];
+                relatorio += '  ' + bob1.tipo + ' ' + bob1.item + ' v' + bob1.versao + ' | ' + bob1.qtde + 'kg';
+                if (bob1.divisao) relatorio += ' = ' + bob1.divisao;
+                if (bob1.endereco) relatorio += ' 📌' + bob1.endereco;
+                if (bob1.observacao) relatorio += ' 💬' + bob1.observacao;
+                relatorio += '\n';
             }
-            if (!confirm('🏁 Finalizar conferência?\n\n✅ ' + existem +
-                ' encontradas\n➕ ' + adicionais + ' adicionais\n❌ ' + naoEncontradas +
-                ' NÃO encontradas\n\nAs não encontradas serão removidas.')) return;
+            relatorio += '\n';
+        }
 
-            var lo = document.getElementById('lo'), lt = document.getElementById('lt');
-            lo.classList.add('active');
-            lt.textContent = 'Salvando conferência...';
+        if (naoEncList.length > 0) {
+            relatorio += '❌ NÃO ENCONTRADAS (' + naoEncList.length + ')\n───────────────────\n';
+            for (var ne2 = 0; ne2 < naoEncList.length; ne2++) {
+                var bob2 = naoEncList[ne2];
+                relatorio += '  ' + bob2.tipo + ' ' + bob2.item + ' v' + bob2.versao + ' | ' + bob2.qtde + 'kg';
+                if (bob2.divisao) relatorio += ' = ' + bob2.divisao;
+                relatorio += '\n';
+            }
+            relatorio += '\n';
+        }
 
-            try {
-                var agora = new Date();
-                var dataStr = agora.toLocaleString('pt-BR');
-                var lote = 'conf_' + agora.getTime().toString();
-                var batch = db.batch();
-                var salvos = 0;
-
-                for (var key2 in confStatus) {
-                    if (confStatus[key2].status !== 'ok') continue;
-                    var p2 = key2.split('_');
-                    batch.set(db.collection('conferencias').doc(), {
-                        data: dataStr,
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                        lote: lote,
-                        item: p2[0] || '',
-                        versao: p2[1] || '',
-                        qtde: p2[2] || '',
-                        endereco: confStatus[key2].endereco || '',
-                        observacao: confStatus[key2].observacao || '',
-                        status: 'ENCONTRADA'
-                    });
-                    salvos++;
-                    if (salvos % 400 === 0) { await batch.commit(); batch = db.batch(); }
-                }
-
-                for (var n = 0; n < listaNaoEncontradas.length; n++) {
-                    var ne = listaNaoEncontradas[n];
-                    batch.set(db.collection('conferencias').doc(), {
-                        data: dataStr,
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                        lote: lote,
-                        item: ne.item,
-                        versao: ne.versao,
-                        qtde: String(ne.qtde),
-                        endereco: '',
-                        observacao: '',
-                        status: 'NAO ENCONTRADA',
-                        tipo: ne.tipo,
-                        descricao: ne.descricao
-                    });
-                    salvos++;
-                    if (salvos % 400 === 0) { await batch.commit(); batch = db.batch(); }
-                }
-
-                for (var a = 0; a < listaAdicionais.length; a++) {
-                    var ad = listaAdicionais[a];
-                    batch.set(db.collection('conferencias').doc(), {
-                        data: dataStr,
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                        lote: lote,
-                        item: ad.item,
-                        versao: ad.versao,
-                        qtde: String(ad.qtde),
-                        endereco: ad.endereco,
-                        observacao: ad.observacao || '',
-                        status: 'ADICIONAL',
-                        tipo: ad.tipo,
-                        descricao: ad.descricao
-                    });
-                    salvos++;
-                    if (salvos % 400 === 0) { await batch.commit(); batch = db.batch(); }
-                }
-
-                if (salvos % 400 !== 0) await batch.commit();
-
-                for (var r = listaRemover.length - 1; r >= 0; r--)
-                    estoque.splice(listaRemover[r], 1);
-
-                var relatorio = '📋 CONFERÊNCIA\n📅 ' + dataStr +
-                    '\n═══════════════════\n\n✅ ' + existem +
-                    ' encontradas\n➕ ' + adicionais +
-                    ' adicionais\n❌ ' + naoEncontradas + ' não encontradas\n\n';
-
-                if (listaNaoEncontradas.length > 0) {
-                    relatorio += '❌ NÃO ENCONTRADAS\n───────────────────\n';
-                    for (var ne2 = 0; ne2 < listaNaoEncontradas.length; ne2++) {
-                        var bob2 = listaNaoEncontradas[ne2];
-                        relatorio += '  ' + bob2.tipo + ' ' + bob2.item +
-                            ' v' + bob2.versao + ' | ' + bob2.qtde + 'kg\n';
-                    }
-                    relatorio += '\n';
-                }
-
-                if (listaAdicionais.length > 0) {
-                    relatorio += '➕ ADICIONAIS\n───────────────────\n';
-                    for (var ad2 = 0; ad2 < listaAdicionais.length; ad2++) {
-                        var ada = listaAdicionais[ad2];
-                        relatorio += '  ' + ada.tipo + ' ' + ada.item +
-                            ' v' + ada.versao + ' | ' + ada.qtde + 'kg';
-                        if (ada.endereco) relatorio += ' 📌' + ada.endereco;
-                        if (ada.observacao) relatorio += ' 💬' + ada.observacao;
-                        relatorio += '\n';
-                    }
-                }
-
-                confStatus = {};
-                localStorage.setItem('enc_conf', JSON.stringify(confStatus));
-                save();
-                lo.classList.remove('active');
-                toast('Conferência finalizada! ' + salvos + ' salvos', 'success', 4000);
-
-                if (naoEncontradas > 0 || adicionais > 0) {
-                    var urlWpp = 'https://wa.me/?text=' + encodeURIComponent(relatorio);
-                    var janela = window.open(urlWpp, '_blank');
-                    if (!janela || janela.closed || typeof janela.closed === 'undefined') {
-                        criarModal('confWppModal',
-                            '<div style="text-align:center;">' +
-                            '<div style="font-size:2em;margin-bottom:8px;">📤</div>' +
-                            '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:8px;">Compartilhar</h3>' +
-                            '<div style="display:flex;flex-direction:column;gap:8px;">' +
-                            '<a href="' + urlWpp + '" target="_blank" ' +
-                            'style="display:block;padding:13px;border-radius:10px;background:#25D366;' +
-                            'color:#fff;font-size:0.9em;font-weight:600;text-decoration:none;">💬 WhatsApp</a>' +
-                            '<button onclick="fecharModal(\'confWppModal\')" ' +
-                            'style="padding:12px;border:none;border-radius:10px;background:#e0e0e0;' +
-                            'color:#888;font-size:0.85em;cursor:pointer;">Fechar</button>' +
-                            '</div></div>'
-                        );
-                    }
-                }
-
-                confRender();
-                atualizarInfo();
-
-            } catch (err) {
-                lo.classList.remove('active');
-                toast('Erro: ' + err.message, 'error');
+        if (adicionaisList.length > 0) {
+            relatorio += '➕ ADICIONAIS (' + adicionaisList.length + ')\n───────────────────\n';
+            for (var ad2 = 0; ad2 < adicionaisList.length; ad2++) {
+                var ada = adicionaisList[ad2];
+                relatorio += '  ' + ada.tipo + ' ' + ada.item + ' v' + ada.versao + ' | ' + ada.qtde + 'kg';
+                if (ada.divisao) relatorio += ' = ' + ada.divisao;
+                if (ada.endereco) relatorio += ' 📌' + ada.endereco;
+                if (ada.observacao) relatorio += ' 💬' + ada.observacao;
+                relatorio += '\n';
             }
         }
+
+        confStatus = {};
+window.confDivisoes = {};
+localStorage.setItem('enc_conf', JSON.stringify(confStatus));
+localStorage.removeItem('enc_divisoes');
+save();
+        lo.classList.remove('active');
+        toast('Conferência finalizada! ' + salvos + ' salvos', 'success', 4000);
+
+        var urlWpp = 'https://wa.me/?text=' + encodeURIComponent(relatorio);
+        var janela = window.open(urlWpp, '_blank');
+        if (!janela || janela.closed || typeof janela.closed === 'undefined') {
+            criarModal('confWppModal',
+                '<div style="text-align:center;">' +
+                '<div style="font-size:2em;margin-bottom:8px;">📤</div>' +
+                '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:8px;">Compartilhar</h3>' +
+                '<div style="display:flex;flex-direction:column;gap:8px;">' +
+                '<a href="' + urlWpp + '" target="_blank" ' +
+                'style="display:block;padding:13px;border-radius:10px;background:#25D366;color:#fff;font-size:0.9em;font-weight:600;text-decoration:none;">💬 WhatsApp</a>' +
+                '<button onclick="fecharModal(\'confWppModal\')" ' +
+                'style="padding:12px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.85em;cursor:pointer;">Fechar</button>' +
+                '</div></div>'
+            );
+        }
+
+        confRender();
+        atualizarInfo();
+
+    } catch (err) {
+        lo.classList.remove('active');
+        toast('Erro: ' + err.message, 'error');
+    }
+}
 
         function confDesmarcar(key) {
             confStatus[key] = { status: 'pend', endereco: '' }; localStorage.setItem('enc_conf', JSON.stringify(confStatus));
@@ -5783,26 +5794,35 @@ function fecharEncaixarDoEstoque() {
             confRender();
         }
 
-        function confLimparStatus() { if (!confirm('Resetar toda a conferência?')) return; confStatus = {}; confOcultos = {}; localStorage.setItem('enc_conf', JSON.stringify(confStatus)); localStorage.setItem('enc_ocultos', JSON.stringify(confOcultos)); confRender(); toast('Conferência resetada', 'info'); }
+        function confLimparStatus() {
+    if (!confirm('Resetar toda a conferência?')) return;
+    confStatus = {};
+    confOcultos = {};
+    window.confDivisoes = {};
+    localStorage.setItem('enc_conf', JSON.stringify(confStatus));
+    localStorage.setItem('enc_ocultos', JSON.stringify(confOcultos));
+    localStorage.removeItem('enc_divisoes');
+    confRender();
+    toast('Conferência resetada', 'info');
+}
 
-        // MELHORIA 6: Campo editar peso VAZIO (placeholder mostra atual)
-        function confEditarPeso(key, estoqueIdx) {
-            var partes = key.split('_'), itemNome = partes[0] || '', pesoAtual = partes[2] || '';
-            criarModal('confPesoModal',
-                '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:4px;">✏️ Editar peso</h3>' +
-                '<p style="font-size:0.75em;color:#888;margin-bottom:14px;">' + itemNome + ' | Atual: ' + pesoAtual + ' kg</p>' +
-                '<input type="number" id="confPesoInput" placeholder="' + pesoAtual + '" step="0.1" inputmode="decimal" ' +
-                'style="width:100%;padding:12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;">' +
-                '<div style="display:flex;gap:8px;margin-top:14px;">' +
-                '<button onclick="fecharModal(\'confPesoModal\')" style="padding:12px 16px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;cursor:pointer;">Cancelar</button>' +
-                '<button onclick="confSalvarPeso(\'' + key + '\',' + estoqueIdx + ')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">💾 Salvar</button>' +
-                '</div>'
-            );
-            setTimeout(function () {
-                var input = document.getElementById('confPesoInput');
-                if (input) input.focus();
-            }, 100);
-        }
+function confEditarPeso(key, estoqueIdx) {
+    var partes = key.split('_'), itemNome = partes[0] || '', pesoAtual = partes[2] || '';
+    criarModal('confPesoModal',
+        '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:4px;">✏️ Editar peso</h3>' +
+        '<p style="font-size:0.75em;color:#888;margin-bottom:14px;">' + itemNome + ' | Atual: ' + pesoAtual + ' kg</p>' +
+        '<input type="number" id="confPesoInput" placeholder="' + pesoAtual + '" step="0.1" inputmode="decimal" ' +
+        'style="width:100%;padding:12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;">' +
+        '<div style="display:flex;gap:8px;margin-top:14px;">' +
+        '<button onclick="fecharModal(\'confPesoModal\')" style="padding:12px 16px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;cursor:pointer;">Cancelar</button>' +
+        '<button onclick="confSalvarPeso(\'' + key + '\',' + estoqueIdx + ')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">💾 Salvar</button>' +
+        '</div>'
+    );
+    setTimeout(function () {
+        var input = document.getElementById('confPesoInput');
+        if (input) input.focus();
+    }, 100);
+}
 
         function confSalvarPeso(key, estoqueIdx) {
             var input = document.getElementById('confPesoInput'), novoPeso = input ? input.value.trim() : '';
@@ -5814,7 +5834,166 @@ function fecharEncaixarDoEstoque() {
             fecharModal('confPesoModal'); confRender();
             toast('Peso atualizado: ' + novoPeso + 'kg', 'success');
         }
+function confDividirBobina(key, estoqueIdx) {
+    var partes = key.split('_');
+    var itemNome = partes[0] || '';
+    var ver = partes[1] || '';
+    var pesoAtual = parseFloat(partes[2]) || 0;
 
+    criarModal('confSplitModal',
+        '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:4px;">✂️ Dividir bobina</h3>' +
+        '<p style="font-size:0.75em;color:#888;margin-bottom:10px;">' + itemNome + ' v' + ver + ' | Total: ' + pesoAtual + ' kg</p>' +
+        '<div style="margin-bottom:10px;">' +
+        '<label style="font-size:0.7em;color:#888;">Quantidade de bobinas</label>' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-top:4px;">' +
+        '<button onclick="confSplitMudarQtd(-1,' + estoqueIdx + ')" style="width:36px;height:36px;border-radius:8px;border:1px solid #e0e0e0;background:#fff;color:#ef4444;font-size:1.2em;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>' +
+        '<input type="number" id="confSplitQtd" value="2" min="2" max="20" style="width:50px;text-align:center;padding:8px;border-radius:8px;border:1px solid #e0e0e0;font-size:1em;font-weight:700;" readonly>' +
+        '<button onclick="confSplitMudarQtd(1,' + estoqueIdx + ')" style="width:36px;height:36px;border-radius:8px;border:1px solid #e0e0e0;background:#fff;color:#10b981;font-size:1.2em;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>' +
+        '<button onclick="confSplitDividirIgual(' + estoqueIdx + ',' + pesoAtual + ')" style="padding:8px 12px;border:none;border-radius:8px;background:#2563eb;color:#fff;font-size:0.75em;font-weight:600;cursor:pointer;">Dividir igual</button>' +
+        '<button onclick="confSplitLimpar(' + estoqueIdx + ',' + pesoAtual + ')" style="padding:8px 12px;border:none;border-radius:8px;background:#e0e0e0;color:#888;font-size:0.75em;font-weight:600;cursor:pointer;">🗑️</button>' +
+        '</div></div>' +
+        '<div id="confSplitPesos"></div>' +
+        '<div id="confSplitInfo" style="margin-top:8px;font-size:0.72em;color:#888;text-align:center;">Total original: ' + pesoAtual + ' kg</div>' +
+        '<div style="display:flex;gap:8px;margin-top:14px;">' +
+        '<button onclick="fecharModal(\'confSplitModal\')" style="padding:12px 16px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;cursor:pointer;">Cancelar</button>' +
+        '<button onclick="confSplitSalvar(\'' + key + '\',' + estoqueIdx + ')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#8b5cf6;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">✂️ Dividir</button>' +
+        '</div>'
+    );
+    confSplitGerarCampos(estoqueIdx, pesoAtual);
+}
+
+function confSplitMudarQtd(delta, estoqueIdx) {
+    var input = document.getElementById('confSplitQtd');
+    var val = parseInt(input.value) || 2;
+    val += delta;
+    if (val < 2) val = 2;
+    if (val > 20) val = 20;
+    input.value = val;
+    var pesoAtual = parseFloat(estoque[estoqueIdx]['QTDE_ESTOQUE']) || 0;
+    confSplitGerarCampos(estoqueIdx, pesoAtual);
+}
+
+function confSplitGerarCampos(estoqueIdx, pesoTotal) {
+    var qtd = parseInt(document.getElementById('confSplitQtd').value) || 2;
+    var container = document.getElementById('confSplitPesos');
+    var html = '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+    for (var i = 0; i < qtd; i++) {
+        html += '<div style="flex:1;min-width:70px;">' +
+            '<label style="font-size:0.65em;color:#888;">Bob ' + (i + 1) + ' (kg)</label>' +
+            '<input type="number" class="confSplitInput" placeholder="0" step="0.1" inputmode="decimal" ' +
+            'style="width:100%;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.85em;">' +
+            '</div>';
+    }
+    html += '</div>';
+    container.innerHTML = html;
+
+    var inputs = container.querySelectorAll('.confSplitInput');
+    inputs.forEach(function (inp, idx) {
+        inp.addEventListener('input', function () {
+            if (qtd === 2 && idx === 0) {
+                var valor1 = parseFloat(this.value) || 0;
+                var restante = pesoTotal - valor1;
+                if (inputs[1] && restante >= 0) inputs[1].value = restante.toFixed(1);
+            }
+            confSplitAtualizarInfo(pesoTotal);
+        });
+    });
+    if (inputs.length > 0) setTimeout(function () { inputs[0].focus(); }, 50);
+}
+
+function confSplitDividirIgual(estoqueIdx, pesoTotal) {
+    var qtd = parseInt(document.getElementById('confSplitQtd').value) || 2;
+    var pesoIgual = Math.floor(pesoTotal / qtd);
+    var inputs = document.querySelectorAll('.confSplitInput');
+    var soma = 0;
+    for (var i = 0; i < inputs.length; i++) {
+        if (i < inputs.length - 1) { inputs[i].value = pesoIgual; soma += pesoIgual; }
+        else { inputs[i].value = pesoTotal - soma; }
+    }
+    confSplitAtualizarInfo(pesoTotal);
+}
+
+function confSplitLimpar(estoqueIdx, pesoTotal) {
+    var inputs = document.querySelectorAll('.confSplitInput');
+    for (var i = 0; i < inputs.length; i++) { inputs[i].value = ''; }
+    document.getElementById('confSplitInfo').innerHTML = 'Total original: ' + Math.round(pesoTotal) + ' kg';
+    if (inputs.length > 0) inputs[0].focus();
+}
+
+function confSplitAtualizarInfo(total) {
+    var inputs = document.querySelectorAll('.confSplitInput');
+    var soma = 0, partes = [];
+    for (var i = 0; i < inputs.length; i++) {
+        var v = parseFloat(inputs[i].value) || 0;
+        soma += v;
+        if (v > 0) partes.push(Math.round(v) + 'kg');
+    }
+    var cor = Math.abs(soma - total) < 0.5 ? '#10b981' : '#ef4444';
+    var info = document.getElementById('confSplitInfo');
+    if (partes.length > 0) {
+        info.innerHTML = partes.join(' + ') + ' = <span style="color:' + cor + ';font-weight:700;">' + Math.round(soma) + 'kg</span>' +
+            (Math.abs(soma - total) >= 0.5 ? ' <span style="color:#ef4444;">(original: ' + Math.round(total) + 'kg)</span>' : ' ✅');
+    } else {
+        info.innerHTML = 'Total original: ' + Math.round(total) + ' kg';
+    }
+}
+
+function confSplitSalvar(key, estoqueIdx) {
+    var inputs = document.querySelectorAll('.confSplitInput');
+    var pesos = [];
+    for (var i = 0; i < inputs.length; i++) {
+        var v = inputs[i].value.trim();
+        if (!v || parseFloat(v) <= 0) {
+            toast('Preencha todos os pesos!', 'error');
+            inputs[i].style.borderColor = '#ef4444';
+            inputs[i].focus();
+            return;
+        }
+        pesos.push(parseFloat(v));
+    }
+    if (pesos.length < 2) { toast('Mínimo 2 bobinas!', 'error'); return; }
+
+    var e = estoque[estoqueIdx];
+    var ic = getItemEstoque(e);
+    var pesoOriginal = parseFloat(e['QTDE_ESTOQUE']) || 0;
+    var soma = 0;
+for (var s = 0; s < pesos.length; s++) soma += pesos[s];
+
+if (Math.abs(soma - pesoOriginal) > 0.5) {
+    toast('A soma das bobinas deve bater com o peso total!', 'error');
+    return;
+}
+
+    // Salva a divisão como metadado (não altera o estoque)
+    var divisaoLabel = pesos.map(function (p) { return Math.round(p); }).join(' + ');
+
+    // Guarda no objeto de divisões
+    if (!window.confDivisoes) window.confDivisoes = {};
+    window.confDivisoes[ic + '_' + estoqueIdx] = {
+        pesos: pesos,
+        label: divisaoLabel,
+        total: soma
+    };
+
+    // Salva no localStorage
+    localStorage.setItem('enc_divisoes', JSON.stringify(window.confDivisoes));
+
+    fecharModal('confSplitModal');
+    confRender();
+
+    toast(ic + ': ' + Math.round(pesoOriginal) + 'kg = ' + divisaoLabel, 'success');
+}
+
+function confRemoverDivisao(item, estoqueIdx) {
+    if (!confirm('Remover a divisão desta bobina?')) return;
+
+    if (!window.confDivisoes) window.confDivisoes = {};
+    delete window.confDivisoes[item + '_' + estoqueIdx];
+
+    localStorage.setItem('enc_divisoes', JSON.stringify(window.confDivisoes));
+    confRender();
+    toast('Divisão removida', 'info');
+}
         function confAdicionarItem() {
             criarModal('confAddModal', '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:14px;">➕ Nova bobina</h3>' +
                 '<div style="display:flex;gap:8px;"><div style="flex:2;"><label style="font-size:0.7em;color:#888;">Item *</label><input type="text" id="confAddItem" placeholder="14005845-2" style="width:100%;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;"></div><div style="flex:0.8;"><label style="font-size:0.7em;color:#888;">Versão</label><input type="text" id="confAddVer" placeholder="70" inputmode="numeric" style="width:100%;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;"></div></div>' +
@@ -5846,7 +6025,25 @@ function fecharEncaixarDoEstoque() {
             var data = new Date().toLocaleDateString('pt-BR'), hora = new Date().toLocaleTimeString('pt-BR');
             var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Conferência ' + data + '</title><style>body{font-family:-apple-system,sans-serif;padding:20px;background:#f8fafc;max-width:800px;margin:0 auto;}h1{text-align:center;color:#2563eb;font-size:1.3em;}.sub{text-align:center;color:#888;font-size:0.85em;margin-bottom:20px;}.stats{display:flex;gap:10px;justify-content:center;margin-bottom:20px;flex-wrap:wrap;}.stat{background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:12px 18px;text-align:center;flex:1;min-width:100px;}.stat .n{font-size:1.4em;font-weight:700;}.stat .l{font-size:0.7em;color:#888;}.section{margin-bottom:20px;}.section h2{font-size:1em;margin-bottom:10px;padding:8px 12px;border-radius:8px;}.item{background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;gap:10px;}.item .info{flex:1;}.item .info .nome{font-weight:600;font-family:monospace;}.item .info .det{font-size:0.72em;color:#888;margin-top:2px;}.item .peso{font-weight:700;min-width:60px;text-align:right;}.item .end{font-size:0.75em;color:#2563eb;}.item-ok{border-left:3px solid #10b981;}.item-nok{border-left:3px solid #ef4444;background:#fef2f2;}.item-oculto{border-left:3px solid #8b5cf6;background:#faf5ff;opacity:0.85;}.footer{text-align:center;color:#aaa;font-size:0.7em;margin-top:30px;border-top:1px solid #eee;padding-top:15px;}</style></head><body><h1>📋 Conferência</h1><div class="sub">' + data + ' às ' + hora + '</div>';
             var cok = 0, cnok = 0, coculto = 0, tpeso = 0, listOk = [], listNok = [], listOculto = [];
-            for (var i = 0; i < estoque.length; i++) { var e = estoque[i], ic = getItemEstoque(e); if (/-4$/.test(ic)) continue; if (itensComEncaixe[ic]) continue; var desc = e['DESCRICAO'] || '', qtde = parseFloat(e['QTDE_ESTOQUE']) || 0, ver = e['VERSAO'] || ''; var key = ic + '_' + ver + '_' + qtde, info = confStatus[key] || { status: 'pend', endereco: '' }; var isOculto = confOcultos[ic] === true; var obj = { item: ic, ver: ver, larg: extrairLargura(desc), esp: extrairEspessura(desc), pig: normalizarPigmentado(e['PIGMENTADO'] || ''), qtde: qtde, tipo: temCapa(ic) ? 'CAPA' : 'BASE', endereco: info.endereco || '' }; tpeso += qtde; if (isOculto) { coculto++; listOculto.push(obj); } else if (info.status === 'ok') { cok++; listOk.push(obj); } else { cnok++; listNok.push(obj); } }
+           for (var i = 0; i < estoque.length; i++) {
+    var e = estoque[i], ic = getItemEstoque(e);
+    var desc = e['DESCRICAO'] || '', qtde = parseFloat(e['QTDE_ESTOQUE']) || 0, ver = e['VERSAO'] || '';
+    var key = ic + '_' + ver + '_' + qtde, info = confStatus[key] || { status: 'pend', endereco: '' };
+    var isOculto = confOcultos[ic] === true;
+    var obj = {
+        item: ic, ver: ver,
+        larg: extrairLargura(desc),
+        esp: extrairEspessura(desc),
+        pig: normalizarPigmentado(e['PIGMENTADO'] || ''),
+        qtde: qtde,
+        tipo: isMetalizado(ic) ? 'METAL' : (temCapa(ic) ? 'CAPA' : 'BASE'),
+        endereco: info.endereco || ''
+    };
+    tpeso += qtde;
+    if (isOculto) { coculto++; listOculto.push(obj); }
+    else if (info.status === 'ok') { cok++; listOk.push(obj); }
+    else { cnok++; listNok.push(obj); }
+}
             html += '<div class="stats"><div class="stat"><div class="n" style="color:#2563eb;">' + (cok + cnok + coculto) + '</div><div class="l">Total</div></div><div class="stat"><div class="n" style="color:#10b981;">' + cok + '</div><div class="l">Encontradas</div></div><div class="stat"><div class="n" style="color:#ef4444;">' + cnok + '</div><div class="l">Não encontradas</div></div><div class="stat"><div class="n" style="color:#8b5cf6;">' + coculto + '</div><div class="l">Ocultas</div></div><div class="stat"><div class="n" style="color:#888;">' + tpeso.toFixed(0) + '</div><div class="l">Peso (kg)</div></div></div>';
             function renderLista(lista, classe) { var h = ''; for (var j = 0; j < lista.length; j++) { var it = lista[j]; h += '<div class="item ' + classe + '"><div style="font-size:1.1em;">' + (it.tipo === 'CAPA' ? '🔴' : '🔵') + '</div><div class="info"><div class="nome">' + it.item + '</div><div class="det">v' + it.ver + ' | 📏' + it.larg + 'cm | 📐' + it.esp + 'mu | 🎨' + it.pig + '</div></div><div class="peso">' + it.qtde.toFixed(0) + ' kg</div>'; if (it.endereco) h += '<div class="end">📌 ' + it.endereco + '</div>'; h += '</div>'; } return h; }
             if (listOk.length > 0) html += '<div class="section"><h2 style="background:#dcfce7;color:#16a34a;">✅ Encontradas (' + listOk.length + ')</h2>' + renderLista(listOk, 'item-ok') + '</div>';
