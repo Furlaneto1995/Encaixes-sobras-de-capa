@@ -1937,9 +1937,10 @@
             <h1>📦 <span>Encaixes</span></h1>
         </div>
         <div class="header-right">
-            <button class="btn-menu" id="btnFS" onclick="toggleFS()">⛶</button>
-            <button class="btn-menu" onclick="toggleMenu()" id="btnMenu">☰</button>
-        </div>
+    <button class="btn-menu" onclick="salvarTudoNuvem()" title="Salvar na nuvem">💾</button>
+    <button class="btn-menu" onclick="sincronizarDaNuvem()" title="Sincronizar da nuvem">🔄</button>
+    <button class="btn-menu" onclick="toggleMenu()" id="btnMenu">☰</button>
+</div>
     </div>
 
     <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu()"></div>
@@ -2115,6 +2116,8 @@
                 style="flex:1;min-width:0;background:#fef3c7;color:#d97706;">✨ Fila Laminação</button>
             <button class="btn-calc" onclick="calcularEncaixes()">⚡ Calcular</button>
         </div>
+
+
         <div class="file-info" id="fInfo">1️⃣ Importe o Estoque → 2️⃣ Importe a Fila Extrusão → 3️⃣ Importe a Fila
             Laminação → 4️⃣ Clique Calcular</div>
         <div class="stats-row" id="sr">
@@ -4963,38 +4966,39 @@ function fecharEncaixarDoEstoque() {
             else toast('Execute o cálculo primeiro', 'warning');
         }
 
-        // ================================================================
-        //                    TELA CHEIA
-        // ================================================================
-        function toggleFS() {
-            var fs = document.getElementById('fsView'), btn = document.getElementById('btnFS');
-            if (fs.classList.contains('active')) { fs.classList.remove('active'); btn.textContent = '⛶'; }
-            else { if (B.length === 0) { toast('Calcule os encaixes primeiro!', 'warning'); return; } fs.classList.add('active'); btn.textContent = '✖'; renderFS(); }
-        }
-        function fecharFS() { document.getElementById('fsView').classList.remove('active'); document.getElementById('btnFS').textContent = '⛶'; }
+// ================================================================
+//                    TELA CHEIA
+// ================================================================
+function toggleFS() {
+    var fs = document.getElementById('fsView');
+    if (!fs) return;
+    if (fs.classList.contains('active')) { fs.classList.remove('active'); }
+    else { if (B.length === 0) { toast('Calcule os encaixes primeiro!', 'warning'); return; } fs.classList.add('active'); renderFS(); }
+}
+function fecharFS() { var fs = document.getElementById('fsView'); if (fs) fs.classList.remove('active'); }
 
-        function renderFS() {
-            var body = document.getElementById('fsBody'), total = B.length, feitos = 0;
-            for (var i = 0; i < B.length; i++) { if (B[i].ok) feitos++; }
-            document.getElementById('fsInfo').textContent = total + ' bobinas | ' + feitos + ' ok | ' + (total - feitos) + ' pendentes';
-            var html = '';
-            for (var g = 0; g < G.length; g++) {
-                var grp2 = G[g];
-                for (var b = 0; b < grp2.bs.length; b++) {
-                    var bi = grp2.bs[b], bob = B[bi], isDone = bob.ok;
-                    html += '<div class="fs-card' + (isDone ? ' fs-done' : '') + '"><div class="fs-op">' + bob.enc + '</div><div class="fs-dados">';
-                    html += '<span class="fd-item">' + bob.item + '</span><span class="fd-det">v' + bob.ver + '</span>';
-                    html += '<span class="fd-det">📐 ' + bob.larg + 'cm x ' + bob.esp + 'mu</span><span class="fd-det">' + bob.pig + '</span>';
-                    html += '<span class="fd-peso">' + bob.qtde + ' kg</span></div>';
-                    if (isDone && bob.foto) { html += '<img src="' + bob.foto + '" class="fs-foto-mini" onclick="document.getElementById(\'ai\').src=this.src;document.getElementById(\'ao\').classList.add(\'active\');"><button class="fs-btn" style="background:#ef4444;" onclick="event.stopPropagation();fsDesmarcar(' + bi + ')">✖</button>'; }
-                    else { html += '<button class="fs-btn" style="background:#2563eb;" onclick="event.stopPropagation();fsFoto(' + bi + ')">📸</button>'; }
-                    html += '</div>';
-                }
-            }
-            body.innerHTML = html;
+function renderFS() {
+    var body = document.getElementById('fsBody'), total = B.length, feitos = 0;
+    for (var i = 0; i < B.length; i++) { if (B[i].ok) feitos++; }
+    document.getElementById('fsInfo').textContent = total + ' bobinas | ' + feitos + ' ok | ' + (total - feitos) + ' pendentes';
+    var html = '';
+    for (var g = 0; g < G.length; g++) {
+        var grp2 = G[g];
+        for (var b = 0; b < grp2.bs.length; b++) {
+            var bi = grp2.bs[b], bob = B[bi], isDone = bob.ok;
+            html += '<div class="fs-card' + (isDone ? ' fs-done' : '') + '"><div class="fs-op">' + bob.enc + '</div><div class="fs-dados">';
+            html += '<span class="fd-item">' + bob.item + '</span><span class="fd-det">v' + bob.ver + '</span>';
+            html += '<span class="fd-det">📐 ' + bob.larg + 'cm x ' + bob.esp + 'mu</span><span class="fd-det">' + bob.pig + '</span>';
+            html += '<span class="fd-peso">' + bob.qtde + ' kg</span></div>';
+            if (isDone && bob.foto) { html += '<img src="' + bob.foto + '" class="fs-foto-mini" onclick="document.getElementById(\'ai\').src=this.src;document.getElementById(\'ao\').classList.add(\'active\');"><button class="fs-btn" style="background:#ef4444;" onclick="event.stopPropagation();fsDesmarcar(' + bi + ')">✖</button>'; }
+            else { html += '<button class="fs-btn" style="background:#2563eb;" onclick="event.stopPropagation();fsFoto(' + bi + ')">📸</button>'; }
+            html += '</div>';
         }
-        function fsFoto(bi) { openCam(bi); }
-        function fsDesmarcar(bi) { B[bi].ok = false; B[bi].foto = null; B[bi].fotoNm = ''; save(); renderFS(); build(); }
+    }
+    body.innerHTML = html;
+}
+function fsFoto(bi) { openCam(bi); }
+function fsDesmarcar(bi) { B[bi].ok = false; B[bi].foto = null; B[bi].fotoNm = ''; save(); renderFS(); build(); }
 
         // ================================================================
         //                    ESTOQUE VISUALIZADOR
@@ -5248,6 +5252,111 @@ function fecharEncaixarDoEstoque() {
 // ================================================================
 //                    SYNC NUVEM — OBS + OCULTOS
 // ================================================================
+
+// ================================================================
+//                    BOTÕES NUVEM
+// ================================================================
+async function salvarTudoNuvem() {
+    var lo = document.getElementById('lo'), lt = document.getElementById('lt');
+    lo.classList.add('active');
+    lt.textContent = 'Salvando na nuvem...';
+
+    try {
+        var salvos = 0;
+
+        // Salva observações
+        await db.collection('config').doc('observacoes').set({
+            dados: JSON.stringify(estObservacoes),
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        salvos++;
+
+        // Salva ocultos
+        await db.collection('config').doc('ocultos').set({
+            dados: JSON.stringify(confOcultos),
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        salvos++;
+
+        // Salva divisões
+        await db.collection('config').doc('divisoes').set({
+            dados: JSON.stringify(window.confDivisoes || {}),
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        salvos++;
+
+        lo.classList.remove('active');
+
+        var qtdObs = Object.keys(estObservacoes).length;
+        var qtdOc = Object.keys(confOcultos).length;
+        var qtdDiv = Object.keys(window.confDivisoes || {}).length;
+        toast('☁️ Salvo! ' + qtdObs + ' obs | ' + qtdOc + ' ocultas | ' + qtdDiv + ' divisões', 'success', 4000);
+
+    } catch (err) {
+        lo.classList.remove('active');
+        toast('Erro ao salvar na nuvem: ' + err.message, 'error');
+    }
+}
+
+async function sincronizarDaNuvem() {
+    var lo = document.getElementById('lo'), lt = document.getElementById('lt');
+    lo.classList.add('active');
+    lt.textContent = 'Sincronizando da nuvem...';
+
+    try {
+        var mudancas = [];
+
+        // Observações
+        var docObs = await db.collection('config').doc('observacoes').get();
+        if (docObs.exists && docObs.data().dados) {
+            var obsNuvem = JSON.parse(docObs.data().dados);
+            var qtdAntes = Object.keys(estObservacoes).length;
+            for (var k in obsNuvem) {
+                estObservacoes[k] = obsNuvem[k];
+            }
+            localStorage.setItem('enc_obs', JSON.stringify(estObservacoes));
+            var qtdDepois = Object.keys(estObservacoes).length;
+            mudancas.push('💬 ' + qtdDepois + ' obs');
+        }
+
+        // Ocultos
+        var docOc = await db.collection('config').doc('ocultos').get();
+        if (docOc.exists && docOc.data().dados) {
+            var ocNuvem = JSON.parse(docOc.data().dados);
+            var qtdOcAntes = Object.keys(confOcultos).length;
+            confOcultos = ocNuvem;
+            localStorage.setItem('enc_ocultos', JSON.stringify(confOcultos));
+            mudancas.push('👁️ ' + Object.keys(confOcultos).length + ' ocultas');
+        }
+
+        // Divisões
+        var docDiv = await db.collection('config').doc('divisoes').get();
+        if (docDiv.exists && docDiv.data().dados) {
+            window.confDivisoes = JSON.parse(docDiv.data().dados);
+            localStorage.setItem('enc_divisoes', JSON.stringify(window.confDivisoes));
+            mudancas.push('✂️ ' + Object.keys(window.confDivisoes).length + ' divisões');
+        }
+
+        lo.classList.remove('active');
+
+        if (mudancas.length > 0) {
+            toast('🔄 Sincronizado! ' + mudancas.join(' | '), 'success', 4000);
+        } else {
+            toast('🔄 Nuvem vazia — nada para sincronizar', 'info');
+        }
+
+        // Atualiza telas abertas
+        if (document.getElementById('estModal').classList.contains('active')) estRender();
+        if (document.getElementById('confModal').classList.contains('active')) confRender();
+        build();
+
+    } catch (err) {
+        lo.classList.remove('active');
+        toast('Erro ao sincronizar: ' + err.message, 'error');
+    }
+}
+
+
 function salvarObsNuvem() {
     try {
         db.collection('config').doc('observacoes').set({
