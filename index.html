@@ -3220,74 +3220,59 @@
         //                    SAVE / LOAD
         // ================================================================
         function save() {
-            try {
-                var dados = {
-                    B: B.map(function (b) {
-                        return {
-                            id: b.id,
-                            enc: b.enc,
-                            item: b.item,
-                            ver: b.ver,
-                            larg: b.larg,
-                            esp: b.esp,
-                            pig: b.pig,
-                            qtde: b.qtde,
-                            material: b.material || '',
-                            largOP: b.largOP || b.larg || '',
-                            apresentacao: b.apresentacao || '',
-                            foto: b.foto || null,
-                            fotoEtiqueta: b.fotoEtiqueta || null,
-                            fotoNm: b.fotoNm || '',
-                            ok: b.ok || false,
-                            manual: b.manual || false
-                        };
-                    }),
-                    origNm: origNm,
-                    sessaoQrAtualId: sessaoQrAtualId || ''
+    try {
+        var dados = {
+            B: B.map(function (b) {
+                return {
+                    id: b.id,
+                    enc: b.enc,
+                    item: b.item,
+                    ver: b.ver,
+                    larg: b.larg,
+                    esp: b.esp,
+                    pig: b.pig,
+                    qtde: b.qtde,
+                    material: b.material || '',
+                    largOP: b.largOP || b.larg || '',
+                    apresentacao: b.apresentacao || '',
+                    foto: b.foto || null,
+                    fotoEtiqueta: b.fotoEtiqueta || null,
+                    fotoNm: b.fotoNm || '',
+                    ok: b.ok || false,
+                    manual: b.manual || false
                 };
+            }),
+            origNm: origNm,
+            sessaoQrAtualId: sessaoQrAtualId || ''
+        };
 
-                // Tenta salvar com fotos
-                try {
-                    var comFoto = JSON.stringify(dados);
-                    localStorage.setItem(LS, comFoto);
-                    console.log('Salvo COM fotos: ' + (comFoto.length / 1024).toFixed(1) + 'KB');
-                    return;
-                } catch (e1) {
-                    console.warn('Sem espaço com fotos, tentando sem...');
-                }
-
-                // Remove fotos e tenta novamente
-                dados.B.forEach(function (b) {
-                    b.foto = null;
-                    b.fotoEtiqueta = null;
-                });
-
-                try {
-                    var semFoto = JSON.stringify(dados);
-                    localStorage.setItem(LS, semFoto);
-                    console.log('Salvo SEM fotos: ' + (semFoto.length / 1024).toFixed(1) + 'KB');
-                    toast('Fotos removidas do backup (sem espaço)', 'warning');
-                    return;
-                } catch (e2) {
-                    console.error('Erro ao salvar mesmo sem fotos:', e2);
-                }
-
-            } catch (e) {
-                console.error('Erro geral no save():', e);
-                toast('Erro ao salvar dados!', 'error');
+        // Tenta salvar com fotos
+        try {
+            var comFoto = JSON.stringify(dados);
+            localStorage.setItem(LS, comFoto);
+        } catch (e1) {
+            // Remove fotos e tenta novamente
+            dados.B.forEach(function (b) {
+                b.foto = null;
+                b.fotoEtiqueta = null;
+            });
+            try {
+                var semFoto = JSON.stringify(dados);
+                localStorage.setItem(LS, semFoto);
+                toast('Fotos removidas do backup (sem espaço)', 'warning');
+            } catch (e2) {
+                console.error('Erro ao salvar mesmo sem fotos:', e2);
             }
-
-            // Salva estoque e fila separadamente
-            try {
-                localStorage.setItem('enc_estoque', JSON.stringify(estoque));
-            } catch (e) { }
-            try {
-                localStorage.setItem('enc_fila', JSON.stringify(fila));
-            } catch (e) { }
-            try {
-                localStorage.setItem('enc_filaLam', JSON.stringify(filaLaminacao));
-            } catch (e) { }
         }
+    } catch (e) {
+        console.error('Erro geral no save():', e);
+    }
+
+    // ✅ SEMPRE salva estoque e fila separadamente
+    try { localStorage.setItem('enc_estoque', JSON.stringify(estoque)); } catch (e) { }
+    try { localStorage.setItem('enc_fila', JSON.stringify(fila)); } catch (e) { }
+    try { localStorage.setItem('enc_filaLam', JSON.stringify(filaLaminacao)); } catch (e) { }
+}
 
         function load() {
             try {
