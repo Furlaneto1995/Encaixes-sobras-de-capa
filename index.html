@@ -3277,6 +3277,11 @@
         function load() {
             try {
                 // Carrega estoque/fila separados (se existirem)
+                // Verifica se veio de sincronização recente (últimos 5 minutos)
+                var syncTs = parseInt(localStorage.getItem('enc_sync_ts') || '0');
+                var importTs = parseInt(localStorage.getItem('enc_import_ts') || '0');
+                var usarSync = syncTs > importTs;
+
                 try {
                     var estSep = localStorage.getItem('enc_estoque');
                     if (estSep) { var estParsed = JSON.parse(estSep); if (estParsed.length) estoque = estParsed; }
@@ -3380,6 +3385,7 @@
         //                    IMPORTAR
         // ================================================================
         function infoEstoque() {
+ localStorage.setItem('enc_import_ts', Date.now().toString());
             var total = 0, metalizados = 0;
             for (var i = 0; i < estoque.length; i++) {
                 if (/-4$/.test(getItemEstoque(estoque[i]))) metalizados++;
@@ -5515,7 +5521,31 @@ async function sincronizarDaNuvem() {
             toast('🔄 Nuvem vazia', 'info');
         }
 
-        build();
+        // Marca timestamp da última sincronização
+// Garante que o localStorage tem os dados da nuvem
+localStorage.setItem('enc_sync_ts', Date.now().toString());
+try { localStorage.setItem('enc_estoque', JSON.stringify(estoque)); } catch(e) {}
+try { localStorage.setItem('enc_fila', JSON.stringify(fila)); } catch(e) {}
+try { localStorage.setItem('enc_filaLam', JSON.stringify(filaLaminacao)); } catch(e) {}
+
+// Salva encaixes também
+var dadosB = {
+    B: B.map(function(b) {
+        return {
+            id: b.id, enc: b.enc, item: b.item, ver: b.ver,
+            larg: b.larg, esp: b.esp, pig: b.pig, qtde: b.qtde,
+            material: b.material || '', largOP: b.largOP || '',
+            apresentacao: b.apresentacao || '',
+            ok: b.ok || false, manual: b.manual || false,
+            foto: null, fotoEtiqueta: null, fotoNm: ''
+        };
+    }),
+    origNm: origNm,
+    sessaoQrAtualId: sessaoQrAtualId || ''
+};
+try { localStorage.setItem(LS, JSON.stringify(dadosB)); } catch(e) {}
+
+build();
         save();
         atualizarInfo();
         if (document.getElementById('estModal').classList.contains('active')) estRender();
