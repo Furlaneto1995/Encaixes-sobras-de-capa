@@ -7499,17 +7499,16 @@ function salvarObservacao(item, texto) {
                     '</div>' +
                     '<div id="' + bid + '" style="display:none;max-height:250px;overflow-y:auto;">' +
                     lote.regs.map(function (reg) {
-                        // ✨ NOVO: Monta a linha de medidas
-                        var medidas = '';
-                        if (reg.largura || reg.espessura || reg.pigmento || reg.formula) {
-                            var partes = [];
-                            if (reg.largura) partes.push('📏' + reg.largura + 'cm');
-                            if (reg.espessura) partes.push('📐' + reg.espessura + 'mu');
-                            if (reg.pigmento) partes.push('🎨' + reg.pigmento);
-                            var formulaExibir = reg.formula || buscarFormulaDoItem(reg.item);
-if (formulaExibir) partes.push('🧪' + formulaExibir);
-                            medidas = '<div style="font-size:0.65em;color:#888;margin-top:2px;">' + partes.join(' • ') + '</div>';
-                        }
+    var medidas = '';
+    var partes = [];
+    if (reg.largura) partes.push('📏' + reg.largura + 'cm');
+    if (reg.espessura) partes.push('📐' + reg.espessura + 'mu');
+    if (reg.pigmento) partes.push('🎨' + reg.pigmento);
+    var formulaExibir = reg.formula || buscarFormulaDoItem(reg.item);
+    if (formulaExibir) partes.push('<span style="color:#2563eb;font-weight:600;">🧪' + formulaExibir + '</span>');
+    if (partes.length > 0) {
+        medidas = '<div style="font-size:0.65em;color:#888;margin-top:2px;">' + partes.join(' • ') + '</div>';
+    }
 
                         return '<div style="display:flex;align-items:center;padding:6px 12px;gap:6px;border-bottom:1px solid #f0f0f0;font-size:0.78em;">' +
                             '<span style="color:#2563eb;font-weight:600;min-width:65px;">OP ' + reg.encaixe + '</span>' +
