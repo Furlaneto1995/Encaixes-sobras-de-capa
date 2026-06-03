@@ -7442,7 +7442,8 @@ function salvarObservacao(item, texto) {
                             if (reg.largura) partes.push('📏' + reg.largura + 'cm');
                             if (reg.espessura) partes.push('📐' + reg.espessura + 'mu');
                             if (reg.pigmento) partes.push('🎨' + reg.pigmento);
-                            if (reg.formula) partes.push('🧪' + reg.formula);
+                            var formulaExibir = reg.formula || buscarFormulaDoItem(reg.item);
+if (formulaExibir) partes.push('🧪' + formulaExibir);
                             medidas = '<div style="font-size:0.65em;color:#888;margin-top:2px;">' + partes.join(' • ') + '</div>';
                         }
 
@@ -8085,6 +8086,33 @@ function salvarObservacao(item, texto) {
         // ================================================================
         //                    SERVICE WORKER
         // ================================================================
+
+// ================================================================
+//                    SALVAR AO SAIR / ATUALIZAR
+// ================================================================
+window.addEventListener('beforeunload', function () {
+    try { save(); } catch (e) { }
+    try { localStorage.setItem('enc_estoque', JSON.stringify(estoque)); } catch (e) { }
+    try { localStorage.setItem('enc_fila', JSON.stringify(fila)); } catch (e) { }
+    try { localStorage.setItem('enc_filaLam', JSON.stringify(filaLaminacao)); } catch (e) { }
+    try { localStorage.setItem('enc_conf', JSON.stringify(confStatus)); } catch (e) { }
+    try { localStorage.setItem('enc_ocultos', JSON.stringify(confOcultos)); } catch (e) { }
+    try { localStorage.setItem('enc_obs', JSON.stringify(estObservacoes)); } catch (e) { }
+    try { localStorage.setItem('enc_divisoes', JSON.stringify(window.confDivisoes || {})); } catch (e) { }
+});
+
+document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') {
+        try { save(); } catch (e) { }
+        try { localStorage.setItem('enc_estoque', JSON.stringify(estoque)); } catch (e) { }
+        try { localStorage.setItem('enc_fila', JSON.stringify(fila)); } catch (e) { }
+        try { localStorage.setItem('enc_filaLam', JSON.stringify(filaLaminacao)); } catch (e) { }
+        try { localStorage.setItem('enc_conf', JSON.stringify(confStatus)); } catch (e) { }
+        try { localStorage.setItem('enc_ocultos', JSON.stringify(confOcultos)); } catch (e) { }
+        try { localStorage.setItem('enc_obs', JSON.stringify(estObservacoes)); } catch (e) { }
+        try { localStorage.setItem('enc_divisoes', JSON.stringify(window.confDivisoes || {})); } catch (e) { }
+    }
+});
         if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js').then(function (r) { console.log('SW:', r.scope); }).catch(function (e) { console.log('SW err:', e); }); }
 
         // ================================================================
