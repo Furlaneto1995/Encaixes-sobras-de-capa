@@ -1,33 +1,30 @@
-var CACHE_NAME = 'encaixes-v1';
+var CACHE_NAME = 'encaixes-v3';
 var urlsToCache = [
     './',
     './index.html',
     './manifest.json',
-    'https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'
+    './icon-192.png'
 ];
 
-// Instalar
+// Instala e faz cache dos arquivos estáticos
 self.addEventListener('install', function(event) {
     event.waitUntil(
         caches.open(CACHE_NAME).then(function(cache) {
-            console.log('Cache aberto');
             return cache.addAll(urlsToCache);
         })
     );
     self.skipWaiting();
 });
 
-// Ativar
+// Ativa e limpa caches antigos
 self.addEventListener('activate', function(event) {
     event.waitUntil(
         caches.keys().then(function(cacheNames) {
             return Promise.all(
-                cacheNames.map(function(cacheName) {
-                    if (cacheName !== CACHE_NAME) {
-                        console.log('Cache antigo removido:', cacheName);
-                        return caches.delete(cacheName);
-                    }
+                cacheNames.filter(function(name) {
+                    return name !== CACHE_NAME;
+                }).map(function(name) {
+                    return caches.delete(name);
                 })
             );
         })
@@ -35,28 +32,38 @@ self.addEventListener('activate', function(event) {
     self.clients.claim();
 });
 
-// Fetch - Network first, fallback to cache
+// Intercepta requisições
 self.addEventListener('fetch', function(event) {
+    var url = event.request.url;
+
+    // ✅ NÃO intercepta Firebase, Google APIs, CDNs externos
+    if (
+        url.indexOf('firestore.googleapis.com') > -1 ||
+        url.indexOf('firebase') > -1 ||
+        url.indexOf('googleapis.com') > -1 ||
+        url.indexOf('gstatic.com') > -1 ||
+        url.indexOf('cdnjs.cloudflare.com') > -1 ||
+        url.indexOf('cdn.sheetjs.com') > -1 ||
+        url.indexOf('unpkg.com') > -1 ||
+        event.request.method !== 'GET'
+    ) {
+        return; // deixa passar sem cache
+    }
+
+    // Para arquivos locais: cache first
     event.respondWith(
-        fetch(event.request)
-            .then(function(response) {
-                // Se conseguiu da rede, salva no cache
-                if (response.status === 200) {
-                    var responseClone = response.clone();
-                    caches.open(CACHE_NAME).then(function(cache) {
-                        cache.put(event.request, responseClone);
-                    });
+        caches.match(event.request).then(function(response) {
+            if (response) return response;
+            return fetch(event.request).then(function(fetchResponse) {
+                if (!fetchResponse || fetchResponse.status !== 200) {
+                    return fetchResponse;
                 }
-                return response;
-            })
-            .catch(function() {
-                // Se falhou a rede, busca no cache
-                return caches.match(event.request).then(function(response) {
-                    return response || new Response('Offline', {
-                        status: 503,
-                        statusText: 'Offline'
-                    });
+                var responseClone = fetchResponse.clone();
+                caches.open(CACHE_NAME).then(function(cache) {
+                    cache.put(event.request, responseClone);
                 });
-            })
+                return fetchResponse;
+            });
+        })
     );
 });
