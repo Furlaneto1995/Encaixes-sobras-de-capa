@@ -5162,6 +5162,7 @@ function fecharEncaixarDoEstoque() {
             document.getElementById('btnDelObs').addEventListener('click', function () {
                 delete estObservacoes[item];
                 localStorage.setItem('enc_obs', JSON.stringify(estObservacoes));
+                salvarObsNuvem();
                 fecharModal('obsModal'); estRender();
                 toast('Observação removida', 'info');
             });
@@ -5170,6 +5171,7 @@ function fecharEncaixarDoEstoque() {
                 if (texto) estObservacoes[item] = texto;
                 else delete estObservacoes[item];
                 localStorage.setItem('enc_obs', JSON.stringify(estObservacoes));
+                salvarObsNuvem();
                 fecharModal('obsModal'); estRender();
                 toast('Observação salva', 'success');
             });
@@ -5243,11 +5245,58 @@ function fecharEncaixarDoEstoque() {
             toast('CSV exportado com todas as informações', 'success');
         }
 
-        function estToggleOculto(item) {
-            if (confOcultos[item]) delete confOcultos[item]; else confOcultos[item] = true;
-            localStorage.setItem('enc_ocultos', JSON.stringify(confOcultos));
-            estRender();
+// ================================================================
+//                    SYNC NUVEM — OBS + OCULTOS
+// ================================================================
+function salvarObsNuvem() {
+    try {
+        db.collection('config').doc('observacoes').set({
+            dados: JSON.stringify(estObservacoes),
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    } catch (e) { console.error('Erro ao salvar obs na nuvem:', e); }
+}
+
+function salvarOcultosNuvem() {
+    try {
+        db.collection('config').doc('ocultos').set({
+            dados: JSON.stringify(confOcultos),
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    } catch (e) { console.error('Erro ao salvar ocultos na nuvem:', e); }
+}
+
+async function carregarObsNuvem() {
+    try {
+        var docObs = await db.collection('config').doc('observacoes').get();
+        if (docObs.exists && docObs.data().dados) {
+            var obsNuvem = JSON.parse(docObs.data().dados);
+            // Mescla: nuvem tem prioridade, mas mantém locais que não existem na nuvem
+            for (var k in obsNuvem) {
+                estObservacoes[k] = obsNuvem[k];
+            }
+            localStorage.setItem('enc_obs', JSON.stringify(estObservacoes));
         }
+    } catch (e) { console.error('Erro ao carregar obs da nuvem:', e); }
+
+    try {
+        var docOc = await db.collection('config').doc('ocultos').get();
+        if (docOc.exists && docOc.data().dados) {
+            var ocNuvem = JSON.parse(docOc.data().dados);
+            for (var k2 in ocNuvem) {
+                confOcultos[k2] = ocNuvem[k2];
+            }
+            localStorage.setItem('enc_ocultos', JSON.stringify(confOcultos));
+        }
+    } catch (e) { console.error('Erro ao carregar ocultos da nuvem:', e); }
+}
+
+        function estToggleOculto(item) {
+    if (confOcultos[item]) delete confOcultos[item]; else confOcultos[item] = true;
+    localStorage.setItem('enc_ocultos', JSON.stringify(confOcultos));
+    salvarOcultosNuvem();
+    estRender();
+}
 
         function estAbrirOpcoes(item) {
             if (navigator.vibrate) navigator.vibrate([50]);
@@ -5586,6 +5635,7 @@ if (divInfo) {
             if (observacao) {
                 estObservacoes[itemNome] = observacao;
                 localStorage.setItem('enc_obs', JSON.stringify(estObservacoes));
+salvarObsNuvem();
             }
 
             var modal = document.getElementById('confEndModal');
@@ -6770,43 +6820,25 @@ if (pri >= 99) {
         function mkChaveGrp(b) { return b.enc + '||' + b.item + '-' + b.ver + '-' + b.larg + '-' + b.esp + '-' + b.pig; }
 
         // ================================================================
-        //                    OBSERVAÇÕES DO ESTOQUE
-        // ================================================================
-        var estObservacoes = {};
-        var bobinasNovas = {}; // { 'item_qtde': true }
+//                    OBSERVAÇÕES DO ESTOQUE
+// ================================================================
+var estObservacoes = {};
+var bobinasNovas = {}; // { 'item_qtde': true }
 
-        function carregarObservacoes() {
-            try { var o = localStorage.getItem('enc_obs'); if (o) estObservacoes = JSON.parse(o); } catch (e) { }
-        }
+function carregarObservacoes() {
+    try { var o = localStorage.getItem('enc_obs'); if (o) estObservacoes = JSON.parse(o); } catch (e) { }
+}
 
-        function salvarObservacao(item, texto) {
-            if (texto) estObservacoes[item] = texto;
-            else delete estObservacoes[item];
-            localStorage.setItem('enc_obs', JSON.stringify(estObservacoes));
-            estRender();
-        }
+function salvarObservacao(item, texto) {
+    if (texto) estObservacoes[item] = texto;
+    else delete estObservacoes[item];
+    localStorage.setItem('enc_obs', JSON.stringify(estObservacoes));
+    estRender();
+}
 
-        function abrirModalObs(item) {
-            var obsAtual = estObservacoes[item] || '';
-            criarModal('obsModal',
-                '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:4px;">💬 Observação</h3>' +
-                '<p style="font-size:0.75em;color:#888;margin-bottom:14px;">' + item + '</p>' +
-                '<textarea id="obsInput" placeholder="Ex: Embalagem rasgada, pesar novamente..." ' +
-                'style="width:100%;padding:12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;' +
-                'color:#1a1a2e;font-size:0.9em;min-height:80px;resize:vertical;">' + obsAtual + '</textarea>' +
-                '<div style="display:flex;gap:8px;margin-top:14px;">' +
-                '<button onclick="salvarObservacao(\'' + item + '\',\'\');fecharModal(\'obsModal\')" ' +
-                'style="padding:12px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;cursor:pointer;">🗑️</button>' +
-                '<button onclick="salvarObservacao(\'' + item + '\',document.getElementById(\'obsInput\').value.trim());fecharModal(\'obsModal\')" ' +
-                'style="flex:1;padding:12px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">💾 Salvar</button>' +
-                '</div>'
-            );
-            setTimeout(function () { var el = document.getElementById('obsInput'); if (el) el.focus(); }, 100);
-        }
-
-        // ================================================================
-        //                    COMPARAR ESTOQUES
-        // ================================================================
+// ================================================================
+//                    COMPARAR ESTOQUES
+// ================================================================
         function compararEstoques(anterior, atual) {
             var antMap = {}, atuMap = {};
             bobinasNovas = {};
@@ -7765,8 +7797,15 @@ if (pri >= 99) {
         //                    INIT
         // ================================================================
         try { carregarTema(); } catch (e) { console.error('Erro carregarTema:', e); }
-        try { carregarConferencia(); } catch (e) { console.error('Erro carregarConferencia:', e); }
-        try { carregarObservacoes(); } catch (e) { console.error('Erro carregarObservacoes:', e); }
+try { carregarConferencia(); } catch (e) { console.error('Erro carregarConferencia:', e); }
+try { carregarObservacoes(); } catch (e) { console.error('Erro carregarObservacoes:', e); }
+
+// Carrega obs e ocultos da nuvem (assíncrono)
+carregarObsNuvem().then(function() {
+    console.log('Obs e ocultos carregados da nuvem');
+}).catch(function(e) {
+    console.error('Erro ao carregar da nuvem:', e);
+});
 
         try {
             var carregou = load();
