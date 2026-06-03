@@ -5414,6 +5414,14 @@ async function sincronizarDaNuvem() {
             if (estNovo.length > 0) {
                 estoque = estNovo;
                 try { localStorage.setItem('enc_estoque', JSON.stringify(estoque)); } catch (e) { }
+                // Limpa estoque antigo do objeto principal
+                try {
+                    var lsMain = localStorage.getItem(LS);
+                    if (lsMain) {
+                        var mainObj = JSON.parse(lsMain);
+                        if (mainObj.estoque) { delete mainObj.estoque; localStorage.setItem(LS, JSON.stringify(mainObj)); }
+                    }
+                } catch (e) { }
                 mudancas.push('📦' + estoque.length);
             }
         }
@@ -5434,6 +5442,13 @@ async function sincronizarDaNuvem() {
             if (filaNova.length > 0) {
                 fila = filaNova;
                 try { localStorage.setItem('enc_fila', JSON.stringify(fila)); } catch (e) { }
+                try {
+                    var lsMain2 = localStorage.getItem(LS);
+                    if (lsMain2) {
+                        var mainObj2 = JSON.parse(lsMain2);
+                        if (mainObj2.fila) { delete mainObj2.fila; localStorage.setItem(LS, JSON.stringify(mainObj2)); }
+                    }
+                } catch (e) { }
                 mudancas.push('🏭' + fila.length);
             }
         }
@@ -5454,6 +5469,13 @@ async function sincronizarDaNuvem() {
             if (lamNova.length > 0) {
                 filaLaminacao = lamNova;
                 try { localStorage.setItem('enc_filaLam', JSON.stringify(filaLaminacao)); } catch (e) { }
+                try {
+                    var lsMain3 = localStorage.getItem(LS);
+                    if (lsMain3) {
+                        var mainObj3 = JSON.parse(lsMain3);
+                        if (mainObj3.filaLaminacao) { delete mainObj3.filaLaminacao; localStorage.setItem(LS, JSON.stringify(mainObj3)); }
+                    }
+                } catch (e) { }
                 mudancas.push('✨' + filaLaminacao.length);
             }
         }
