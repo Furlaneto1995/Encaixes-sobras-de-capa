@@ -8150,50 +8150,53 @@ document.addEventListener('visibilitychange', function () {
 });
         if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js').then(function (r) { console.log('SW:', r.scope); }).catch(function (e) { console.log('SW err:', e); }); }
 
-        // ================================================================
-        //                    INIT
-        // ================================================================
-        try { carregarTema(); } catch (e) { console.error('Erro carregarTema:', e); }
+// ================================================================
+//                    INIT
+// ================================================================
+try { carregarTema(); } catch (e) { console.error('Erro carregarTema:', e); }
 try { carregarConferencia(); } catch (e) { console.error('Erro carregarConferencia:', e); }
 try { carregarObservacoes(); } catch (e) { console.error('Erro carregarObservacoes:', e); }
 
-// Carrega obs e ocultos da nuvem (assíncrono)
-carregarObsNuvem().then(function() {
-    console.log('Obs e ocultos carregados da nuvem');
-}).catch(function(e) {
-    console.error('Erro ao carregar da nuvem:', e);
-});
+try {
+    var modoNuvem = localStorage.getItem('enc_modo_nuvem') === '1';
 
-       try {
-    var carregou = load();
-    console.log('Init: carregou=' + carregou + ' B=' + B.length + ' est=' + estoque.length + ' fila=' + fila.length);
-
-    // Se a última origem foi nuvem, sincroniza automaticamente ao abrir
-    if (localStorage.getItem('enc_modo_nuvem') === '1') {
+    if (modoNuvem) {
+        var carregou = load();
+        console.log('Init: modo nuvem, sincronizando automaticamente...');
         setTimeout(function () {
-            console.log('Init: modo nuvem ativo, sincronizando...');
             sincronizarDaNuvem();
-        }, 300);
-    } else if (carregou && B.length > 0) {
-        setTimeout(function () {
-            grp();
-            build();
-            atualizarInfo();
-            console.log('Init: UI atualizada com ' + B.length + ' encaixes');
-        }, 200);
+        }, 800);
     } else {
-        atualizarInfoEstoque();
+        var carregou = load();
+        console.log('Init: carregou=' + carregou + ' B=' + B.length + ' est=' + estoque.length + ' fila=' + fila.length);
+
+        if (carregou && B.length > 0) {
+            setTimeout(function () {
+                grp();
+                build();
+                atualizarInfo();
+                console.log('Init: UI atualizada com ' + B.length + ' encaixes');
+            }, 200);
+        } else {
+            atualizarInfoEstoque();
+        }
+
+        carregarObsNuvem().then(function() {
+            console.log('Obs e ocultos carregados da nuvem');
+        }).catch(function(e) {
+            console.error('Erro ao carregar da nuvem:', e);
+        });
     }
 } catch (e) {
     console.error('Erro no init:', e);
 }
 
-        function limparNovas() {
-            bobinasNovas = {};
-            localStorage.removeItem('enc_novas');
-            build();
-            toast('Tags NEW removidas', 'success');
-        }
+function limparNovas() {
+    bobinasNovas = {};
+    localStorage.removeItem('enc_novas');
+    build();
+    toast('Tags NEW removidas', 'success');
+}
         // ================================================================
         //                    FOCAR ENCAIXE (UMA OP POR VEZ)
         // ================================================================
