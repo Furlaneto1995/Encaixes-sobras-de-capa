@@ -7502,29 +7502,31 @@ function salvarObservacao(item, texto) {
                     '</div>' +
                     '<div id="' + bid + '" style="display:none;max-height:250px;overflow-y:auto;">' +
                     lote.regs.map(function (reg) {
-    var medidas = '';
+    var formulaExibir = reg.formula || buscarFormulaDoItem(reg.item) || '';
     var partes = [];
+
     if (reg.largura) partes.push('📏' + reg.largura + 'cm');
     if (reg.espessura) partes.push('📐' + reg.espessura + 'mu');
     if (reg.pigmento) partes.push('🎨' + reg.pigmento);
-    var formulaExibir = reg.formula || buscarFormulaDoItem(reg.item);
-    if (formulaExibir) partes.push('<span style="color:#2563eb;font-weight:600;">🧪' + formulaExibir + '</span>');
+    if (formulaExibir) partes.push('<span style="color:#2563eb;font-weight:700;">🧪 ' + formulaExibir + '</span>');
+
+    var medidas = '';
     if (partes.length > 0) {
-        medidas = '<div style="font-size:0.65em;color:#888;margin-top:2px;">' + partes.join(' • ') + '</div>';
+        medidas = '<div style="font-size:0.65em;color:#888;margin-top:2px;line-height:1.35;">' + partes.join(' • ') + '</div>';
     }
 
-                        return '<div style="display:flex;align-items:center;padding:6px 12px;gap:6px;border-bottom:1px solid #f0f0f0;font-size:0.78em;">' +
-                            '<span style="color:#2563eb;font-weight:600;min-width:65px;">OP ' + reg.encaixe + '</span>' +
-                            '<div style="flex:1;overflow:hidden;">' +
-                            '<div style="color:#555;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
-                            reg.item + '/v' + reg.versao +
-                            '</div>' +
-                            medidas +
-                            '</div>' +
-                            '<span style="color:#10b981;font-weight:600;">' + reg.qtde + 'kg</span>' +
-                            '<button data-id="' + reg.id + '" class="hDelReg" style="width:20px;height:20px;min-width:20px;border-radius:5px;border:1px solid #fca5a5;background:#fff;color:#ef4444;cursor:pointer;font-size:0.55em;display:flex;align-items:center;justify-content:center;">✖</button>' +
-                            '</div>';
-                    }).join('') +
+    return '<div style="display:flex;align-items:center;padding:6px 12px;gap:6px;border-bottom:1px solid #f0f0f0;font-size:0.78em;">' +
+        '<span style="color:#2563eb;font-weight:600;min-width:65px;">OP ' + reg.encaixe + '</span>' +
+        '<div style="flex:1;overflow:hidden;">' +
+        '<div style="color:#555;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+        reg.item + '/v' + reg.versao +
+        '</div>' +
+        medidas +
+        '</div>' +
+        '<span style="color:#10b981;font-weight:600;">' + reg.qtde + 'kg</span>' +
+        '<button data-id="' + reg.id + '" class="hDelReg" style="width:20px;height:20px;min-width:20px;border-radius:5px;border:1px solid #fca5a5;background:#fff;color:#ef4444;cursor:pointer;font-size:0.55em;display:flex;align-items:center;justify-content:center;">✖</button>' +
+        '</div>';
+}).join('') +
                     '</div>';
 
                 card.querySelectorAll('.hToggle').forEach(function (el) {
