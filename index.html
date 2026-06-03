@@ -3013,16 +3013,17 @@
                         saldoLam[escL.op] -= bob.qtde;
 
                         res.push({
-                            enc: escL.op,
-                            item: bob.item,
-                            ver: bob.versao,
-                            larg: String(bob.largura),
-                            esp: String(bob.espessura),
-                            pig: bob.pigmentado,
-                            qtde: String(bob.qtde),
-                            material: bob.material || '',
-                            largOP: String(escL.largura || bob.largura)
-                        });
+    enc: escL.op,
+    item: bob.item,
+    ver: bob.versao,
+    larg: String(bob.largura),
+    esp: String(bob.espessura),
+    pig: bob.pigmentado,
+    qtde: String(bob.qtde),
+    material: bob.material || '',
+    largOP: String(escL.largura || bob.largura),
+    composicao: bob.composicao || ''
+});
 
                         found = true;
                     }
@@ -3077,17 +3078,18 @@
                                 saldo[opUnica.op] -= bob.qtde;
 
                                 res.push({
-                                    enc: opUnica.op,
-                                    item: bob.item,
-                                    ver: bob.versao,
-                                    larg: String(bob.largura),
-                                    esp: String(bob.espessura),
-                                    pig: bob.pigmentado,
-                                    qtde: String(bob.qtde),
-                                    material: bob.material || '',
-                                    largOP: String(opUnica.largura || bob.largura),
-                                    apresentacao: opUnica.apresentacao || ''
-                                });
+    enc: opUnica.op,
+    item: bob.item,
+    ver: bob.versao,
+    larg: String(bob.largura),
+    esp: String(bob.espessura),
+    pig: bob.pigmentado,
+    qtde: String(bob.qtde),
+    material: bob.material || '',
+    largOP: String(opUnica.largura || bob.largura),
+    apresentacao: opUnica.apresentacao || '',
+    composicao: bob.composicao || ''
+});
 
                                 found = true;
                             } else {
@@ -3115,17 +3117,18 @@
                                     }).join(' + ');
 
                                     res.push({
-                                        enc: opsLabel,
-                                        item: bob.item,
-                                        ver: bob.versao,
-                                        larg: String(bob.largura),
-                                        esp: String(bob.espessura),
-                                        pig: bob.pigmentado,
-                                        qtde: String(bob.qtde),
-                                        material: bob.material || '',
-                                        largOP: String(opsJuntadas[0].largura || bob.largura),
-                                        apresentacao: opsJuntadas[0].apresentacao || ''
-                                    });
+    enc: opsLabel,
+    item: bob.item,
+    ver: bob.versao,
+    larg: String(bob.largura),
+    esp: String(bob.espessura),
+    pig: bob.pigmentado,
+    qtde: String(bob.qtde),
+    material: bob.material || '',
+    largOP: String(opsJuntadas[0].largura || bob.largura),
+    apresentacao: opsJuntadas[0].apresentacao || '',
+    composicao: bob.composicao || ''
+});
 
                                     found = true;
                                 }
@@ -3136,26 +3139,27 @@
             }
 
             B = [];
-            for (var r2 = 0; r2 < res.length; r2++) {
-                var rs = res[r2];
-                B.push({
-                    id: B.length,
-                    enc: rs.enc,
-                    item: rs.item,
-                    ver: rs.ver,
-                    larg: rs.larg,
-                    esp: rs.esp,
-                    pig: rs.pig,
-                    qtde: rs.qtde,
-                    material: rs.material || '',
-                    largOP: rs.largOP || rs.larg,
-                    apresentacao: rs.apresentacao || '',
-                    foto: null,
-                    fotoNm: '',
-                    ok: false,
-                    manual: false
-                });
-            }
+for (var r2 = 0; r2 < res.length; r2++) {
+    var rs = res[r2];
+    B.push({
+        id: B.length,
+        enc: rs.enc,
+        item: rs.item,
+        ver: rs.ver,
+        larg: rs.larg,
+        esp: rs.esp,
+        pig: rs.pig,
+        qtde: rs.qtde,
+        material: rs.material || '',
+        largOP: rs.largOP || rs.larg,
+        apresentacao: rs.apresentacao || '',
+        formula: rs.composicao || buscarFormulaDoItem(rs.item) || '',
+        foto: null,
+        fotoNm: '',
+        ok: false,
+        manual: false
+    });
+}
 
             grp(); build(); save(); atualizarInfo();
 
@@ -3227,23 +3231,24 @@
         var dados = {
             B: B.map(function (b) {
                 return {
-                    id: b.id,
-                    enc: b.enc,
-                    item: b.item,
-                    ver: b.ver,
-                    larg: b.larg,
-                    esp: b.esp,
-                    pig: b.pig,
-                    qtde: b.qtde,
-                    material: b.material || '',
-                    largOP: b.largOP || b.larg || '',
-                    apresentacao: b.apresentacao || '',
-                    foto: b.foto || null,
-                    fotoEtiqueta: b.fotoEtiqueta || null,
-                    fotoNm: b.fotoNm || '',
-                    ok: b.ok || false,
-                    manual: b.manual || false
-                };
+    id: b.id,
+    enc: b.enc,
+    item: b.item,
+    ver: b.ver,
+    larg: b.larg,
+    esp: b.esp,
+    pig: b.pig,
+    qtde: b.qtde,
+    material: b.material || '',
+    largOP: b.largOP || b.larg || '',
+    apresentacao: b.apresentacao || '',
+    formula: b.formula || '',
+    foto: b.foto || null,
+    fotoEtiqueta: b.fotoEtiqueta || null,
+    fotoNm: b.fotoNm || '',
+    ok: b.ok || false,
+    manual: b.manual || false
+};
             }),
             origNm: origNm,
             sessaoQrAtualId: sessaoQrAtualId || ''
@@ -3339,6 +3344,7 @@
             if (B[i].manual === undefined) B[i].manual = false;
             if (B[i].largOP === undefined) B[i].largOP = B[i].larg || '';
             if (B[i].apresentacao === undefined) B[i].apresentacao = '';
+if (B[i].formula === undefined) B[i].formula = '';
         }
 
         grp();
@@ -4963,7 +4969,7 @@ function fecharEncaixarDoEstoque() {
                         largura: b.larg || '',
                         espessura: b.esp || '',
                         pigmento: b.pig || '',
-                        formula: buscarFormulaDoItem(b.item) || '',
+                        formula: b.formula || buscarFormulaDoItem(b.item) || '',
                         chave: mkChave(b),
                         qtde: b.qtde || '',
                         manual: b.manual ? 'S' : 'N',
@@ -5347,14 +5353,15 @@ async function salvarTudoNuvem() {
         // Encaixes
         lt.textContent = 'Salvando encaixes...';
         var bLimpo = B.map(function (b) {
-            return {
-                id: b.id, enc: b.enc, item: b.item, ver: b.ver,
-                larg: b.larg, esp: b.esp, pig: b.pig, qtde: b.qtde,
-                material: b.material || '', largOP: b.largOP || '',
-                apresentacao: b.apresentacao || '',
-                ok: b.ok || false, manual: b.manual || false
-            };
-        });
+    return {
+        id: b.id, enc: b.enc, item: b.item, ver: b.ver,
+        larg: b.larg, esp: b.esp, pig: b.pig, qtde: b.qtde,
+        material: b.material || '', largOP: b.largOP || '',
+        apresentacao: b.apresentacao || '',
+        formula: b.formula || '',
+        ok: b.ok || false, manual: b.manual || false
+    };
+});
         var bChunks = dividirEmPedacos(bLimpo, 200);
         await db.collection('config').doc('encaixes_meta').set({
             total: B.length,
@@ -5526,6 +5533,7 @@ async function sincronizarDaNuvem() {
                     if (!B[n].foto) B[n].foto = null;
                     if (!B[n].fotoEtiqueta) B[n].fotoEtiqueta = null;
                     if (!B[n].fotoNm) B[n].fotoNm = '';
+if (!B[n].formula) B[n].formula = '';
                 }
                 grp();
             }
