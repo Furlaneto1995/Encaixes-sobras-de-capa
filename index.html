@@ -3275,25 +3275,28 @@
 }
 
         function load() {
+    try {
+        var usarNuvem = deveUsarNuvem();
+
+        if (usarNuvem) {
+            localStorage.setItem('enc_modo_nuvem', '1');
+            carregarCacheNuvemLocal();
+            console.log('load(): modo nuvem | est=' + estoque.length + ' fila=' + fila.length + ' lam=' + filaLaminacao.length);
+        } else {
             try {
-                // Só carrega estoque/fila do localStorage se NÃO estiver em modo nuvem
-                if (localStorage.getItem('enc_modo_nuvem') !== '1') {
-                    try {
-                        var estSep = localStorage.getItem('enc_estoque');
-                        if (estSep) { var estParsed = JSON.parse(estSep); if (estParsed.length) estoque = estParsed; }
-                    } catch (e) { }
-                    try {
-                        var filSep = localStorage.getItem('enc_fila');
-                        if (filSep) { var filParsed = JSON.parse(filSep); if (filParsed.length) fila = filParsed; }
-                    } catch (e) { }
-                    try {
-                        var lamSep = localStorage.getItem('enc_filaLam');
-                        if (lamSep) { var lamParsed = JSON.parse(lamSep); if (lamParsed.length) filaLaminacao = lamParsed; }
-                    } catch (e) { }
-                }
+                var estSep = localStorage.getItem('enc_estoque');
+                if (estSep) { var estParsed = JSON.parse(estSep); if (estParsed && estParsed.length) estoque = estParsed; }
+            } catch (e) {}
+            try {
+                var filSep = localStorage.getItem('enc_fila');
+                if (filSep) { var filParsed = JSON.parse(filSep); if (filParsed && filParsed.length) fila = filParsed; }
+            } catch (e) {}
+            try {
+                var lamSep = localStorage.getItem('enc_filaLam');
+                if (lamSep) { var lamParsed = JSON.parse(lamSep); if (lamParsed && lamParsed.length) filaLaminacao = lamParsed; }
+            } catch (e) {}
+            console.log('load(): modo local | est=' + estoque.length + ' fila=' + fila.length + ' lam=' + filaLaminacao.length);
         }
-        // Se modoNuvem=true, NÃO carrega estoque/fila do localStorage
-        // Eles virão da sincronização automática no INIT
 
         var s = localStorage.getItem(LS);
         if (!s) {
@@ -3308,7 +3311,7 @@
         if (d.sessaoQrAtualId) sessaoQrAtualId = d.sessaoQrAtualId;
 
         if (!d.B || !d.B.length) {
-            console.log('load(): sem encaixes');
+            console.log('load(): sem encaixes, só estoque/fila');
             atualizarInfoEstoque();
             return false;
         }
@@ -3363,6 +3366,34 @@
                 document.getElementById('fInfo').textContent = '💾 ' + info.join(' | ');
             }
         }
+
+function deveUsarNuvem() {
+    var modo = localStorage.getItem('enc_modo_nuvem') === '1';
+    var syncTs = parseInt(localStorage.getItem('enc_sync_ts') || '0', 10);
+    var importTs = parseInt(localStorage.getItem('enc_import_ts') || '0', 10);
+    return modo || syncTs > importTs;
+}
+
+function salvarCacheNuvemLocal() {
+    try { localStorage.setItem('enc_estoque_nuvem', JSON.stringify(estoque || [])); } catch (e) {}
+    try { localStorage.setItem('enc_fila_nuvem', JSON.stringify(fila || [])); } catch (e) {}
+    try { localStorage.setItem('enc_filaLam_nuvem', JSON.stringify(filaLaminacao || [])); } catch (e) {}
+}
+
+function carregarCacheNuvemLocal() {
+    try {
+        var est = localStorage.getItem('enc_estoque_nuvem');
+        estoque = est ? JSON.parse(est) : [];
+    } catch (e) { estoque = []; }
+    try {
+        var fil = localStorage.getItem('enc_fila_nuvem');
+        fila = fil ? JSON.parse(fil) : [];
+    } catch (e) { fila = []; }
+    try {
+        var lam = localStorage.getItem('enc_filaLam_nuvem');
+        filaLaminacao = lam ? JSON.parse(lam) : [];
+    } catch (e) { filaLaminacao = []; }
+}
 
         function limpar() {
             if (!confirm('Apagar tudo?')) return;
@@ -5361,6 +5392,7 @@ async function salvarTudoNuvem() {
 }
 
 async function sincronizarDaNuvem() {
+localStorage.setItem('enc_modo_nuvem', '1');
     var lo = document.getElementById('lo'), lt = document.getElementById('lt');
     lo.classList.add('active');
     lt.textContent = 'Sincronizando da nuvem...';
@@ -5518,11 +5550,15 @@ async function sincronizarDaNuvem() {
         }
 
         // Marca timestamp da última sincronização
-// Garante que o localStorage tem os dados da nuvem
 localStorage.setItem('enc_sync_ts', Date.now().toString());
+localStorage.setItem('enc_modo_nuvem', '1');
+
 try { localStorage.setItem('enc_estoque', JSON.stringify(estoque)); } catch(e) {}
 try { localStorage.setItem('enc_fila', JSON.stringify(fila)); } catch(e) {}
 try { localStorage.setItem('enc_filaLam', JSON.stringify(filaLaminacao)); } catch(e) {}
+
+// Salva cache específico da nuvem
+salvarCacheNuvemLocal();
 
 // Salva encaixes também
 var dadosB = {
@@ -5540,8 +5576,6 @@ var dadosB = {
     sessaoQrAtualId: sessaoQrAtualId || ''
 };
 try { localStorage.setItem(LS, JSON.stringify(dadosB)); } catch(e) {}
-
-localStorage.setItem('enc_modo_nuvem', '1');
 
 build();
         save();
@@ -8158,7 +8192,7 @@ try { carregarConferencia(); } catch (e) { console.error('Erro carregarConferenc
 try { carregarObservacoes(); } catch (e) { console.error('Erro carregarObservacoes:', e); }
 
 try {
-    var modoNuvem = localStorage.getItem('enc_modo_nuvem') === '1';
+   var modoNuvem = deveUsarNuvem();
 
     if (modoNuvem) {
         var carregou = load();
