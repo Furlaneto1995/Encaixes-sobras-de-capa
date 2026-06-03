@@ -3276,88 +3276,83 @@
 
         function load() {
             try {
-                // Carrega estoque/fila separados (se existirem)
-                // Verifica se veio de sincronização recente (últimos 5 minutos)
-                var syncTs = parseInt(localStorage.getItem('enc_sync_ts') || '0');
-                var importTs = parseInt(localStorage.getItem('enc_import_ts') || '0');
-                var usarSync = syncTs > importTs;
-
-                try {
-                    var estSep = localStorage.getItem('enc_estoque');
-                    if (estSep) { var estParsed = JSON.parse(estSep); if (estParsed.length) estoque = estParsed; }
-                } catch (e) { }
-                try {
-                    var filSep = localStorage.getItem('enc_fila');
-                    if (filSep) { var filParsed = JSON.parse(filSep); if (filParsed.length) fila = filParsed; }
-                } catch (e) { }
-                try {
-                    var lamSep = localStorage.getItem('enc_filaLam');
-                    if (lamSep) { var lamParsed = JSON.parse(lamSep); if (lamParsed.length) filaLaminacao = lamParsed; }
-                } catch (e) { }
-
-                var s = localStorage.getItem(LS);
-                if (!s) {
-                    console.log('load(): nenhum dado salvo');
-                    atualizarInfoEstoque();
-                    return false;
+                // Só carrega estoque/fila do localStorage se NÃO estiver em modo nuvem
+                if (localStorage.getItem('enc_modo_nuvem') !== '1') {
+                    try {
+                        var estSep = localStorage.getItem('enc_estoque');
+                        if (estSep) { var estParsed = JSON.parse(estSep); if (estParsed.length) estoque = estParsed; }
+                    } catch (e) { }
+                    try {
+                        var filSep = localStorage.getItem('enc_fila');
+                        if (filSep) { var filParsed = JSON.parse(filSep); if (filParsed.length) fila = filParsed; }
+                    } catch (e) { }
+                    try {
+                        var lamSep = localStorage.getItem('enc_filaLam');
+                        if (lamSep) { var lamParsed = JSON.parse(lamSep); if (lamParsed.length) filaLaminacao = lamParsed; }
+                    } catch (e) { }
                 }
-
-                var d = JSON.parse(s);
-                console.log('load(): dados encontrados', Object.keys(d));
-
-                // Carrega estoque/fila do objeto principal (se não veio separado)
-                if (d.estoque && d.estoque.length && estoque.length === 0) estoque = d.estoque;
-                if (d.fila && d.fila.length && fila.length === 0) fila = d.fila;
-                if (d.filaLaminacao && d.filaLaminacao.length && filaLaminacao.length === 0) filaLaminacao = d.filaLaminacao;
-                if (d.sessaoQrAtualId) sessaoQrAtualId = d.sessaoQrAtualId;
-
-                if (!d.B || !d.B.length) {
-                    console.log('load(): sem encaixes, só estoque/fila');
-                    atualizarInfoEstoque();
-                    return false;
-                }
-
-                B = d.B;
-                origNm = d.origNm || '';
-
-                // Garante que todos os campos existem
-                for (var i = 0; i < B.length; i++) {
-                    if (B[i].id === undefined) B[i].id = i;
-                    if (!B[i].enc) B[i].enc = '';
-                    if (!B[i].item) B[i].item = '';
-                    if (!B[i].ver) B[i].ver = '';
-                    if (!B[i].larg) B[i].larg = '';
-                    if (!B[i].esp) B[i].esp = '';
-                    if (!B[i].pig) B[i].pig = '';
-                    if (!B[i].qtde) B[i].qtde = '0';
-                    if (!B[i].material) B[i].material = '';
-                    if (B[i].foto === undefined) B[i].foto = null;
-                    if (B[i].fotoEtiqueta === undefined) B[i].fotoEtiqueta = null;
-                    if (B[i].fotoNm === undefined) B[i].fotoNm = '';
-                    if (B[i].ok === undefined) B[i].ok = false;
-                    if (B[i].manual === undefined) B[i].manual = false;
-                    if (B[i].largOP === undefined) B[i].largOP = B[i].larg || '';
-                    if (B[i].apresentacao === undefined) B[i].apresentacao = '';
-                }
-
-                grp();
-                build();
-
-                console.log('load(): ' + B.length + ' encaixes carregados');
-
-                var txt = '💾 ' + B.length + ' encaixes';
-                if (estoque.length) txt += ' | Est: ' + estoque.length;
-                if (fila.length) txt += ' | Fila: ' + fila.length;
-                document.getElementById('fInfo').textContent = txt;
-
-                return true;
-
-            } catch (e) {
-                console.error('Erro no load():', e);
-                toast('Erro ao carregar dados: ' + e.message, 'error');
-                return false;
-            }
         }
+        // Se modoNuvem=true, NÃO carrega estoque/fila do localStorage
+        // Eles virão da sincronização automática no INIT
+
+        var s = localStorage.getItem(LS);
+        if (!s) {
+            console.log('load(): nenhum dado salvo');
+            atualizarInfoEstoque();
+            return false;
+        }
+
+        var d = JSON.parse(s);
+        console.log('load(): dados encontrados', Object.keys(d));
+
+        if (d.sessaoQrAtualId) sessaoQrAtualId = d.sessaoQrAtualId;
+
+        if (!d.B || !d.B.length) {
+            console.log('load(): sem encaixes');
+            atualizarInfoEstoque();
+            return false;
+        }
+
+        B = d.B;
+        origNm = d.origNm || '';
+
+        for (var i = 0; i < B.length; i++) {
+            if (B[i].id === undefined) B[i].id = i;
+            if (!B[i].enc) B[i].enc = '';
+            if (!B[i].item) B[i].item = '';
+            if (!B[i].ver) B[i].ver = '';
+            if (!B[i].larg) B[i].larg = '';
+            if (!B[i].esp) B[i].esp = '';
+            if (!B[i].pig) B[i].pig = '';
+            if (!B[i].qtde) B[i].qtde = '0';
+            if (!B[i].material) B[i].material = '';
+            if (B[i].foto === undefined) B[i].foto = null;
+            if (B[i].fotoEtiqueta === undefined) B[i].fotoEtiqueta = null;
+            if (B[i].fotoNm === undefined) B[i].fotoNm = '';
+            if (B[i].ok === undefined) B[i].ok = false;
+            if (B[i].manual === undefined) B[i].manual = false;
+            if (B[i].largOP === undefined) B[i].largOP = B[i].larg || '';
+            if (B[i].apresentacao === undefined) B[i].apresentacao = '';
+        }
+
+        grp();
+        build();
+
+        console.log('load(): ' + B.length + ' encaixes carregados');
+
+        var txt = '💾 ' + B.length + ' encaixes';
+        if (estoque.length) txt += ' | Est: ' + estoque.length;
+        if (fila.length) txt += ' | Fila: ' + fila.length;
+        document.getElementById('fInfo').textContent = txt;
+
+        return true;
+
+    } catch (e) {
+        console.error('Erro no load():', e);
+        toast('Erro ao carregar dados: ' + e.message, 'error');
+        return false;
+    }
+}
 
         function atualizarInfoEstoque() {
             var info = [];
