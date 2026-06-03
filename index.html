@@ -7166,17 +7166,41 @@ if (pri >= 99) {
         //                    CHAVES
         // ================================================================
 function buscarFormulaDoItem(item) {
+    item = String(item || '').trim();
+    if (!item) return '';
+
+    // 1) Procura no estoque
     for (var i = 0; i < estoque.length; i++) {
         if (getItemEstoque(estoque[i]) === item) {
-            return normalizarComposicao(estoque[i]['COMPOSICAO'] || '');
+            var compEst = normalizarComposicao(estoque[i]['COMPOSICAO'] || '');
+            if (compEst) return compEst;
         }
     }
+
+    // 2) Procura na fila de extrusão
+    for (var j = 0; j < fila.length; j++) {
+        if (getItemFila(fila[j]) === item) {
+            var comps = getComposicoesFila(fila[j]);
+            if (comps && comps.length > 0) return comps[0];
+
+            var compFila = normalizarComposicao(
+                fila[j]['COMPOSICAO'] ||
+                fila[j]['FORMULA'] ||
+                fila[j]['FÓRMULA'] ||
+                fila[j]['__J'] ||
+                fila[j]['__P'] ||
+                ''
+            );
+            if (compFila) return compFila;
+        }
+    }
+
     return '';
 }
         function mkChave(b) { return (b.item || '') + ' | ' + (b.ver || '') + ' | ' + (b.larg || '') + ' | ' + (b.esp || '') + ' | ' + (b.pig || ''); }
         function mkChaveGrp(b) { return b.enc + '||' + b.item + '-' + b.ver + '-' + b.larg + '-' + b.esp + '-' + b.pig; }
 
-        // ================================================================
+// ================================================================
 //                    OBSERVAÇÕES DO ESTOQUE
 // ================================================================
 var estObservacoes = {};
@@ -7557,8 +7581,8 @@ console.log('HIST REG:', d.item, 'formula=', d.formula);
         function hCSV() { if (hRegs.length === 0) { toast('Busque primeiro', 'warning'); return; } var csv = 'DATA;ENCAIXE;ITEM;VERSAO;CHAVE;QTDE;MANUAL\n'; for (var i = 0; i < hRegs.length; i++) { var r = hRegs[i]; csv += r.data + ';' + r.encaixe + ';' + r.item + ';' + r.versao + ';' + r.chave + ';' + r.qtde + ';' + r.manual + '\n'; } var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' }); var link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'historico_' + new Date().toISOString().slice(0, 10) + '.csv'; document.body.appendChild(link); link.click(); document.body.removeChild(link); }
 
 async function atualizarFormulasAntigas() {
-    if (estoque.length === 0) {
-        toast('Importe o estoque primeiro!', 'warning');
+    if (estoque.length === 0 && fila.length === 0) {
+        toast('Importe ou sincronize estoque/fila primeiro!', 'warning');
         return;
     }
 
@@ -7569,20 +7593,38 @@ async function atualizarFormulasAntigas() {
     try {
         var snap = await db.collection('encaixes').orderBy('timestamp', 'desc').limit(5000).get();
         var paraAtualizar = [];
+        var semFormula = 0;
+        var semMatch = 0;
 
         snap.forEach(function (doc) {
             var d = doc.data();
+
             if (!d.formula && d.item) {
+                semFormula++;
+
                 var formula = buscarFormulaDoItem(d.item);
                 if (formula) {
-                    paraAtualizar.push({ id: doc.id, formula: formula });
+                    paraAtualizar.push({
+                        id: doc.id,
+                        item: d.item,
+                        formula: formula
+                    });
+                } else {
+                    semMatch++;
                 }
             }
         });
 
-        if (paraAtualizar.length === 0) {
+        if (semFormula === 0) {
             lo.classList.remove('active');
             toast('Todos os registros já têm fórmula!', 'success');
+            return;
+        }
+
+        if (paraAtualizar.length === 0) {
+            lo.classList.remove('active');
+            toast('Há registros sem fórmula, mas não encontrei correspondência no estoque/fila atuais', 'warning', 5000);
+            console.log('Backfill fórmula: semFormula=', semFormula, 'semMatch=', semMatch);
             return;
         }
 
@@ -7595,7 +7637,9 @@ async function atualizarFormulasAntigas() {
             batch.update(db.collection('encaixes').doc(paraAtualizar[i].id), {
                 formula: paraAtualizar[i].formula
             });
+
             salvos++;
+
             if (salvos % 400 === 0) {
                 await batch.commit();
                 batch = db.batch();
@@ -7608,13 +7652,19 @@ async function atualizarFormulasAntigas() {
         lo.classList.remove('active');
         toast('✅ ' + salvos + ' registros atualizados com fórmula!', 'success', 4000);
 
-        // Recarrega o histórico se estiver aberto
+        console.log('Backfill fórmula concluído:', {
+            semFormula: semFormula,
+            atualizados: salvos,
+            semMatch: semMatch
+        });
+
         if (document.getElementById('histModal').classList.contains('active') && hRegs.length > 0) {
             hBuscar();
         }
 
     } catch (err) {
         lo.classList.remove('active');
+        console.error('Erro atualizarFormulasAntigas:', err);
         toast('Erro: ' + err.message, 'error');
     }
 }
