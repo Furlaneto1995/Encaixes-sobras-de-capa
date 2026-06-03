@@ -2251,12 +2251,15 @@
             </div>
             <div style="display:flex;gap:6px;">
                 <button onclick="hBuscar()"
-                    style="flex:1;padding:10px;border:none;border-radius:10px;background:#8b5cf6;color:#fff;font-size:0.85em;font-weight:600;cursor:pointer;">🔍
-                    Buscar</button>
-                <button onclick="hLimpar()"
-                    style="padding:10px 14px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.85em;cursor:pointer;">🗑️</button>
-                <button onclick="hCSV()"
-                    style="padding:10px 14px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-size:0.85em;cursor:pointer;">📄</button>
+    style="flex:1;padding:10px;border:none;border-radius:10px;background:#8b5cf6;color:#fff;font-size:0.85em;font-weight:600;cursor:pointer;">🔍
+    Buscar</button>
+<button onclick="hLimpar()"
+    style="padding:10px 14px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.85em;cursor:pointer;">🗑️</button>
+<button onclick="hCSV()"
+    style="padding:10px 14px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-size:0.85em;cursor:pointer;">📄</button>
+<button onclick="atualizarFormulasAntigas()"
+    style="padding:10px 14px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:0.85em;cursor:pointer;"
+    title="Atualizar fórmulas em registros antigos">🧪</button>
             </div>
         </div>
         <div style="display:none;gap:6px;padding:0 14px 8px;flex-wrap:wrap;" id="hStats">
@@ -7550,6 +7553,68 @@ function salvarObservacao(item, texto) {
         function hLimpar() { document.getElementById('hData').value = ''; document.getElementById('hOP').value = ''; document.getElementById('hItem').value = ''; hRegs = []; document.getElementById('hBody').innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;">🗄️ Clique em Buscar</div>'; document.getElementById('hStats').style.display = 'none'; }
         function hCSV() { if (hRegs.length === 0) { toast('Busque primeiro', 'warning'); return; } var csv = 'DATA;ENCAIXE;ITEM;VERSAO;CHAVE;QTDE;MANUAL\n'; for (var i = 0; i < hRegs.length; i++) { var r = hRegs[i]; csv += r.data + ';' + r.encaixe + ';' + r.item + ';' + r.versao + ';' + r.chave + ';' + r.qtde + ';' + r.manual + '\n'; } var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' }); var link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'historico_' + new Date().toISOString().slice(0, 10) + '.csv'; document.body.appendChild(link); link.click(); document.body.removeChild(link); }
 
+async function atualizarFormulasAntigas() {
+    if (estoque.length === 0) {
+        toast('Importe o estoque primeiro!', 'warning');
+        return;
+    }
+
+    var lo = document.getElementById('lo'), lt = document.getElementById('lt');
+    lo.classList.add('active');
+    lt.textContent = 'Buscando encaixes sem fórmula...';
+
+    try {
+        var snap = await db.collection('encaixes').orderBy('timestamp', 'desc').limit(5000).get();
+        var paraAtualizar = [];
+
+        snap.forEach(function (doc) {
+            var d = doc.data();
+            if (!d.formula && d.item) {
+                var formula = buscarFormulaDoItem(d.item);
+                if (formula) {
+                    paraAtualizar.push({ id: doc.id, formula: formula });
+                }
+            }
+        });
+
+        if (paraAtualizar.length === 0) {
+            lo.classList.remove('active');
+            toast('Todos os registros já têm fórmula!', 'success');
+            return;
+        }
+
+        lt.textContent = 'Atualizando ' + paraAtualizar.length + ' registros...';
+
+        var batch = db.batch();
+        var salvos = 0;
+
+        for (var i = 0; i < paraAtualizar.length; i++) {
+            batch.update(db.collection('encaixes').doc(paraAtualizar[i].id), {
+                formula: paraAtualizar[i].formula
+            });
+            salvos++;
+            if (salvos % 400 === 0) {
+                await batch.commit();
+                batch = db.batch();
+                lt.textContent = 'Atualizando... ' + salvos + '/' + paraAtualizar.length;
+            }
+        }
+
+        if (salvos % 400 !== 0) await batch.commit();
+
+        lo.classList.remove('active');
+        toast('✅ ' + salvos + ' registros atualizados com fórmula!', 'success', 4000);
+
+        // Recarrega o histórico se estiver aberto
+        if (document.getElementById('histModal').classList.contains('active') && hRegs.length > 0) {
+            hBuscar();
+        }
+
+    } catch (err) {
+        lo.classList.remove('active');
+        toast('Erro: ' + err.message, 'error');
+    }
+}
         function abrirHistoricoUnificado() {
             criarModal('histEscolhaModal', '<div style="text-align:center;margin-bottom:18px;"><div style="font-size:2.2em;">🗄️</div><h3 style="font-size:1em;color:#1a1a2e;margin-top:6px;">Histórico</h3><p style="font-size:0.72em;color:#888;">Escolha o tipo de registro</p></div><div style="display:flex;flex-direction:column;gap:10px;"><button onclick="fecharModal(\'histEscolhaModal\');abrirHistorico();" style="width:100%;padding:16px;border:1px solid #e0e0e0;border-radius:12px;background:#fff;color:#1a1a2e;font-size:0.9em;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:12px;"><span style="font-size:1.5em;color:#2563eb;">🔗</span><span style="text-align:left;"><span style="display:block;">Encaixes</span><span style="display:block;font-size:0.7em;color:#888;font-weight:400;">OPs e bobinas encaixadas</span></span></button><button onclick="fecharModal(\'histEscolhaModal\');abrirHistConf();" style="width:100%;padding:16px;border:1px solid #e0e0e0;border-radius:12px;background:#fff;color:#1a1a2e;font-size:0.9em;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:12px;"><span style="font-size:1.5em;color:#2563eb;">✅</span><span style="text-align:left;"><span style="display:block;">Conferências</span><span style="display:block;font-size:0.7em;color:#888;font-weight:400;">Bobinas encontradas e removidas</span></span></button><button onclick="fecharModal(\'histEscolhaModal\')" style="width:100%;padding:12px;border:none;border-radius:10px;background:#ef4444;color:#fff;font-size:0.85em;cursor:pointer;">Cancelar</button></div>');
         }
