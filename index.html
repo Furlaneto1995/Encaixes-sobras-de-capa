@@ -5391,80 +5391,79 @@ async function salvarTudoNuvem() {
     }
 }
 
+
 async function sincronizarDaNuvem() {
-localStorage.setItem('enc_modo_nuvem', '1');
+    localStorage.setItem('enc_modo_nuvem', '1');
+
     var lo = document.getElementById('lo'), lt = document.getElementById('lt');
     lo.classList.add('active');
     lt.textContent = 'Sincronizando da nuvem...';
 
     try {
-        var mudancas = [];
+        console.log('SYNC: iniciando...');
 
         // Observações
         var docObs = await db.collection('config').doc('observacoes').get();
+        console.log('SYNC: obs ok');
         if (docObs.exists && docObs.data().dados) {
             estObservacoes = JSON.parse(docObs.data().dados);
             localStorage.setItem('enc_obs', JSON.stringify(estObservacoes));
-            mudancas.push('💬' + Object.keys(estObservacoes).length);
         }
 
         // Ocultos
         var docOc = await db.collection('config').doc('ocultos').get();
+        console.log('SYNC: ocultos ok');
         if (docOc.exists && docOc.data().dados) {
             confOcultos = JSON.parse(docOc.data().dados);
             localStorage.setItem('enc_ocultos', JSON.stringify(confOcultos));
-            mudancas.push('👁️' + Object.keys(confOcultos).length);
         }
 
         // Divisões
         var docDiv = await db.collection('config').doc('divisoes').get();
+        console.log('SYNC: divisoes ok');
         if (docDiv.exists && docDiv.data().dados) {
             window.confDivisoes = JSON.parse(docDiv.data().dados);
             localStorage.setItem('enc_divisoes', JSON.stringify(window.confDivisoes));
-            mudancas.push('✂️' + Object.keys(window.confDivisoes).length);
         }
 
         // Conferência
         var docConf = await db.collection('config').doc('confStatus').get();
+        console.log('SYNC: confStatus ok');
         if (docConf.exists && docConf.data().dados) {
             confStatus = JSON.parse(docConf.data().dados);
             localStorage.setItem('enc_conf', JSON.stringify(confStatus));
-            mudancas.push('✅conf');
         }
 
         // Estoque
         lt.textContent = 'Baixando estoque...';
         var estMeta = await db.collection('config').doc('estoque_meta').get();
+        console.log('SYNC: estoque_meta ok | existe=' + estMeta.exists);
         if (estMeta.exists) {
             var estPartes = estMeta.data().partes || 0;
+            console.log('SYNC: estoque partes=' + estPartes);
             var estNovo = [];
             for (var i = 0; i < estPartes; i++) {
                 var parte = await db.collection('config').doc('estoque_' + i).get();
+                console.log('SYNC: estoque_' + i + ' ok | existe=' + parte.exists);
                 if (parte.exists && parte.data().dados) {
                     var pedaco = JSON.parse(parte.data().dados);
                     for (var a = 0; a < pedaco.length; a++) estNovo.push(pedaco[a]);
                 }
             }
+            console.log('SYNC: estoque total carregado=' + estNovo.length);
             if (estNovo.length > 0) {
                 estoque = estNovo;
-                try { localStorage.setItem('enc_estoque', JSON.stringify(estoque)); } catch (e) { }
-                // Limpa estoque antigo do objeto principal
-                try {
-                    var lsMain = localStorage.getItem(LS);
-                    if (lsMain) {
-                        var mainObj = JSON.parse(lsMain);
-                        if (mainObj.estoque) { delete mainObj.estoque; localStorage.setItem(LS, JSON.stringify(mainObj)); }
-                    }
-                } catch (e) { }
-                mudancas.push('📦' + estoque.length);
+                try { localStorage.setItem('enc_estoque', JSON.stringify(estoque)); } catch (e) { console.error('SYNC: erro ao salvar enc_estoque', e); }
             }
         }
 
         // Fila Extrusão
         lt.textContent = 'Baixando fila extrusão...';
         var filaMeta = await db.collection('config').doc('fila_meta').get();
+        console.log('SYNC: fila_meta ok | existe=' + filaMeta.exists);
         if (filaMeta.exists) {
             var filaPartes = filaMeta.data().partes || 0;
+            console.log('SYNC: fila partes=' + filaPartes);
             var filaNova = [];
             for (var j = 0; j < filaPartes; j++) {
                 var parteF = await db.collection('config').doc('fila_' + j).get();
@@ -5473,23 +5472,17 @@ localStorage.setItem('enc_modo_nuvem', '1');
                     for (var b = 0; b < pedacoF.length; b++) filaNova.push(pedacoF[b]);
                 }
             }
+            console.log('SYNC: fila total carregado=' + filaNova.length);
             if (filaNova.length > 0) {
                 fila = filaNova;
-                try { localStorage.setItem('enc_fila', JSON.stringify(fila)); } catch (e) { }
-                try {
-                    var lsMain2 = localStorage.getItem(LS);
-                    if (lsMain2) {
-                        var mainObj2 = JSON.parse(lsMain2);
-                        if (mainObj2.fila) { delete mainObj2.fila; localStorage.setItem(LS, JSON.stringify(mainObj2)); }
-                    }
-                } catch (e) { }
-                mudancas.push('🏭' + fila.length);
+                try { localStorage.setItem('enc_fila', JSON.stringify(fila)); } catch (e) { console.error('SYNC: erro ao salvar enc_fila', e); }
             }
         }
 
         // Fila Laminação
         lt.textContent = 'Baixando fila laminação...';
         var lamMeta = await db.collection('config').doc('filaLam_meta').get();
+        console.log('SYNC: filaLam_meta ok | existe=' + lamMeta.exists);
         if (lamMeta.exists) {
             var lamPartes = lamMeta.data().partes || 0;
             var lamNova = [];
@@ -5500,23 +5493,17 @@ localStorage.setItem('enc_modo_nuvem', '1');
                     for (var c = 0; c < pedacoL.length; c++) lamNova.push(pedacoL[c]);
                 }
             }
+            console.log('SYNC: filaLam total carregado=' + lamNova.length);
             if (lamNova.length > 0) {
                 filaLaminacao = lamNova;
-                try { localStorage.setItem('enc_filaLam', JSON.stringify(filaLaminacao)); } catch (e) { }
-                try {
-                    var lsMain3 = localStorage.getItem(LS);
-                    if (lsMain3) {
-                        var mainObj3 = JSON.parse(lsMain3);
-                        if (mainObj3.filaLaminacao) { delete mainObj3.filaLaminacao; localStorage.setItem(LS, JSON.stringify(mainObj3)); }
-                    }
-                } catch (e) { }
-                mudancas.push('✨' + filaLaminacao.length);
+                try { localStorage.setItem('enc_filaLam', JSON.stringify(filaLaminacao)); } catch (e) { console.error('SYNC: erro ao salvar enc_filaLam', e); }
             }
         }
 
         // Encaixes
         lt.textContent = 'Baixando encaixes...';
         var encMeta = await db.collection('config').doc('encaixes_meta').get();
+        console.log('SYNC: encaixes_meta ok | existe=' + encMeta.exists);
         if (encMeta.exists) {
             var encPartes = encMeta.data().partes || 0;
             if (encMeta.data().origNm) origNm = encMeta.data().origNm;
@@ -5528,6 +5515,7 @@ localStorage.setItem('enc_modo_nuvem', '1');
                     for (var d = 0; d < pedacoE.length; d++) encNovo.push(pedacoE[d]);
                 }
             }
+            console.log('SYNC: encaixes total carregado=' + encNovo.length);
             if (encNovo.length > 0) {
                 B = encNovo;
                 for (var n = 0; n < B.length; n++) {
@@ -5537,11 +5525,44 @@ localStorage.setItem('enc_modo_nuvem', '1');
                     if (!B[n].fotoNm) B[n].fotoNm = '';
                 }
                 grp();
-                mudancas.push('🔗' + B.length);
             }
         }
 
+        console.log('SYNC: chegou no final | est=' + estoque.length + ' fila=' + fila.length + ' B=' + B.length);
+
         lo.classList.remove('active');
+
+        // Marca timestamp da última sincronização
+        localStorage.setItem('enc_sync_ts', Date.now().toString());
+        localStorage.setItem('enc_modo_nuvem', '1');
+
+        try { localStorage.setItem('enc_estoque', JSON.stringify(estoque)); } catch(e) {}
+        try { localStorage.setItem('enc_fila', JSON.stringify(fila)); } catch(e) {}
+        try { localStorage.setItem('enc_filaLam', JSON.stringify(filaLaminacao)); } catch(e) {}
+
+        salvarCacheNuvemLocal();
+
+        var dadosB = {
+            B: B.map(function(b) {
+                return {
+                    id: b.id, enc: b.enc, item: b.item, ver: b.ver,
+                    larg: b.larg, esp: b.esp, pig: b.pig, qtde: b.qtde,
+                    material: b.material || '', largOP: b.largOP || '',
+                    apresentacao: b.apresentacao || '',
+                    ok: b.ok || false, manual: b.manual || false,
+                    foto: null, fotoEtiqueta: null, fotoNm: ''
+                };
+            }),
+            origNm: origNm,
+            sessaoQrAtualId: sessaoQrAtualId || ''
+        };
+        try { localStorage.setItem(LS, JSON.stringify(dadosB)); } catch(e) {}
+
+        var mudancas = [];
+        if (estoque.length) mudancas.push('📦' + estoque.length);
+        if (fila.length) mudancas.push('🏭' + fila.length);
+        if (filaLaminacao.length) mudancas.push('✨' + filaLaminacao.length);
+        if (B.length) mudancas.push('🔗' + B.length);
 
         if (mudancas.length > 0) {
             toast('🔄 Sincronizado! ' + mudancas.join(' | '), 'success', 4000);
@@ -5549,35 +5570,7 @@ localStorage.setItem('enc_modo_nuvem', '1');
             toast('🔄 Nuvem vazia', 'info');
         }
 
-        // Marca timestamp da última sincronização
-localStorage.setItem('enc_sync_ts', Date.now().toString());
-localStorage.setItem('enc_modo_nuvem', '1');
-
-try { localStorage.setItem('enc_estoque', JSON.stringify(estoque)); } catch(e) {}
-try { localStorage.setItem('enc_fila', JSON.stringify(fila)); } catch(e) {}
-try { localStorage.setItem('enc_filaLam', JSON.stringify(filaLaminacao)); } catch(e) {}
-
-// Salva cache específico da nuvem
-salvarCacheNuvemLocal();
-
-// Salva encaixes também
-var dadosB = {
-    B: B.map(function(b) {
-        return {
-            id: b.id, enc: b.enc, item: b.item, ver: b.ver,
-            larg: b.larg, esp: b.esp, pig: b.pig, qtde: b.qtde,
-            material: b.material || '', largOP: b.largOP || '',
-            apresentacao: b.apresentacao || '',
-            ok: b.ok || false, manual: b.manual || false,
-            foto: null, fotoEtiqueta: null, fotoNm: ''
-        };
-    }),
-    origNm: origNm,
-    sessaoQrAtualId: sessaoQrAtualId || ''
-};
-try { localStorage.setItem(LS, JSON.stringify(dadosB)); } catch(e) {}
-
-build();
+        build();
         save();
         atualizarInfo();
         if (document.getElementById('estModal').classList.contains('active')) estRender();
@@ -5585,9 +5578,11 @@ build();
 
     } catch (err) {
         lo.classList.remove('active');
+        console.error('SYNC ERRO:', err);
         toast('Erro: ' + err.message, 'error');
     }
 }
+
 
 function dividirEmPedacos(arr, tamanho) {
     var pedacos = [];
