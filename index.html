@@ -3385,7 +3385,8 @@
         //                    IMPORTAR
         // ================================================================
         function infoEstoque() {
- localStorage.setItem('enc_import_ts', Date.now().toString());
+            localStorage.setItem('enc_import_ts', Date.now().toString());
+            localStorage.setItem('enc_modo_nuvem', '0');
             var total = 0, metalizados = 0;
             for (var i = 0; i < estoque.length; i++) {
                 if (/-4$/.test(getItemEstoque(estoque[i]))) metalizados++;
@@ -5544,6 +5545,8 @@ var dadosB = {
     sessaoQrAtualId: sessaoQrAtualId || ''
 };
 try { localStorage.setItem(LS, JSON.stringify(dadosB)); } catch(e) {}
+
+localStorage.setItem('enc_modo_nuvem', '1');
 
 build();
         save();
@@ -8166,21 +8169,29 @@ carregarObsNuvem().then(function() {
     console.error('Erro ao carregar da nuvem:', e);
 });
 
-        try {
-            var carregou = load();
-            console.log('Init: carregou=' + carregou + ' B=' + B.length + ' est=' + estoque.length + ' fila=' + fila.length);
+       try {
+    var carregou = load();
+    console.log('Init: carregou=' + carregou + ' B=' + B.length + ' est=' + estoque.length + ' fila=' + fila.length);
 
-            if (carregou && B.length > 0) {
-                setTimeout(function () {
-                    grp();
-                    build();
-                    atualizarInfo();
-                    console.log('Init: UI atualizada com ' + B.length + ' encaixes');
-                }, 200);
-            }
-        } catch (e) {
-            console.error('Erro no init:', e);
-        }
+    // Se a última origem foi nuvem, sincroniza automaticamente ao abrir
+    if (localStorage.getItem('enc_modo_nuvem') === '1') {
+        setTimeout(function () {
+            console.log('Init: modo nuvem ativo, sincronizando...');
+            sincronizarDaNuvem();
+        }, 300);
+    } else if (carregou && B.length > 0) {
+        setTimeout(function () {
+            grp();
+            build();
+            atualizarInfo();
+            console.log('Init: UI atualizada com ' + B.length + ' encaixes');
+        }, 200);
+    } else {
+        atualizarInfoEstoque();
+    }
+} catch (e) {
+    console.error('Erro no init:', e);
+}
 
         function limparNovas() {
             bobinasNovas = {};
