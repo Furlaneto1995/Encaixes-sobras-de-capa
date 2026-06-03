@@ -2246,7 +2246,7 @@
                     style="flex:1;min-width:100px;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#fff;color:#333;font-size:0.85em;">
                 <input type="text" id="hOP" placeholder="🔍 OP" inputmode="numeric"
                     style="flex:1;min-width:70px;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#fff;color:#333;font-size:0.85em;">
-                <input type="text" id="hItem" placeholder="🔍 Item / Material"
+                <input type="text" id="hItem" placeholder="🔍 Item / Material / Fórmula"
                     style="flex:1;min-width:70px;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#fff;color:#333;font-size:0.85em;">
             </div>
             <div style="display:flex;gap:6px;">
@@ -4942,6 +4942,7 @@ function fecharEncaixarDoEstoque() {
                         largura: b.larg || '',
                         espessura: b.esp || '',
                         pigmento: b.pig || '',
+                        formula: buscarFormulaDoItem(b.item) || '',
                         chave: mkChave(b),
                         qtde: b.qtde || '',
                         manual: b.manual ? 'S' : 'N',
@@ -7097,6 +7098,14 @@ if (pri >= 99) {
         // ================================================================
         //                    CHAVES
         // ================================================================
+function buscarFormulaDoItem(item) {
+    for (var i = 0; i < estoque.length; i++) {
+        if (getItemEstoque(estoque[i]) === item) {
+            return normalizarComposicao(estoque[i]['COMPOSICAO'] || '');
+        }
+    }
+    return '';
+}
         function mkChave(b) { return (b.item || '') + ' | ' + (b.ver || '') + ' | ' + (b.larg || '') + ' | ' + (b.esp || '') + ' | ' + (b.pig || ''); }
         function mkChaveGrp(b) { return b.enc + '||' + b.item + '-' + b.ver + '-' + b.larg + '-' + b.esp + '-' + b.pig; }
 
@@ -7356,9 +7365,10 @@ function salvarObservacao(item, texto) {
                         encaixe: d.encaixe || '',
                         item: d.item || '',
                         versao: d.versao || '',
-                        largura: d.largura || '',       // ✨ NOVO
-                        espessura: d.espessura || '',   // ✨ NOVO
-                        pigmento: d.pigmento || '',     // ✨ NOVO
+                        largura: d.largura || '',
+                        espessura: d.espessura || '',
+                        pigmento: d.pigmento || '',
+                        formula: d.formula || '',
                         chave: d.chave || '',
                         qtde: d.qtde || '',
                         manual: d.manual || 'N',
@@ -7372,9 +7382,11 @@ function salvarObservacao(item, texto) {
                         var itemLimpo = (r.item || '').toUpperCase().replace(/-/g, '');
                         var materialLimpo = (r.material || '').toUpperCase().replace(/-/g, '');
                         var chaveLimpa = (r.chave || '').toUpperCase().replace(/-/g, '');
+                        var formulaLimpa = (r.formula || '').toUpperCase().replace(/-/g, '');
                         return itemLimpo.indexOf(fILimpo) > -1 ||
                             materialLimpo.indexOf(fILimpo) > -1 ||
-                            chaveLimpa.indexOf(fILimpo) > -1;
+                            chaveLimpa.indexOf(fILimpo) > -1 ||
+                            formulaLimpa.indexOf(fILimpo) > -1;
                     });
                 }
                 hRender();
@@ -7425,11 +7437,12 @@ function salvarObservacao(item, texto) {
                     lote.regs.map(function (reg) {
                         // ✨ NOVO: Monta a linha de medidas
                         var medidas = '';
-                        if (reg.largura || reg.espessura || reg.pigmento) {
+                        if (reg.largura || reg.espessura || reg.pigmento || reg.formula) {
                             var partes = [];
                             if (reg.largura) partes.push('📏' + reg.largura + 'cm');
                             if (reg.espessura) partes.push('📐' + reg.espessura + 'mu');
                             if (reg.pigmento) partes.push('🎨' + reg.pigmento);
+                            if (reg.formula) partes.push('🧪' + reg.formula);
                             medidas = '<div style="font-size:0.65em;color:#888;margin-top:2px;">' + partes.join(' • ') + '</div>';
                         }
 
