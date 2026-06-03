@@ -7425,6 +7425,7 @@ function salvarObservacao(item, texto) {
                 hRegs = [];
                 snap.forEach(function (doc) {
                     var d = doc.data();
+console.log('HIST REG:', d.item, 'formula=', d.formula);
                     hRegs.push({
                         id: doc.id,
                         data: d.data || '',
