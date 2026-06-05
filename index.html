@@ -5581,11 +5581,20 @@ if (!B[n].formula) B[n].formula = '';
             toast('🔄 Nuvem vazia', 'info');
         }
 
-        build();
-        save();
-        atualizarInfo();
-        if (document.getElementById('estModal').classList.contains('active')) estRender();
-        if (document.getElementById('confModal').classList.contains('active')) confRender();
+carregarHistoricoConferencia().then(function() {
+    console.log('Histórico conferência carregado após sync');
+    build();
+    save();
+    atualizarInfo();
+    if (document.getElementById('estModal').classList.contains('active')) estRender();
+    if (document.getElementById('confModal').classList.contains('active')) confRender();
+}).catch(function() {
+    build();
+    save();
+    atualizarInfo();
+    if (document.getElementById('estModal').classList.contains('active')) estRender();
+    if (document.getElementById('confModal').classList.contains('active')) confRender();
+});
 
     } catch (err) {
         lo.classList.remove('active');
@@ -8336,10 +8345,17 @@ try {
         }
 
         carregarObsNuvem().then(function() {
-            console.log('Obs e ocultos carregados da nuvem');
-        }).catch(function(e) {
-            console.error('Erro ao carregar da nuvem:', e);
-        });
+    console.log('Obs e ocultos carregados da nuvem');
+    return carregarHistoricoConferencia();
+}).then(function() {
+    console.log('Histórico conferência carregado');
+    if (B.length > 0) {
+        grp();
+        build();
+    }
+}).catch(function(e) {
+    console.error('Erro ao carregar da nuvem:', e);
+});
     }
 } catch (e) {
     console.error('Erro no init:', e);
