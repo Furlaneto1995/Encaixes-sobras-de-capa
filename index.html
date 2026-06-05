@@ -2005,6 +2005,14 @@
                             <div class="mi-desc">Por que ficaram de fora</div>
                         </div>
                     </div>
+
+<div class="menu-item" onclick="toggleMenu();abrirFormulas();">
+    <div class="mi-icon">🧪</div>
+    <div class="mi-text">
+        <div class="mi-title">Fórmulas</div>
+        <div class="mi-desc">Catálogo de fórmulas e descrições</div>
+    </div>
+</div>
                     <div class="menu-item" onclick="toggleMenu();debugar();">
                         <div class="mi-icon">🔍</div>
                         <div class="mi-text">
@@ -4121,7 +4129,367 @@ function carregarCacheNuvemLocal() {
                 '<div style="font-size:0.8em;font-weight:700;color:' + cor + ';margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + valor + '</div>' +
                 '<div style="font-size:0.45em;color:#888;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + label + '</div>' +
                 '</div>';
+        }// ================================================================
+//                    CATÁLOGO DE FÓRMULAS
+// ================================================================
+var catalogoFormulas = [
+    ["10001347","FÓRMULA FILME FRANGO CARNES TRANSP. PE OU PE+PE"],
+    ["1000137","FÓRMULA SACO FRANGO TRANSP. ABERTO 2 LADOS ESP. À PARTIR 50 PAREDE"],
+    ["1000595","FÓRMULA SACO FUNDO REDONDO PIG. BRANCO - FARENZENA - 31/01/23"],
+    ["10001215","FÓRMULA COEX FILME ARROZ 1 E 2 KG 3310 04.12.19"],
+    ["10001282","FORMULA BASE SACO RACAO PIG BRANCO LAMINADO COM PE / PEAD / PET"],
+    ["10001301","FÓRMULA SACO PÃO TRANSP. BIMBO 19/07/22"],
+    ["10001249","FÓRMULA SACO FRANGO PE + PE TRANSP. ABERTO 2 LADOS ESP À PARTIR 30 PAREDE"],
+    ["10001853","FOR CAPA RAÇÃO PEAD MATIF - MAIOR COF 0,40 - 20.01.2025"],
+    ["10001261","FÓRMULA CAPA IQF 12/05/20"],
+    ["1000001","FOR SACO FRANGO TRANSP - ABERTO 2 LADOS ESP 35 A 45 PAREDE"],
+    ["10001233","FORMULA FILME COEX COF INT 0,10 A 0,15 PIG BRANCO 26.02.2020"],
+    ["10001350","FÓRMULA COEX ARROZ 5KG ACIMA 70 MICRAS - 27/05/2015"],
+    ["10001266","FÓRMULA CAPA PERDIGÃO PIG. BCO 13/05/20"],
+    ["10001006","FORMULA AURORA 120 MICRAS 15 DE NYLON - PE/PE/AD/PA/PA/PA/AD/PE/PE"],
+    ["10001720","FÓRMULA FILME 68 NYLON (COPO) PIG. BRANCO - 12 PA - 31.07.23"],
+    ["1000002","FOR SACO FRANGO PIG BRANCO - ABERTO 2 LADOS ESP 35 A 50 PAREDE"],
+    ["1000620","FÓRMULA TAMPA BRANCA - 58 - ALTA BARREIRA - PE/PE/AD/PA/EVOH/PA/AD/PE/PE"],
+    ["1000625","FORMULA TAMPA TRANSPARENTE - 58 - ALTA BARREIRA- PE/PE/AD/PA/EVOH/PA/AD/PE/PE"],
+    ["10001346","FÓRMULA FILME FRANGO"],
+    ["10001389","FORMULA NYLON 50 MICRAS AURORA FILME - 12 DE PA SO COPO 15.06.2021"],
+    ["1000868","FORMULA LAMINADO PE + PE SACO SOLDA REF COM ALÇA 28/03/18"],
+    ["10001550","FORMULA PEAD COEX HAMB STAKES BRF 30/06/22"],
+    ["1000282","FOR FRANGO TRANSP - ABERTO 1 LADO ESP 50 A 80 TOTAL E ABERTO 2 LADOS ESPECIF"],
+    ["1000451","FORMULA TAMPA BRF - 78 - ALTA BARREIRA BRANCO - EASY OPEN- PE/PE/AD/PA/EVOH/PA/AD/PE/EASY OPEN"],
+    ["1000745","FORMULA NYLON BRF - 300 30µm DE PA - PE/PE/AD/PA/PA/PA/AD/PE/PE"],
+    ["10001260","FORMULA CAPA ADRAM (COEX) 12/05/20"],
+    ["10001394","FÓRMULA TRANSPARENTE RAÇÃO NUTRISANTOS COF ALTO 31/07/21"],
+    ["10001416","FÓRMULA COEX BALDINI 05/05/23"],
+    ["1000912","FÓRMULA SACO FUNDO REDONDO PIG. BRANCO - GRILLER 31/01/23"],
+    ["1000892","FÓRMULA FUNDO AQUAREX 150 MICRAS COOK-IN - IONÔMERO/AD/AD/PA/EVOH/PA/AD/PP/PP"],
+    ["10001349","FÓRMULA MONO FILME CEREAIS/GRÃOS LAMINADOS E NÃO LAMINADOS"],
+    ["10001314","FÓRMULA MIG PLUS SELAGEM SOBRE CONTAMINANTE C/ AFFINITTY 18.09.2020"],
+    ["1000611","FORMULA TAMPA - 78 - ALTA BARREIRA- PE/PE/AD/PA/EVOH/PA/AD/PE/PE"],
+    ["10001343","FÓRMULA FILME P/ CEREAIS EM PÓ COM ANTIESTÁTICO"],
+    ["1000865","FORMULA FUNDO AQUAREX 150 MICRAS - PE/PE/AD/PA/EVOH/PA/AD/PP/PP"],
+    ["10001363","FORMULA CEREAIS EM PO COM PIG BRANCO"],
+    ["10001790","FOR FILME NYLON 70 - 14 PA - BRF FV38 LAJEADO - EXCEED ATUALIZ 16.09.24"],
+    ["10001843","FOR BASE TEKITOS PE TRANSP RETIRADA DO NYLON - 07.11.24"],
+    ["1000279","FORMULA FILME PIG. BRANCO LAMINADO PET + PE RAÇÃO 09/06/21"],
+    ["1000334","FORMULA PICOTADO PELBD TRANSP - ETAPA 10"],
+    ["1000710","FORMULA NYLON - 200 - 30 DE PA - PE/PE/AD/PA/AD/PA/AD/PE/PE 28/10/16"],
+    ["1000878","FORMULA FUNDO 200 - ALTA BARREIRA- PP/PP/AD/PA/EVOH/PA/AD/PE/PE 02/06/19"],
+    ["1100073","FÓRMULA PIG. AZUL 5% COOP LAR/COPACOL/GONÇALVES E TORTOLA"],
+    ["10001116","FORMULA NYLON - 240 - JBS - 30 DE PA - PE/PE/AD/PA/AD/PA/AD/PE/PE 14/05/19"],
+    ["1000601","FORMULA SACO TRANSPARENTE GRILLER - FARENZENA 17/02/23"],
+    ["10001348","FÓRMULA MONO FILME PARA GELO"],
+    ["10001767","FOR FILME PIG BRANCO PARATI COM BHT ANTIOXIDANTE - 21.03.24"],
+    ["1000486","FORMULA NYLON ALIBEM SALSICHA 180 - 25 DE PA - PE/PE/AD/PA/PA/PA/AD/PE/PE"],
+    ["10001855","FOR FILME PIG BRANCO SABAO EM PO GTEX - 17.02.25"],
+    ["10001856","FOR FILME TRANSP EXTERNA SABAO EM PO GTEX - 17.02.25"],
+    ["10001469","FORMULA FILME LAMINADO C-VALE 07/03/22"],
+    ["10001544","FORMULA SACO 200 20 DE PA 3 DE EVOH ALTA BARREIRA(SÓ COPO)- PE/PE/AD/PA/EVOH/PA/AD/PE/PE"],
+    ["10001866","FOR SACO PAO TRANSP BIMBO TRADICIONAIS RJ E JABOATAO - 07.04.25"],
+    ["1000559","FORMULA TAMPA BRF - 78- ALTA BARREIRA - EASY OPEN- PE/PE/AD/PA/EVOH/PA/AD/PE/EASY OPEN"],
+    ["1000687","FORMULA PEAD BALÃO ENCAIXADO 08/08/16"],
+    ["10001276","FÓRMULA CAPA SACO PET + PE PIG BCO 12/06/20"],
+    ["10001279","FÓMULA CAPA SACO PET + PE TRANSP. - 12/06/20"],
+    ["10001354","FORMULA CAPA ADRAM 26.01.21"],
+    ["10001171","FOR FILME TRANSP SAL REFISA 3310 - 11.09.19"],
+    ["10001210","FORMULA ENFARDADEIRA COEX PA REC. 19.02.2020"],
+    ["10001745","FOR FILME FOLHA PICOTADO PEAD VERDE 3255 AURORA - ATUALIZ 10.09.24"],
+    ["1000362","FORMULA CONTRATIL PIG BRANCO COPACOL"],
+    ["1000569","FORMULA NYLON BRF - 300 - 34 DE PA - PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["1000612","FORMULA TAMPA BRANCA - 78 - ALTA BARREIRA- PE/PE/AD/PA/EVOH/PA/AD/PE/PE"],
+    ["1000875","FORMULA FUNDO 130 - ALTA BARREIRA- PP/PP/AD/PA/EVOH/PA/AD/PE/PE"],
+    ["10001344","FORMULA FILME AGROSUL COEX - ATUALIZ 02.07.24"],
+    ["10001627","FORMULA COEX PEAD PIGMENTADO BRANCO REFRESCO 43 MICRAS - 03/11/22"],
+    ["1000209","FÓRMULA CAPA P/ PÓ FILME SACHET NINFA 30/04/21"],
+    ["1000289","FÓRMULA MIX FARDO (TESTE PILLON)"],
+    ["1000311","FOR CONTRATIL SACO ESPESSURA =/- QUE 80"],
+    ["10001078","FÓRMULA ALTA BARREIRA 90µM BRF - PE/PE/AD/PA/EVOH/PA/AD/AD/PP"],
+    ["10001162","FORMULA TAMPA 78 MICRAS COOK-IN - IONOMERO/AD/AD/PA/EVOH/PA/AD/PE/PE (SÓ COPO)"],
+    ["10001414","FÓRMULA SACO PE PIG. VERDE FARINHA/PÓ ABAIXO 100 MICRAS"],
+    ["10001512","FORMULA ALTA BARREIRA 200 MICRAS - 20 PA 4 EVOH 27/04/22"],
+    ["1000277","FÓRMULA LINEAR PIG. VERDE COPAGRIL"],
+    ["1000422","FORMULA NYLON 200 - 15 DE PA - PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["1000541","FORMULA FILME VIBRA 80 MEDIA BARREIRA 12 PA - PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["1000609","FÓRMULA TAMPA NYLON BRANCO 78 - 12 DE PA PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["1000637","FORMULA NYLON BRANCO - 58 - 18 DE PA - PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["1000895","FÓRMULA VERDE 3255 ESPESSURA 100 À 160"],
+    ["10001008","FORMULA AURORA 200 MICRAS 30 DE NYLON - PE/PE/AD/PA/PA/PA/AD/PE/PE"],
+    ["10001314","FÓRMULA MIG PLUS SELAGEM SOBRE CONTAMINANTE C/ AFFINITTY 29.03.2022"],
+    ["10001332","FORMULA FILME PIGMENTADO BRANCO CMS"],
+    ["10001784","FOR FILME NYLON 60 MICRAS AURORA 12 DE PA SO COPO 09.03.24"],
+    ["10001870","FORMULA CAPAS DE BOBINAS INTERNAS E SACOS APARA RECUPERADO COM TINTA"],
+    ["1000193","FORMULA AZUL COOP LAR"],
+    ["1000434","FORMULA NYLON - 160 - 20 DE PA - PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["1000537","FORMULA SACO AURORA 180 ALTA BARREIRA 14 PA EXCEED 1012 09.11.23"],
+    ["1000772","FORMULA COEX PRETO/BRANCO COM BARREIRA 30/09/21"],
+    ["1000853","FORMULA LINEAR PIG AMARELO YELLOW C - BRF LAJEADO"],
+    ["10001408","FORMULA ERUCAMIDA VERDE 347C"],
+    ["10001474","FÓRMULA NYLON 150 MICRAS 15 DE PA 18/03/22 (C/AFFINITY)"],
+    ["10001850","FOR FILME GOEMIL PIG BRANCO - 03.01.25"],
+    ["1000046","FORMULA RECUPERADO BRANCO"],
+    ["1000426","FORMULA NYLON BRF - 150 - 22 DE PA - PE/PE/AD/PA/PA/PA/AD/PE/PE"],
+    ["1000797","FORMULA CAPA CUSCUZ 03/07/17 ATUALIZADA EM 17/08/17"],
+    ["1000798","FORMULA BASE PIG BRANCO CUSCUZ 03/07/17"],
+    ["1000877","FORMULA FUNDO 180 - ALTA BARREIRA- PP/PP/AD/PA/EVOH/PA/AD/PE/PE"],
+    ["1000968","FÓRMULA SACO PIG. AZUL 2915 BRF (ESP 100 À 150)"],
+    ["10001180","FORMULA ALTA BARREIRA PIG BRANCO 98µm - PE/PE/AD/PA/EVOH/PA/AD/PE/PE"],
+    ["10001278","FORMULA TRANSPARENTE LAMINADO C/ ZIPER 12/06/20"],
+    ["10001345","FÓRMULA FILME BRF COEX COF INT 0,10 À 0,15 COF EXTERNO 0,20 À 0,25 15/02/21"],
+    ["10001365","FÓRMULA FILME PIG. BCO. B. D."],
+    ["10001516","FORMULA PE83 COEX MELHOR SELAGEM PE83 AZUL BRF 03.11.2022"],
+    ["1000058","FORMULA RECUPERADO TRANSPARENTE"],
+    ["1000105","FOR FILME FEIJAO GADKIN COM MAIOR TRANSPARENCIA - 12.09.24"],
+    ["1000425","FORMULA NYLON 150 JBS - 12 PA 3 EVOH - PE/PE/AD/PA/EVOH/PA/AD/PE/PE"],
+    ["1000525","FORMULA MEDIA BARREIRA - 180 - 28 DE PA - PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["1000634","FORMULA PARA FRANGO E PEIXE LAMINADO"],
+    ["1000642","FORMULA ALTA BARREIRA - 160 - 14 PA 4 EVOH PE/PE/AD/PA/EVOH/PA/AD/PE/PE"],
+    ["1000665","FORMULA NYLON JBS - 78 - 15 DE PA - PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["1000669","FORMULA NYLON - 280 - FRIMESA - 30 DE PA - PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["1000682","FORMULA NYLON - 160 - 25 de PA- PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["1000814","FÓRMULA FOLHA AZUL 300/3005"],
+    ["10001123","FOR FILME ALTA BARREIRA PIG BRANCO FUGINI 149 MICRAS 6 EVOH 14 PA - ATUALIZ 28.10.24"],
+    ["10001215","FOR COEX FILME ARROZ 1 E 2 KG 3310 - 20.06.24 (MAQ 125)"],
+    ["10001244","FORMULA TAMPA - 58 - ALTA BARREIRA - EASY OPEN- PE/PE/AD/PA/EVOH/PA/AD/PE/EASY OPEN"],
+    ["10001252","FÓR. SACO FRANGO PE+PE PIG BRANCO - AB. 2 LADOS ESP. À PARTIR 30 PAREDE"],
+    ["10001532","FOR FILME ALTA BARREIRA BRANCO FUGINI 92 - 4 EVOH 12 PA - 10.04.24"],
+    ["10001610","FORMULA FUNDO 200 - ALTA BARREIRA NYLON EXTERNO - PE/PE/AD/PA/EVOH/PA/AD/AD/PA"],
+    ["10001745","FOR FILME FOLHA PICOTADO PEAD VERDE 3255 AURORA ETAPA 11 - ATUALIZ 10.09.24"],
+    ["10001786","FOR SACO LAMINADO PE + PE PIG BRANCO PARA EMPANADOS (ANTIESTÁTICO) - 12.03.24"],
+    ["10001806","FOR FILME PE PAO DE QUEIJO RIO BRANCO PIF PAF TRANSP MELHOR SELAGEM - 06.05.24"],
+    ["1000135","FÓRMULA PIG. AZUL SADIA/BRF"],
+    ["1000348","FÓRMULA SACO FUNDO REDONDO PIG. BRANCO - MOBA - 31/01/23"],
+    ["1000454","FÓRMULA CARAMURU (COEX PP+PE P/ BARREIRA E TRANSPARÊNCIA)"],
+    ["1000501","FORMULA NYLON MEZZANI 60 - 12 PA"],
+    ["1000571","FÓRMULA FILME TRANSPARENTE NÃO LAMINADO VEGETAIS CONGELADOS OU RESFRIADOS"],
+    ["1000575","FORMULA NYLON - 240 - JBS - 30 DE PA - PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["1000630","FORMULA SACO JBS 250 ALTA BARREIRA- PE/PE/AD/PA/EVOH/PA/AD/PE/PE"],
+    ["1000759","FORMULA ALTA AZUL BALAO ENCAIXADO"],
+    ["1000781","FORMULA LINEAR PIG VERDE P 3278 3,5% ESPES."],
+    ["1000936","FÓRMULA FOLHA SADIA"],
+    ["10001038","FORMULA NYLON 50 AGROSUL FILME - 12 DE PA - PE/PE/AD/PA/PA/PA/AD/PE/PE 15/10/18"],
+    ["10001039","FORMULA NYLON 65 AGROSUL FILME - 12 DE PA - PE/PE/AD/PA/PA/PA/AD/PE/PE 15/10/18"],
+    ["10001100","FORMULA NYLON - 204 - 30 DE PA - PE/PE/AD/PA/PA/PA/AD/PE/PE SOMENTE COPO"],
+    ["10001265","FÓRMULA MISTURA BOLO E PÓ PIG. BCO (LAM PET) COEX 13/05/20"],
+    ["10001274","FORMULA FRALDA CAPRICHO TRANSPARENTE"],
+    ["10001279","FóRMULA COEX PET + PE TRANSPARENTE SACO 21/06/22"],
+    ["10001311","FÓRMULA NYLON BRF 35 PA PE/AD/PA/AD/PE 15.09.2020"],
+    ["10001381","FORMULA ATOMATADO 01/06/21 ATUALIZADO EM 28/10/22"],
+    ["10001448","FORMULA 78 - 24 DE PA- BISNAGA TIROL ATUALIZADO 06.03.23"],
+    ["10001583","FORMULA TAMPA CERATTI 53 - ALTA BARREIRA - PE/PE/AD/PA/EVOH/PA/AD/PE/PE"],
+    ["10001613","FOR FILME 50 CARNES E DER. MB TRANSPARENTE 8 PA LAMINADO DLZ 06.03.23"],
+    ["10001730","FÓRMULA FILME TRANSP. HAMBURGUER 3310 - 05.06.23"],
+    ["10001812","FOR SACO RACAO BASE DANES - MELHOR BARREIRA E SELAGEM - 20.05.24"],
+    ["1000027","FORMULA P/ SACO DE FARINHA ACIMA DE 10"],
+    ["1000296","FORMULA ARROZ 5KG ESPECIAL (CAPA/BASE)"],
+    ["1000333","FORMULA ANTI-ESTATICO MONJOLINHO (08/12)"],
+    ["1000371","FÓRMULA ARROZ 5 KG - PE VERDE"],
+    ["1000605","FORMULA NYLON - 140 - 20 DE PA - PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["1000607","FOR FILME 78 TAMPA MB TRANSPARENTE 12 PA LAMINADO 14.06.23"],
+    ["1000628","FORMULA FUNDO 170 AQUAREX - ALTA BARREIRA- PE/PE/AD/PA/EVOH/PA/AD/PP/PP"],
+    ["1000738","FORMULA NYLON/EVOH 240 - 20 DE PA 4 DE EVOH - PE/PE/AD/PA/EVOH/PA/AD/PE/PE"],
+    ["1000749","FÓRMULA NYLON JBS 88 - 15 DE PA - PE/PE/AD/PA/PA/PA/AD/PE/PE"],
+    ["1000756","FORMULA NYLON 58 - 15 DE PA - PE/PE/AD/PA/PA/PA/AD/PE/PE"],
+    ["1000759","FÓRMULA ALTA AZUL BALÃO ENCAIXADO"],
+    ["1000777","FORMULA PIG AZUL AURORA / BRF (ESP. 100 a 160)"],
+    ["10001007","FORMULA NYLON BRANCO 12 PA - 68 - PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["10001010","FORMULA C VALE 55 MICRAS - 12 DE PA - PE/PE/AD/PA/PA/PA/AD/PE/PE"],
+    ["10001029","FORMULA VERDE 3255 ESP 80 4,5%"],
+    ["10001079","FORMULA NYLON AURORA C/ 1012- 140 - 18 DE PA - PE/PE/AD/PA/PA/PA/AD/PE/PE 21/02/19"],
+    ["10001087","FÓRMULA SACO PÃO TRANSPARENTE GERAL 01.09.23"],
+    ["10001115","FORMULA NYLON - 200 - 30 DE PA - PE/PE/AD/PA/PA/PA/AD/PE/PE 14/05/19"],
+    ["10001124","FORMULA INDESTEL EVOH 140 TUBULAR ALTA BARREIRA 9 EVOH - 21.07.24"],
+    ["10001126","FOR FILME PAO CONGELADO PE E PE+PE"],
+    ["10001223","FORMULA FUNDO 90 - ALTA BARREIRA - PE/PE/AD/PA/EVOH/PA/AD/AD/PA"],
+    ["10001251","FÓRMULA SACO TRANSP PE / PE+PE COM ZIPPER"],
+    ["10001328","FORMULA RACAO 4 SOLDAS BOPP MATE + PE C/ A.E. 16.11.2020"],
+    ["10001341","FORMULA FILME PIG BRANCO COEX FRANGO PE OU PE + PE 08.01.2021"],
+    ["10001431","FORMULA GESSO 16/04/21"],
+    ["10001474","FORMULA NYLON 150 MICRAS 15 DE PA 18/03/22"],
+    ["10001515","FORMULA FOLHA E FILME PICOTADO PIG LARANJA AURORA"],
+    ["10001689","FÓRMULA TAMPA 58 MB TRANSPARENTE - 12 PA 01.03.23"],
+    ["10001780","FÓRMULA FILME FUGINI 80 ALTA BARREIRA 4 EVOH - 16.02.24"],
+    ["10001842","FOR TESTE TAMPA ALTA BARREIRA EXXONMOBIL 90 SEM PA - 02.11.24"],
+    ["10001857","FOR FILME 80 ALTA BARREIRA TRANSP - 8 PA 4 EVOH - 24.02.25"],
+    ["10001861","FOR TESTE FUNDO 130 AQUAREX DOW PHORMANTO 3 PRB 0131 - 14.11.25"],
+    ["1000008","FÓRMULA LINEAR PIG. PRETO"],
+    ["1000031","FORMULA FILME P/ PAPEL HIGIENICO"],
+    ["1000357","FORMULA SACO AZUL 2915 BRF"],
+    ["1000412","FORMULA GHEL PLUS COM ANTI ESTATICO - ATUALIZ 15.07.25"],
+    ["1000421","FORMULA NYLON BRF - 200 -32 DE PA- PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["1000451","FÓRMULA TAMPA BRF - 78 - ALTA BARREIRA BRANCO (8 de pa 4 evoh) - EASY OPEN - PE/PE/AD/PA/EVOH/PA/AD/PE/EASY OPEN"],
+    ["1000457","FORMULA NYLON - 260 - 26 DE PA - PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["1000538","FORMULA SACO 300 ALTA BARREIRA- PE/PE/AD/PA/EVOH/PA/AD/PE/PE"],
+    ["1000542","FORMULA NYLON - 200 - 20 DE PA- PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["1000608","FORMULA NYLON BRF - 220 - 30 DE PA - PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["1000638","FORMULA NYLON 200 - 22 DE PA - PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["1000722","FORMULA NYLON - 200 - 24 DE PA - PE/PE/AD/PA/PA/PA/AD/PE/PE ÓTIMA SELAGEM 29/11/16"],
+    ["1000865","FÓRMULA FUNDO AQUAREX 150 MICRAS - PE/PE/AD/PA/EVOH/PA/AD/PP/PP"],
+    ["1000885","FOR SACO NYLON MATSUDA PIG BRANCO COM BARREIRA AD 110 - 15 PA - 02.04.24"],
+    ["1000892","FOR TESTE FUNDO AQUAREX 200 MICRAS COOK IN - IONÔMERO - 01.12.25"],
+    ["1000892","FÓRMULA FUNDO AQUAREX 150 MICRAS COOKIN - IONÔMERO/AD/AD/PA/EVOH/PA/AD/PP/PP"],
+    ["1000927","FORMULA GOURMET LAM"],
+    ["1000980","FORMULA FILME CONTRATIL ESPESSURA ACIMA DE 50 26/01/23"],
+    ["10001027","FÓRMULA SACO NYLON MATSUDA PIG. BRANCO COM BARREIRA AD 90 - 14 PA - 02.04.24"],
+    ["10001041","FORMULA NYLON BRF VIDEIRA - 150 - 20 DE PA - PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["10001090","FORMULA TAMPA 78 ALTA BARREIRA TRANSP - ANTIFOG 8 PA 4 EVOH"],
+    ["10001106","FORMULA NYLON BRF 70 MICRAS - 12 DE PA - PE/PE/AD/PA/PA/PA/AD/PE/PE"],
+    ["10001121","FORMULA INDESTEL EVOH 150 TUBULAR ALTA BARREIRA 10 EVOH - 28.02.24"],
+    ["10001125","FORMULA PAMPLONA SELAGEM SOBRE SALMOURA"],
+    ["10001161","FORMULA TAMPA 76 MICRAS COOK-IN - IONOMERO/AD/AD/PA/EVOH/PA/AD/PE/PE (SÓ COPO)"],
+    ["10001167","FORMULA FUNDO 150 - ALTA BARREIRA NYLON EXTERNO - PE/PE/AD/PA/EVOH/PA/AD/AD/PA"],
+    ["10001263","FÓRMULA LENÇO UMEDECIDO E SABONETE COEX BRANCO 13/05/20"],
+    ["10001275","FORMULA PICOTADO LARANJA ETAPA 11"],
+    ["10001284","FÓRMULA CAPA KIFORMAGGIO (COEX) 18/06/20"],
+    ["10001301","FORMULA TESTE SACO TRANSP PAO BIMBO ANTIESTAT AMPACET NOVO 10.02.25"],
+    ["10001308","FÓRMULA FILME PÃO DE HAMBURGUER BIMBO 15/10/2020"],
+    ["10001322","FORMULA FARINHA DE ARROZ JOSAPAR COM NYLON"],
+    ["10001336","FORMULA NYLON - 240 - BRF - 35 DE PA - PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["10001343","FOR TESTE FILME FARINHA DE ROSCA CARAMURU - 04.09.25"],
+    ["10001346","FÓRMULA FILME FRANGO 15/02/21"],
+    ["10001352","FÓRMULA FILME P/CEREAIS EM PÓ C/A. E (NUTRISUL TESTE 1)"],
+    ["10001358","FORMULA FILME PIGMENTADO CMS AZUL ESCURO"],
+    ["10001367","FORMULA PIGMENTADO BRANCO PARA LACTEOS 19/01/23"],
+    ["10001400","FORMULA NYLON - 68 - 12 DE PA - PE/PE/AD/PA/AD/PA/AD/PE/PE"],
+    ["10001402","FORMULA RACAO PIG BRANCO C/ ANTIESTATICO SACO 27.08.21"],
+    ["10001460","FORMULA SACO PE PIG VERMELHO FARINHA/PÓ ABAIXO 100 MICRAS"],
+    ["10001481","FORMULA ALTA AZUL BALAO ENCAIXADO ESPESSURA <30"],
+    ["10001501","FORMULA FUNDO 130 CONDOR 34 MICRAS PA- ALTA BARREIRA- PP/PP/AD/PA/EVOH/PA/AD/PE/PE"],
+    ["10001509","FÓRMULA COEX PIG. BRANCO CALDOS SÃO FERNANDO 26/04/22"],
+    ["10001514","FORMULA 88 - 24 DE PA- BISNAGA REQUEIJAO TIROL ATUALIZADA 06.03.23"],
+    ["10001534","FORMULA COEX 3 CAMADAS SACO AGROSUL AZUL+ BRANCO AFFINITY 03/06/22"],
+    ["10001565","FÓRMULA FUNDO MÉDIA BARREIRA AQUAREX 150 MICRAS - PE/PE/AD/PA/PA/PA/AD/PP/PP"],
+    ["10001577","FORMULA SADIA 100µm PANTONE VERDE 368"],
+    ["10001708","FOR TAMPA 138 AB PIG BRANCO - 10 PA 4 EVOH - 06.04.2023"],
+    ["10001718","FÓRMULA FUNDO 90 AB PP EXT - JBS DOURADOS - 14 PA 5 EVOH - 02.05.23"],
+    ["10001757","FOR FILME 68 NYLON (COPO) TRANSP - 12 PA - 20.10.23"],
+    ["10001760","FÓRMULA FILME PE TRANSP. EMPANADOS ALTA SELABILIDADE EXCEED 1012 - 08.11.23"],
+    ["10001761","FÓRMULA FILME PE PIG. BRANCO EMPANADOS ALTA SELABILIDADE EXCEED 1012 - 08.11.23"],
+    ["10001779","FÓRMULA FILME FUGINI 116 ALTA BARREIRA 4 EVOH - 16.02.24"],
+    ["10001782","FÓRMULA SACO PIG. AZUL LAM PET + PE - 22.02.24"],
+    ["10001783","FÓRMULA TAMPA PIG. BRANCO 78 MÉDIA BARREIRA - EASY OPEN - 27.02.24"],
+    ["10001788","FÓRMULA COSTELA PAMPLONA ALTA BARREIRA - 300 - 15.03.24"],
+    ["10001824","FORMULA TAMPA 66 ALTA BARREIRA EASY OPEN - 10.07.24"],
+    ["10001836","FOR TESTE SACO BACON AURORA 300 - 20 PA 4 EVOH - EXXON 7052ML - 25.09.24"],
+    ["10001878","FORMULA FOLHA PE PANTONE 339 BRF 60 MICRAS"],
+    ["10001903","FOR TAMPA ALTA BARREIRA 78 ANTI UV - 8 PA 4 EVOH - 19.11.25"]
+];
+
+// Ordena por código
+catalogoFormulas.sort(function(a, b) { return a[0].localeCompare(b[0]); });
+
+function abrirFormulas() {
+    document.getElementById('formulaModal').classList.add('active');
+    document.getElementById('formulaBusca').value = '';
+    renderFormulas();
+}
+
+function buscarDescricaoFormula(codigo) {
+    codigo = String(codigo || '').trim();
+    if (!codigo) return '';
+    for (var i = 0; i < catalogoFormulas.length; i++) {
+        if (catalogoFormulas[i][0] === codigo) return catalogoFormulas[i][1];
+    }
+    return '';
+}
+
+function itemBateComBusca(busca, camposTexto, codigoFormula, pigmento) {
+    if (!busca) return true;
+
+    var buscaTxt = String(busca || '').trim().toUpperCase();
+    var buscaLimpa = buscaTxt.replace(/-/g, '').replace(/\s+/g, ' ').trim();
+    var buscaCod = buscaTxt.replace(/-/g, '').replace(/\s+/g, '');
+
+    // Busca apenas nos campos textuais permitidos
+    var textoCompleto = '';
+    for (var i = 0; i < camposTexto.length; i++) {
+        textoCompleto += ' ' + String(camposTexto[i] || '');
+    }
+    textoCompleto = textoCompleto.toUpperCase().replace(/-/g, '');
+
+    if (textoCompleto.indexOf(buscaLimpa) > -1) return true;
+
+    // Busca pelo código da fórmula
+    var cod = String(codigoFormula || '').trim();
+    if (cod) {
+        var codLimpo = cod.toUpperCase().replace(/-/g, '').replace(/\s+/g, '');
+        if (codLimpo.indexOf(buscaCod) > -1) return true;
+
+        // Busca pela descrição da fórmula
+        var descFormula = buscarDescricaoFormula(cod);
+        if (descFormula) {
+            var descLimpa = descFormula.toUpperCase();
+            if (descLimpa.indexOf(buscaTxt) > -1) return true;
         }
+    }
+
+    // Busca por pigmento textual
+    var pig = String(pigmento || '').trim().toUpperCase();
+    if ((buscaTxt === 'BRANCO' || buscaTxt === 'PIGMENTADO') && pig === 'S') return true;
+    if ((buscaTxt === 'TRANSPARENTE' || buscaTxt === 'TRANSP') && pig === 'N') return true;
+
+    return false;
+}
+
+function renderFormulas() {
+    var body = document.getElementById('formulaBody');
+    var busca = (document.getElementById('formulaBusca').value || '').trim().toUpperCase();
+
+    var filtradas = catalogoFormulas;
+    if (busca) {
+        filtradas = catalogoFormulas.filter(function(f) {
+            return f[0].indexOf(busca) > -1 || f[1].toUpperCase().indexOf(busca) > -1;
+        });
+    }
+
+    document.getElementById('formulaSubtitle').textContent = filtradas.length + ' de ' + catalogoFormulas.length + ' fórmulas';
+
+    if (filtradas.length === 0) {
+        body.innerHTML = '<div style="text-align:center;padding:40px;color:#aaa;"><div style="font-size:2em;margin-bottom:8px;">📭</div><p>Nenhuma fórmula encontrada</p></div>';
+        return;
+    }
+
+    var html = '';
+    for (var i = 0; i < filtradas.length; i++) {
+        var f = filtradas[i];
+        var codigo = f[0];
+        var desc = f[1];
+
+        // Verifica se está no estoque atual
+        var noEstoque = false;
+        for (var j = 0; j < estoque.length; j++) {
+            var comp = normalizarComposicao(estoque[j]['COMPOSICAO'] || '');
+            if (comp === codigo) { noEstoque = true; break; }
+        }
+
+        // Verifica se está na fila atual
+        var naFila = false;
+        if (!noEstoque) {
+            for (var k = 0; k < fila.length; k++) {
+                var comps = getComposicoesFila(fila[k]);
+                if (comps.indexOf(codigo) > -1) { naFila = true; break; }
+            }
+        }
+
+        var bordaCor = noEstoque ? '#10b981' : (naFila ? '#2563eb' : '#e0e0e0');
+        var bgCor = noEstoque ? '#f0fdf4' : (naFila ? '#eff6ff' : '#fff');
+
+        html += '<div style="background:' + bgCor + ';border-radius:10px;border:1px solid ' + bordaCor + ';margin-bottom:6px;padding:10px 14px;">';
+
+        // Linha 1: código + badges
+        html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">';
+        html += '<span style="font-size:0.95em;font-weight:700;color:#2563eb;font-family:monospace;">' + codigo + '</span>';
+        if (noEstoque) html += '<span style="font-size:0.55em;padding:2px 6px;border-radius:6px;background:#dcfce7;color:#16a34a;font-weight:700;">ESTOQUE</span>';
+        if (naFila) html += '<span style="font-size:0.55em;padding:2px 6px;border-radius:6px;background:#dbeafe;color:#2563eb;font-weight:700;">FILA</span>';
+        html += '</div>';
+
+        // Linha 2: descrição
+        html += '<div style="font-size:0.75em;color:#555;line-height:1.3;">' + desc + '</div>';
+
+        html += '</div>';
+    }
+
+    body.innerHTML = html;
+}
 
         // ================================================================
         //                    IDADE DAS BOBINAS
@@ -4640,11 +5008,10 @@ function renderEncaixarDoEstoque() {
 
     var filtrados = disponiveis;
     if (busca) {
-        filtrados = disponiveis.filter(function (d) {
-            var linha = (d.item + ' ' + d.comp + ' ' + d.pig + ' ' + d.material + ' ' + d.desc).toUpperCase().replace(/-/g, '');
-            return linha.indexOf(busca) > -1;
-        });
-    }
+    filtrados = disponiveis.filter(function (d) {
+        return itemBateComBusca(busca, [d.item, d.material], d.comp, d.pig);
+    });
+}
 
     var sub = document.getElementById('encEstoqueSub');
     if (sub) sub.textContent = filtrados.length + ' de ' + disponiveis.length + ' bobinas';
@@ -5054,22 +5421,8 @@ function fsDesmarcar(bi) { B[bi].ok = false; B[bi].foto = null; B[bi].fotoNm = '
                 if (!estFiltros[categoria]) continue;
 
                 if (busca) {
-                    var buscaLimpa = busca.replace(/-/g, '').replace(/\s+/g, ' ').trim();
-                    var buscaPartes = buscaLimpa.split(' ');
-                    var buscaPrimeira = buscaPartes[0] || '';
-                    var buscaResto = buscaPartes.length > 1 ? buscaPartes.slice(1).join(' ') : '';
-                    var pigBusca = '';
-                    if (buscaResto === 'BRANCO' || buscaResto === 'PIGMENTADO') pigBusca = 'S';
-                    else if (buscaResto === 'TRANSPARENTE' || buscaResto === 'TRANSP') pigBusca = 'N';
-                    var materialLimpo = normalizarTexto(e['MATERIAL'] || '').replace(/-/g, '');
-                    var linhaInteira = (ic + ' ' + comp + ' ' + pig + ' ' + (e['MATERIAL'] || '') + ' ' + desc + ' ' + (eop || '')).toUpperCase().replace(/-/g, '');
-                    var achouLinha = linhaInteira.indexOf(buscaLimpa) > -1;
-                    var achouMaterial = materialLimpo.indexOf(buscaPrimeira) > -1;
-                    var achouPig = !pigBusca || pig === pigBusca;
-                    var achouSoPig = (buscaLimpa === 'BRANCO' || buscaLimpa === 'PIGMENTADO') && pig === 'S';
-                    var achouSoTransp = (buscaLimpa === 'TRANSPARENTE' || buscaLimpa === 'TRANSP') && pig === 'N';
-                    if (!(achouLinha || (achouMaterial && achouPig) || achouSoPig || achouSoTransp)) continue;
-                }
+    if (!itemBateComBusca(busca, [ic, e['MATERIAL'] || '', eop || ''], comp, pig)) continue;
+}
 
                 if (filtro === 'capa' && !cap) continue;
                 if (filtro === 'base' && cap) continue;
@@ -5769,29 +6122,8 @@ async function carregarObsNuvem() {
                 if (isMetal) { categoria = 'metal'; cMetal++; } else if (isOculto) { categoria = 'oculto'; cOculto++; } else if (info.status === 'ok') { categoria = 'ok'; cOk++; } else if (temEnc) { categoria = 'enc'; cEnc++; } else { categoria = 'sem'; cSem++; }
                 if (!confFiltros[categoria]) continue;
                 if (busca) {
-                    var buscaLimpa = busca.replace(/-/g, '').replace(/\s+/g, ' ').trim();
-                    var buscaPartes = buscaLimpa.split(' ');
-                    var buscaPrimeira = buscaPartes[0] || '';
-                    var buscaResto = buscaPartes.length > 1 ? buscaPartes.slice(1).join(' ') : '';
-                    var pigBusca = '';
-                    if (buscaResto === 'BRANCO' || buscaResto === 'PIGMENTADO') pigBusca = 'S';
-                    else if (buscaResto === 'TRANSPARENTE' || buscaResto === 'TRANSP') pigBusca = 'N';
-
-                    var materialLimpo = normalizarTexto(estoque[i]['MATERIAL'] || '').replace(/-/g, '');
-                    var linhaInteira = (itemCode + ' ' + comp + ' ' + pig + ' ' + (estoque[i]['MATERIAL'] || '') + ' ' + desc).toUpperCase().replace(/-/g, '');
-
-                    var achouLinha = linhaInteira.indexOf(buscaLimpa) > -1;
-                    var achouMaterial = materialLimpo.indexOf(buscaPrimeira) > -1;
-                    var achouPig = !pigBusca || pig === pigBusca;
-                    var achouSoPig = (buscaLimpa === 'BRANCO' || buscaLimpa === 'PIGMENTADO') && pig === 'S';
-                    var achouSoTransp = (buscaLimpa === 'TRANSPARENTE' || buscaLimpa === 'TRANSP') && pig === 'N';
-
-                    if (achouLinha || (achouMaterial && achouPig) || achouSoPig || achouSoTransp) {
-                        // ok
-                    } else {
-                        continue;
-                    }
-                }
+    if (!itemBateComBusca(busca, [itemCode, estoque[i]['MATERIAL'] || ''], comp, pig)) continue;
+}
                 if (buscaKg !== null && !isNaN(buscaKg) && Math.abs(qtde - buscaKg) > 0.05) continue;
                 itens.push({ item: itemCode, ver: ver, larg: larg, esp: esp, comp: comp, pig: pig, qtde: qtde, tipo: isCapa ? 'CAPA' : 'BASE', desc: desc, status: info.status, endereco: info.endereco, key: key, estoqueIdx: i, oculto: isOculto, metal: isMetal, temEnc: temEnc, categoria: categoria, manual: (desc.indexOf('BOBINA MANUAL') > -1 || desc.indexOf('ITEM MANUAL') > -1) });
             }
@@ -7486,18 +7818,11 @@ console.log('HIST REG:', d.item, 'formula=', d.formula);
                 });
                 if (fO) hRegs = hRegs.filter(function (r) { return r.encaixe.indexOf(fO) > -1; });
                 if (fI) {
-                    var fILimpo = fI.toUpperCase().replace(/-/g, '');
-                    hRegs = hRegs.filter(function (r) {
-                        var itemLimpo = (r.item || '').toUpperCase().replace(/-/g, '');
-                        var materialLimpo = (r.material || '').toUpperCase().replace(/-/g, '');
-                        var chaveLimpa = (r.chave || '').toUpperCase().replace(/-/g, '');
-                        var formulaLimpa = (r.formula || '').toUpperCase().replace(/-/g, '');
-                        return itemLimpo.indexOf(fILimpo) > -1 ||
-                            materialLimpo.indexOf(fILimpo) > -1 ||
-                            chaveLimpa.indexOf(fILimpo) > -1 ||
-                            formulaLimpa.indexOf(fILimpo) > -1;
-                    });
-                }
+    hRegs = hRegs.filter(function (r) {
+        var formulaFinal = r.formula || buscarFormulaDoItem(r.item || '') || '';
+        return itemBateComBusca(fI, [r.item || '', r.material || ''], formulaFinal, '');
+    });
+}
                 hRender();
             } catch (err) {
                 body.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">❌ ' + err.message + '</div>';
@@ -8562,7 +8887,26 @@ function limparNovas() {
             </div>
         </div>
     </div>
-
+<div class="modal modal-full" id="formulaModal" style="background:#f0f2f5;">
+    <div class="modal-head">
+        <div class="modal-head-info">
+            <h3>🧪 Fórmulas</h3>
+            <p id="formulaSubtitle">Catálogo de fórmulas</p>
+        </div>
+        <button class="btn-close" onclick="xM('formulaModal')">✖</button>
+    </div>
+    <div style="padding:10px 14px;flex-shrink:0;">
+        <input type="text" id="formulaBusca" placeholder="🔍 Buscar por código ou descrição..."
+            oninput="renderFormulas()"
+            style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid #e0e0e0;background:#fff;color:#1a1a2e;font-size:0.85em;">
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:6px 12px 20px;-webkit-overflow-scrolling:touch;" id="formulaBody">
+        <div style="text-align:center;padding:40px;color:#aaa;">
+            <div style="font-size:2.5em;">🧪</div>
+            <p>Carregando fórmulas...</p>
+        </div>
+    </div>
+</div>
 
 </body>
 
