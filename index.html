@@ -2606,7 +2606,7 @@
                 var qtde = parseFloat(e['QTDE_ESTOQUE']) || 0, faltando = [];
                 if (!item) faltando.push('Item');
                 if (!desc) faltando.push('Descrição');
-                if (!comp) faltando.push('Composição');
+                if (!comp && !isMetal) faltando.push('Composição');
                 if (larg === 0) faltando.push('Largura');
                 if (esp === 0) faltando.push('Espessura');
                 if (qtde === 0) faltando.push('Qtde');
@@ -2846,6 +2846,82 @@
         // ================================================================
         //                    MOTOR DE ENCAIXES
         // ================================================================
+
+// ================================================================
+//                    MATCHING ESTRUTURA LAMINAÇÃO
+// ================================================================
+function normalizarEstruturaLam(texto) {
+    if (!texto) return '';
+    var t = String(texto).toUpperCase().trim();
+    t = t.replace(/^\d+[\s\-]*/, ''); // remove código numérico do início (ex: "521-")
+    t = t.replace(/\s+/g, ' ');
+    t = t.replace(/\bMETAL\b/g, 'MET');
+    t = t.replace(/\bMETALIZADO\b/g, 'MET');
+    t = t.replace(/PET\s*MET\b/g, 'PETMET');
+    return t.trim();
+}
+
+function extrairComponentesEstrutura(texto) {
+    var normalizado = normalizarEstruturaLam(texto);
+    if (!normalizado) return [];
+
+    var partes = normalizado.split(/[\+\/]/).map(function (p) {
+        return p.trim().replace(/\s+/g, '');
+    }).filter(function (p) {
+        return p.length > 0;
+    });
+
+    // remove duplicados
+    var unicas = [];
+    for (var i = 0; i < partes.length; i++) {
+        if (unicas.indexOf(partes[i]) === -1) unicas.push(partes[i]);
+    }
+
+    // Se existe PETMET, remove PET solto
+    if (unicas.indexOf('PETMET') > -1) {
+        unicas = unicas.filter(function (p) { return p !== 'PET'; });
+    }
+
+    // Se existir BOPPMET no futuro, remove BOPP solto
+    if (unicas.indexOf('BOPPMET') > -1) {
+        unicas = unicas.filter(function (p) { return p !== 'BOPP'; });
+    }
+
+    unicas.sort();
+    return unicas;
+}
+
+function estruturasCompativeis(materialEstoque, familiaFila) {
+    if (!materialEstoque || !familiaFila) return false;
+
+    var compEst = extrairComponentesEstrutura(materialEstoque);
+    var compFila = extrairComponentesEstrutura(familiaFila);
+
+    if (compEst.length === 0 || compFila.length === 0) return false;
+    if (compEst.length !== compFila.length) return false;
+
+    for (var i = 0; i < compEst.length; i++) {
+        if (compEst[i] !== compFila[i]) return false;
+    }
+
+    return true;
+}
+
+function extrairMedidasLaminacao(texto) {
+    // Formato: "1 - 68 X 170" ou "2 - 45.5 X 120"
+    if (!texto) return { largura: 0, espessura: 0 };
+    var t = String(texto).toUpperCase().trim();
+    t = t.replace(/^\d+\s*[\-]\s*/, ''); // remove prefixo "1 - "
+    var m = t.match(/([0-9.,]+)\s*X\s*([0-9.,]+)/i);
+    if (m) {
+        return {
+            largura: parseFloat(m[1].replace(',', '.')) || 0,
+            espessura: parseFloat(m[2].replace(',', '.')) || 0
+        };
+    }
+    return { largura: 0, espessura: 0 };
+}
+
         function calcularEncaixes() {
             ['estModal', 'confModal', 'histModal', 'probModal', 'dbgModal'].forEach(function (id) { xM(id); });
             if (estoque.length === 0) { toast('Importe o Estoque primeiro!', 'error'); return; }
@@ -2858,10 +2934,43 @@
             for (var i = 0; i < estoque.length; i++) {
                 var e = estoque[i], ic = getItemEstoque(e);
                 var desc = e['DESCRICAO'] || '', larg = extrairLargura(desc), esp = extrairEspessura(desc);
-                var comp = normalizarComposicao(e['COMPOSICAO'] || ''), pig = normalizarPigmentado(e['PIGMENTADO'] || '');
+                                var comp = normalizarComposicao(e['COMPOSICAO'] || ''), pig = normalizarPigmentado(e['PIGMENTADO'] || '');
                 var qtde = parseFloat(e['QTDE_ESTOQUE']) || 0;
-                if (!comp || larg === 0 || esp === 0 || qtde === 0) { var m = []; if (!comp) m.push('Composição'); if (larg === 0) m.push('Largura'); if (esp === 0) m.push('Espessura'); if (qtde === 0) m.push('Qtde'); problemas.push({ item: ic, versao: e['VERSAO'] || '?', desc: desc, motivo: m.join(', '), tipo: 'ERRO' }); continue; }
-                if (!pig && !/-4$/.test(ic)) { var jaReportado = false; for (var pi = 0; pi < ultimosProblemasImportacaoEstoque.length; pi++) { if (ultimosProblemasImportacaoEstoque[pi].item === ic) { jaReportado = true; break; } } if (!jaReportado) problemas.push({ item: ic, versao: e['VERSAO'] || '?', desc: desc, motivo: 'Pigmentado vazio', tipo: 'AVISO' }); }
+                var isMetalItem = /-4$/.test(ic);
+
+                var m = [];
+                if (!isMetalItem && !comp) m.push('Composição');
+                if (larg === 0) m.push('Largura');
+                if (esp === 0) m.push('Espessura');
+                if (qtde === 0) m.push('Qtde');
+
+                if (m.length > 0) {
+                    problemas.push({
+                        item: ic,
+                        versao: e['VERSAO'] || '?',
+                        desc: desc,
+                        motivo: m.join(', '),
+                        tipo: 'ERRO'
+                    });
+                    continue;
+                }
+
+                if (!pig && !isMetalItem) {
+                    var jaReportado = false;
+                    for (var pi = 0; pi < ultimosProblemasImportacaoEstoque.length; pi++) {
+                        if (ultimosProblemasImportacaoEstoque[pi].item === ic) {
+                            jaReportado = true;
+                            break;
+                        }
+                    }
+                    if (!jaReportado) problemas.push({
+                        item: ic,
+                        versao: e['VERSAO'] || '?',
+                        desc: desc,
+                        motivo: 'Pigmentado vazio',
+                        tipo: 'AVISO'
+                    });
+                }
                 est.push({
                     item: ic,
                     versao: e['VERSAO'] || '',
@@ -2873,7 +2982,7 @@
                     qtde: qtde,
                     material: normalizarTexto(e['MATERIAL'] || ''),
                     isCapa: temCapa(ic),
-                    isMetal: /-4$/.test(ic),
+                    isMetal: isMetalItem,
                     chaveExata: larg + '|' + esp + '|' + comp + '|' + pig,
                     chaveSemLarg: esp + '|' + comp + '|' + pig
                 });
@@ -2950,6 +3059,13 @@
             var saldo = {}; for (var s = 0; s < fp.length; s++) { if (!saldo[fp[s].op]) saldo[fp[s].op] = fp[s].peso; }
             var fpLam = [];
 
+            console.log('=== DEBUG FILA LAM ===');
+            console.log('filaLaminacao.length:', filaLaminacao.length);
+            if (filaLaminacao.length > 0) {
+                console.log('Primeira linha RAW:', filaLaminacao[0]);
+                console.log('Chaves disponíveis:', Object.keys(filaLaminacao[0]));
+            }
+
             for (var jl = 0; jl < filaLaminacao.length; jl++) {
                 var fl = filaLaminacao[jl];
 
@@ -2965,51 +3081,79 @@
 
                 if (!produto || !opLam || pesoLam <= 0) continue;
 
-                // ✨ CORREÇÃO: OP mãe = OP atual - 2
                 var opMae = '';
                 var opNum = parseInt(opLam);
                 if (!isNaN(opNum)) {
                     opMae = String(opNum - 2);
                 } else {
-                    opMae = opLam; // fallback se não for numérico
+                    opMae = opLam;
                 }
 
                 fpLam.push({
-                    op: opMae,              // ✨ Usa OP mãe ao invés da OP da fila
-                    opOriginal: opLam,      // ✨ Guarda OP original para debug
+                    op: opMae,
+                    opOriginal: opLam,
                     itemFila: produto,
                     versao: versaoLam,
                     largura: largLam,
                     espessura: espLam,
                     peso: pesoLam,
                     difData: diferencaDiasHoje(prevEntrega),
-                    data: prevEntrega
+                    data: prevEntrega,
+                    familia: String(fl['FAMILIA'] || fl['FAMÍLIA'] || fl['__S'] || '').trim()
                 });
             }
 
             var saldoLam = {};
             for (var sl = 0; sl < fpLam.length; sl++) {
                 if (!saldoLam[fpLam[sl].op]) saldoLam[fpLam[sl].op] = fpLam[sl].peso;
-            } var res = []; est.sort(function (a, b) { return a.qtde - b.qtde; });
+            }             // DEBUG FILA LAM
+            console.log('=== fpLam total:', fpLam.length);
+            if (fpLam.length > 0) {
+                console.log('fpLam[0]:', JSON.stringify(fpLam[0]));
+            }
+            // DEBUG EST METAL
+            for (var dbgE = 0; dbgE < est.length; dbgE++) {
+                if (est[dbgE].isMetal) {
+                    console.log('EST METAL:', est[dbgE].item, 'larg:', est[dbgE].largura, 'esp:', est[dbgE].espessura, 'mat:', est[dbgE].material);
+                }
+            }
 
+            var res = []; est.sort(function (a, b) { return a.qtde - b.qtde; });
             for (var e2 = 0; e2 < est.length; e2++) {
                 var bob = est[e2], found = false;
 
-                if (bob.isMetal) {
+                                if (bob.isMetal) {
                     var candsLam = [];
 
+                    // Tentativa 1: item + versão + medidas exatas + estrutura compatível
                     for (var f2 = 0; f2 < fpLam.length; f2++) {
                         var oL = fpLam[f2];
-
                         if (String(oL.itemFila) !== String(bob.item)) continue;
                         if (String(oL.versao) !== String(bob.versao)) continue;
                         if (Number(oL.largura) !== Number(bob.largura)) continue;
                         if (Number(oL.espessura) !== Number(bob.espessura)) continue;
+                        if (!estruturasCompativeis(bob.material, oL.familia)) continue;
 
                         var saL = saldoLam[oL.op] || 0;
                         if (bob.qtde > saL) continue;
 
                         candsLam.push(oL);
+                    }
+
+                    // Tentativa 2: item + medidas exatas + estrutura compatível (ignora versão)
+                    if (candsLam.length === 0) {
+                        for (var f3 = 0; f3 < fpLam.length; f3++) {
+                            var oL2 = fpLam[f3];
+                            if (String(oL2.itemFila) !== String(bob.item)) continue;
+                            if (Number(oL2.largura) !== Number(bob.largura)) continue;
+                            if (Number(oL2.espessura) !== Number(bob.espessura)) continue;
+                            if (!estruturasCompativeis(bob.material, oL2.familia)) continue;
+
+                            var saL2 = saldoLam[oL2.op] || 0;
+                            if (bob.qtde > saL2) continue;
+
+                            candsLam.push(oL2);
+                        }
                     }
 
                     if (candsLam.length > 0) {
@@ -3021,21 +3165,20 @@
                         saldoLam[escL.op] -= bob.qtde;
 
                         res.push({
-    enc: escL.op,
-    item: bob.item,
-    ver: bob.versao,
-    larg: String(bob.largura),
-    esp: String(bob.espessura),
-    pig: bob.pigmentado,
-    qtde: String(bob.qtde),
-    material: bob.material || '',
-    largOP: String(escL.largura || bob.largura),
-    composicao: bob.composicao || ''
-});
+                            enc: escL.op,
+                            item: bob.item,
+                            ver: bob.versao,
+                            larg: String(bob.largura),
+                            esp: String(bob.espessura),
+                            pig: bob.pigmentado,
+                            qtde: String(bob.qtde),
+                            material: bob.material || '',
+                            largOP: String(escL.largura || bob.largura),
+                            composicao: bob.composicao || ''
+                        });
 
                         found = true;
                     }
-
                 } else {
                     var tent = [{ ex: true, mt: true }, { ex: true, mt: false }, { ex: false, mt: true }, { ex: false, mt: false }];
                     
