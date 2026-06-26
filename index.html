@@ -4648,6 +4648,9 @@ var estObservacoes = {};
         try {
           localStorage.setItem("enc_fila", JSON.stringify(fila));
         } catch (e) {}
+        try {
+          if (typeof window.salvarNovasNuvem === 'function') window.salvarNovasNuvem();
+        } catch (e) {}
         
       }
 
