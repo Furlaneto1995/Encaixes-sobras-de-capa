@@ -3236,7 +3236,14 @@
 
         // NEW = está no set ?
         window.isBobinaNova = function(item, qtde){
-          return !!bobinasNovas[chaveBobina(item, qtde)];
+          var base = window.bobinasNovas || bobinasNovas || {};
+          return !!base[chaveBobina(item, qtde)];
+        };
+
+        window.atualizarNovasDaNuvem = function(novasObj){
+          bobinasNovas = novasObj;
+          window.bobinasNovas = novasObj;
+          try { localStorage.setItem("enc_novas_v2", JSON.stringify(novasObj)); } catch(e){}
         };
 
         // infoEstoque sem entradaBobinas
@@ -8894,8 +8901,12 @@ var estObservacoes = {};
           console.log("SYNC: bobinasNovas ok");
           if (docNovas.exists && docNovas.data().dados) {
             var novasObj = JSON.parse(docNovas.data().dados);
-            window.bobinasNovas = novasObj;
-            localStorage.setItem("enc_novas_v2", JSON.stringify(novasObj));
+            if (typeof window.atualizarNovasDaNuvem === 'function') {
+              window.atualizarNovasDaNuvem(novasObj);
+            } else {
+              window.bobinasNovas = novasObj;
+              localStorage.setItem("enc_novas_v2", JSON.stringify(novasObj));
+            }
             console.log("SYNC: bobinasNovas atualizado (" + Object.keys(novasObj).length + " marcadas)");
           }
 
@@ -9209,9 +9220,16 @@ var estObservacoes = {};
           var docNovas = await db.collection("config").doc("bobinasNovas").get();
           if (docNovas.exists && docNovas.data().dados) {
             var novasObj = JSON.parse(docNovas.data().dados);
-            window.bobinasNovas = novasObj;
-            localStorage.setItem("enc_novas_v2", JSON.stringify(novasObj));
+            if (typeof window.atualizarNovasDaNuvem === 'function') {
+              window.atualizarNovasDaNuvem(novasObj);
+            } else {
+              window.bobinasNovas = novasObj;
+              localStorage.setItem("enc_novas_v2", JSON.stringify(novasObj));
+            }
             console.log("☁️ bobinasNovas carregadas da nuvem (" + Object.keys(novasObj).length + " marcadas)");
+            build();
+            if (document.getElementById("estModal").classList.contains("active")) estRender();
+            if (document.getElementById("confModal").classList.contains("active")) confRender();
           }
         } catch (e) {
           console.error("Erro ao carregar bobinasNovas da nuvem:", e);
