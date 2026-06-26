@@ -3215,9 +3215,23 @@
         function chaveBobina(item, qtde){
           return String(item||'').trim() + '_' + (parseFloat(qtde)||0);
         }
+        window.salvarNovasNuvem = function(){
+          try {
+            if (typeof db !== 'undefined' && db !== null) {
+              db.collection("config").doc("bobinasNovas").set({
+                dados: JSON.stringify(window.bobinasNovas || {}),
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+              });
+              console.log("☁️ bobinasNovas salvas na nuvem");
+            }
+          } catch (e) {
+            console.error("Erro ao salvar bobinasNovas na nuvem:", e);
+          }
+        };
         function salvarNovas(){
           try{ localStorage.setItem('enc_novas_v2', JSON.stringify(bobinasNovas)); }catch(e){}
           window.bobinasNovas = bobinasNovas;
+          window.salvarNovasNuvem();
         }
 
         // NEW = está no set ?
@@ -3320,6 +3334,7 @@
           localStorage.removeItem('enc_novas_v2');
           localStorage.removeItem('enc_novas');
           localStorage.removeItem('enc_entrada');
+          window.salvarNovasNuvem();
           build(); 
           if(typeof estRender==='function') estRender();
           if(typeof confRender==='function') confRender();
@@ -8709,6 +8724,15 @@ var estObservacoes = {};
               timestamp: firebase.firestore.FieldValue.serverTimestamp(),
             });
 
+          // Bobinas Novas (NEW)
+          await db
+            .collection("config")
+            .doc("bobinasNovas")
+            .set({
+              dados: JSON.stringify(window.bobinasNovas || {}),
+              timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+
           // Estoque
           lt.textContent = "Salvando estoque...";
           var estChunks = dividirEmPedacos(estoque, 200);
@@ -8865,7 +8889,15 @@ var estObservacoes = {};
             );
           }
 
-          
+          // Bobinas Novas (NEW)
+          var docNovas = await db.collection("config").doc("bobinasNovas").get();
+          console.log("SYNC: bobinasNovas ok");
+          if (docNovas.exists && docNovas.data().dados) {
+            var novasObj = JSON.parse(docNovas.data().dados);
+            window.bobinasNovas = novasObj;
+            localStorage.setItem("enc_novas_v2", JSON.stringify(novasObj));
+            console.log("SYNC: bobinasNovas atualizado (" + Object.keys(novasObj).length + " marcadas)");
+          }
 
           // Conferência
           var docConf = await db.collection("config").doc("confStatus").get();
@@ -9171,6 +9203,18 @@ var estObservacoes = {};
           }
         } catch (e) {
           console.error("Erro ao carregar ocultos da nuvem:", e);
+        }
+
+        try {
+          var docNovas = await db.collection("config").doc("bobinasNovas").get();
+          if (docNovas.exists && docNovas.data().dados) {
+            var novasObj = JSON.parse(docNovas.data().dados);
+            window.bobinasNovas = novasObj;
+            localStorage.setItem("enc_novas_v2", JSON.stringify(novasObj));
+            console.log("☁️ bobinasNovas carregadas da nuvem (" + Object.keys(novasObj).length + " marcadas)");
+          }
+        } catch (e) {
+          console.error("Erro ao carregar bobinasNovas da nuvem:", e);
         }
       }
 
