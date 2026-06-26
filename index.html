@@ -5806,6 +5806,12 @@ async function salvarTudoNuvem() {
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
 
+// Bobinas Novas (NEW)
+await db.collection('config').doc('novas').set({
+    dados: JSON.stringify(bobinasNovas || {}),
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+});
+
         // Estoque
         lt.textContent = 'Salvando estoque...';
         var estChunks = dividirEmPedacos(estoque, 200);
@@ -5933,6 +5939,14 @@ async function sincronizarDaNuvem() {
             window.confDivisoes = JSON.parse(docDiv.data().dados);
             localStorage.setItem('enc_divisoes', JSON.stringify(window.confDivisoes));
         }
+
+// Bobinas Novas (NEW)
+var docNovas = await db.collection('config').doc('novas').get();
+console.log('SYNC: novas ok');
+if (docNovas.exists && docNovas.data().dados) {
+    bobinasNovas = JSON.parse(docNovas.data().dados);
+    localStorage.setItem('enc_novas', JSON.stringify(bobinasNovas));
+}
 
         // Conferência
         var docConf = await db.collection('config').doc('confStatus').get();
