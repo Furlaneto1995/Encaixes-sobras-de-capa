@@ -4627,22 +4627,25 @@ function isBobinaNova(item, qtde) {
       }
 
       function salvarCacheNuvemLocal() {
-        try {
-          localStorage.setItem(
-            "enc_estoque_nuvem",
-            JSON.stringify(estoque || []),
-          );
-        } catch (e) {}
-        try {
-          localStorage.setItem("enc_fila_nuvem", JSON.stringify(fila || []));
-        } catch (e) {}
-        try {
-          localStorage.setItem(
-            "enc_filaLam_nuvem",
-            JSON.stringify(filaLaminacao || []),
-          );
-        } catch (e) {}
-      }
+  try {
+    localStorage.setItem(
+      "enc_estoque_nuvem",
+      JSON.stringify(estoque || []),
+    );
+  } catch (e) {}
+
+  try {
+    localStorage.setItem("enc_fila_nuvem", JSON.stringify(fila || []));
+  } catch (e) {}
+
+  // Removido para evitar erro de quota
+  // try {
+  //   localStorage.setItem(
+  //     "enc_filaLam_nuvem",
+  //     JSON.stringify(filaLaminacao || []),
+  //   );
+  // } catch (e) {}
+}
 
       function carregarCacheNuvemLocal() {
         try {
@@ -8892,16 +8895,17 @@ try {
             }
             console.log("SYNC: filaLam total carregado=" + lamNova.length);
             if (lamNova.length > 0) {
-              filaLaminacao = lamNova;
-              try {
-                localStorage.setItem(
-                  "enc_filaLam",
-                  JSON.stringify(filaLaminacao),
-                );
-              } catch (e) {
-                console.error("SYNC: erro ao salvar enc_filaLam", e);
-              }
-            }
+  filaLaminacao = lamNova;
+  // Removido para evitar erro de quota
+  // try {
+  //   localStorage.setItem(
+  //     "enc_filaLam",
+  //     JSON.stringify(filaLaminacao),
+  //   );
+  // } catch (e) {
+  //   console.error("SYNC: erro ao salvar enc_filaLam", e);
+  // }
+}
           }
 
           // Encaixes
