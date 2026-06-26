@@ -3234,7 +3234,26 @@
       var fotoRotacao = 0;
       var camEtapa = 1; // 1=etiqueta, 2=bobina
       var fotoEtiqueta = null;
-      var estObservacoes = {}; // MELHORIA 8: observações persistentes
+    var estObservacoes = {}; // MELHORIA 8: observações persistentes
+var entradaBobinas = {}; // Data de entrada das bobinas (para marcação NEW)
+function isBobinaNova(item, qtde) {
+    var chave = item + '_' + parseFloat(qtde);
+    var dataEntrada = entradaBobinas[chave];
+    
+    if (!dataEntrada) return false;
+
+    var dt = new Date(dataEntrada);
+    if (isNaN(dt.getTime())) return false;
+
+    var hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    dt.setHours(0, 0, 0, 0);
+
+    var diffDias = Math.floor((hoje - dt) / (1000 * 60 * 60 * 24));
+    
+    return diffDias <= 3; // Máximo 3 dias
+}
+
 
       // ================================================================
       //                    CORES E STATUS
@@ -3381,9 +3400,6 @@
       function tagNew() {
         return '<span style="font-size:0.55em;padding:2px 5px;border-radius:5px;background:#dcfce7;color:#16a34a;font-weight:700;margin-left:3px;animation:piscar 1.5s ease-in-out 3;">NEW</span>';
       }
-      function isNova(item, qtde) {
-        return bobinasNovas[item + "_" + parseFloat(qtde)] === true;
-      }
 
       // ================================================================
       //                    VALIDAÇÃO ESTOQUE
@@ -3511,10 +3527,7 @@
           var obs = localStorage.getItem("enc_obs");
           if (obs) estObservacoes = JSON.parse(obs);
         } catch (e) {}
-        try {
-          var nv = localStorage.getItem("enc_novas");
-          if (nv) bobinasNovas = JSON.parse(nv);
-        } catch (e) {}
+        
         try {
           var tf = localStorage.getItem("enc_tolFilme");
           var ts = localStorage.getItem("enc_tolSaco");
@@ -4723,6 +4736,26 @@
         } catch (e) {
           console.warn("Erro ao salvar filaLam:", e);
         }
+// Registrar data de entrada das bobinas (para marcação NEW)
+var hoje = new Date();
+var dataStr = hoje.getFullYear() + '-' + 
+              String(hoje.getMonth() + 1).padStart(2, '0') + '-' + 
+              String(hoje.getDate()).padStart(2, '0');
+
+for (var i = 0; i < estoque.length; i++) {
+    var e = estoque[i];
+    var ic = getItemEstoque(e);
+    var qtde = parseFloat(e['QTDE_ESTOQUE']) || 0;
+    var chave = ic + '_' + qtde;
+
+    if (!entradaBobinas[chave]) {
+        entradaBobinas[chave] = dataStr;
+    }
+}
+
+try {
+    localStorage.setItem('enc_entrada', JSON.stringify(entradaBobinas));
+} catch (e) {}
       }
 
       document
@@ -4881,6 +4914,8 @@
           e.target.value = "";
         });
 
+
+
       // ================================================================
       //                    GROUP / BUILD
       // ================================================================
@@ -4964,7 +4999,7 @@
 
       function getEnderecoMini(bob) {
         // Se a bobina é nova, nunca deve herdar endereços antigos do histórico
-        if (isNova(bob.item, bob.qtde)) return "";
+        if (isBobinaNova(bob.item, bob.qtde)) return "";
 
         var chave = chaveHistConf(bob.item, bob.ver, bob.qtde);
         // Tenta buscar pelo exato (Item+Ver+Peso), se não achar, não mostra nada para não mostrar endereço errado
@@ -5089,7 +5124,7 @@
               ? ' <span style="font-size:0.6em;padding:2px 6px;border-radius:6px;background:#f1f5f9;color:#94a3b8;font-weight:700;">METAL</span>'
               : "") +
             (bob.manual ? tagManual() : "") +
-            (isNova(bob.item, bob.qtde) ? tagNew() : "") +
+            (isBobinaNova(bob.item, bob.qtde) ? tagNew() : "") +
             "</span>" +
             obsHTML +
             getEnderecoMini(bob) +
@@ -8356,7 +8391,7 @@
               "</span>";
 
           // Tag NEW
-          if (isNova(it.item, it.qtde)) html += tagNew();
+          if (isBobinaNova(it.item, it.qtde)) html += tagNew();
 
           // Peso (empurrado pra direita)
           html +=
@@ -8618,20 +8653,6 @@
               timestamp: firebase.firestore.FieldValue.serverTimestamp(),
             });
 
-          // ==================== BOBINAS NOVAS ====================
-          try {
-            await db
-              .collection("config")
-              .doc("novas")
-              .set({
-                dados: JSON.stringify(bobinasNovas || {}),
-                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-              });
-            console.log("SYNC: novas salvo com sucesso");
-          } catch (e) {
-            console.error("Erro ao salvar bobinasNovas:", e);
-          }
-
           // Estoque
           lt.textContent = "Salvando estoque...";
           var estChunks = dividirEmPedacos(estoque, 200);
@@ -8788,25 +8809,7 @@
             );
           }
 
-          // ==================== BOBINAS NOVAS ====================
-          try {
-            var docNovas = await db.collection("config").doc("novas").get();
-            if (docNovas.exists && docNovas.data().dados) {
-              bobinasNovas = JSON.parse(docNovas.data().dados);
-              localStorage.setItem("enc_novas", JSON.stringify(bobinasNovas));
-              console.log(
-                "SYNC: novas carregado =",
-                Object.keys(bobinasNovas).length,
-              );
-            } else {
-              bobinasNovas = {};
-              localStorage.removeItem("enc_novas");
-              console.log("SYNC: nenhuma bobina nova encontrada");
-            }
-          } catch (e) {
-            console.error("Erro ao carregar bobinasNovas:", e);
-            bobinasNovas = {};
-          }
+          
 
           // Conferência
           var docConf = await db.collection("config").doc("confStatus").get();
@@ -9425,7 +9428,7 @@
             it.ver +
             "</span>";
           if (it.manual) html += tagManual();
-          if (isNova(it.item, it.qtde)) html += tagNew();
+          if (isBobinaNova(it.item, it.qtde)) html += tagNew();
           html += "</div>";
           html += '<div class="conf-det">';
           html += "<span>📐 " + it.larg + "cm x " + it.esp + "mu</span>";
@@ -9436,7 +9439,7 @@
 
           // Mostra endereço e obs do histórico (quando não está conferida ainda)
           // Não mostra em bobinas NEW
-          if (!isOk2 && !it.oculto && !isNova(it.item, it.qtde)) {
+          if (!isOk2 && !it.oculto && !isBobinaNova(it.item, it.qtde)) {
             var chaveHist = it.item + "|" + it.ver + "|" + String(it.qtde);
             var hist =
               confHistorico[chaveHist] || confHistorico[it.item] || null;
@@ -9565,7 +9568,7 @@
         var qtdeAtual = partes[2] || "0";
         var chaveHist =
           itemNome + "|" + verAtual + "|" + String(parseFloat(qtdeAtual) || 0);
-        var ehNova = isNova(itemNome, qtdeAtual);
+        var ehNova = isBobinaNova(itemNome, qtdeAtual);
 
         var hist = null;
         if (!ehNova) {
@@ -11719,7 +11722,6 @@
       //                    OBSERVAÇÕES DO ESTOQUE
       // ================================================================
       var estObservacoes = {};
-      var bobinasNovas = {}; // { 'item_qtde': true }
 
       function carregarObservacoes() {
         try {
@@ -11927,12 +11929,6 @@
           bobinasNovas[n.item + "_" + n.qtde] = true;
         });
         localStorage.setItem("enc_novas", JSON.stringify(bobinasNovas));
-
-        // Limpa comentários antigos de itens que acabaram de chegar como novos
-        novas.forEach(function (n) {
-          if (estObservacoes[n.item]) delete estObservacoes[n.item];
-        });
-        localStorage.setItem("enc_obs", JSON.stringify(estObservacoes));
 
         // Se a bobina nova é CAPA, define data de entrada = ontem
         var manualDatas = {};
@@ -13462,6 +13458,16 @@
       } catch (e) {
         console.error("Erro carregarObservacoes:", e);
       }
+
+// Carregar datas de entrada das bobinas (NEW por data)
+try {
+    var ent = localStorage.getItem('enc_entrada');
+    if (ent) {
+        entradaBobinas = JSON.parse(ent);
+    }
+} catch (e) {
+    entradaBobinas = {};
+}
 
       try {
         var modoNuvem = deveUsarNuvem();
