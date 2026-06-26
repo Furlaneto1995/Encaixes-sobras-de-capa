@@ -4502,9 +4502,7 @@ function isBobinaNova(item, qtde) {
         try {
           localStorage.setItem("enc_fila", JSON.stringify(fila));
         } catch (e) {}
-        try {
-          localStorage.setItem("enc_filaLam", JSON.stringify(filaLaminacao));
-        } catch (e) {}
+        
       }
 
       function load() {
@@ -4537,13 +4535,7 @@ function isBobinaNova(item, qtde) {
                 if (filParsed && filParsed.length) fila = filParsed;
               }
             } catch (e) {}
-            try {
-              var lamSep = localStorage.getItem("enc_filaLam");
-              if (lamSep) {
-                var lamParsed = JSON.parse(lamSep);
-                if (lamParsed && lamParsed.length) filaLaminacao = lamParsed;
-              }
-            } catch (e) {}
+            
             console.log(
               "load(): modo local | est=" +
                 estoque.length +
@@ -4731,9 +4723,7 @@ function isBobinaNova(item, qtde) {
         } catch (e) {
           console.warn("Erro ao salvar fila:", e);
         }
-        try {
-          localStorage.setItem("enc_filaLam", JSON.stringify(filaLaminacao));
-        } catch (e) {
+        
           console.warn("Erro ao salvar filaLam:", e);
         }
 // Registrar data de entrada das bobinas (para marcação NEW)
@@ -4755,8 +4745,9 @@ for (var i = 0; i < estoque.length; i++) {
 
 try {
     localStorage.setItem('enc_entrada', JSON.stringify(entradaBobinas));
-} catch (e) {}
-      }
+} catch (e) {
+    console.warn('Erro ao salvar entradaBobinas no localStorage:', e);
+}
 
       document
         .getElementById("fileEstoque")
@@ -8970,9 +8961,7 @@ try {
           try {
             localStorage.setItem("enc_fila", JSON.stringify(fila));
           } catch (e) {}
-          try {
-            localStorage.setItem("enc_filaLam", JSON.stringify(filaLaminacao));
-          } catch (e) {}
+          
 
           salvarCacheNuvemLocal();
 
@@ -13378,9 +13367,7 @@ try {
         try {
           localStorage.setItem("enc_fila", JSON.stringify(fila));
         } catch (e) {}
-        try {
-          localStorage.setItem("enc_filaLam", JSON.stringify(filaLaminacao));
-        } catch (e) {}
+        
         try {
           localStorage.setItem("enc_conf", JSON.stringify(confStatus));
         } catch (e) {}
@@ -13409,9 +13396,7 @@ try {
           try {
             localStorage.setItem("enc_fila", JSON.stringify(fila));
           } catch (e) {}
-          try {
-            localStorage.setItem("enc_filaLam", JSON.stringify(filaLaminacao));
-          } catch (e) {}
+        
           try {
             localStorage.setItem("enc_conf", JSON.stringify(confStatus));
           } catch (e) {}
