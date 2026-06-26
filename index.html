@@ -3234,24 +3234,12 @@
       var fotoRotacao = 0;
       var camEtapa = 1; // 1=etiqueta, 2=bobina
       var fotoEtiqueta = null;
-    var estObservacoes = {}; // MELHORIA 8: observações persistentes
-var entradaBobinas = {}; // Data de entrada das bobinas (para marcação NEW)
+var estObservacoes = {};
+var bobinasNovas = {}; // NEW = diff estoque novo vs velho
+
 function isBobinaNova(item, qtde) {
-    var chave = item + '_' + parseFloat(qtde);
-    var dataEntrada = entradaBobinas[chave];
-    
-    if (!dataEntrada) return false;
-
-    var dt = new Date(dataEntrada);
-    if (isNaN(dt.getTime())) return false;
-
-    var hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    dt.setHours(0, 0, 0, 0);
-
-    var diffDias = Math.floor((hoje - dt) / (1000 * 60 * 60 * 24));
-    
-    return diffDias <= 3; // Máximo 3 dias
+  var chave = String(item||'').trim() + '_' + (parseFloat(qtde)||0);
+  return !!bobinasNovas[chave];
 }
 
 
@@ -4716,41 +4704,12 @@ function isBobinaNova(item, qtde) {
 
         // Salva tudo separadamente para não perder
         save();
-        try {
-          localStorage.setItem("enc_estoque", JSON.stringify(estoque));
-        } catch (e) {
-          console.warn("Erro ao salvar estoque:", e);
-        }
-        try {
+                try {
           localStorage.setItem("enc_fila", JSON.stringify(fila));
         } catch (e) {
           console.warn("Erro ao salvar fila:", e);
         }
-        
-          console.warn("Erro ao salvar filaLam:", e);
-        }
-// Registrar data de entrada das bobinas (para marcação NEW)
-var hoje = new Date();
-var dataStr = hoje.getFullYear() + '-' + 
-              String(hoje.getMonth() + 1).padStart(2, '0') + '-' + 
-              String(hoje.getDate()).padStart(2, '0');
-
-for (var i = 0; i < estoque.length; i++) {
-    var e = estoque[i];
-    var ic = getItemEstoque(e);
-    var qtde = parseFloat(e['QTDE_ESTOQUE']) || 0;
-    var chave = ic + '_' + qtde;
-
-    if (!entradaBobinas[chave]) {
-        entradaBobinas[chave] = dataStr;
-    }
-}
-
-try {
-    localStorage.setItem('enc_entrada', JSON.stringify(entradaBobinas));
-} catch (e) {
-    console.warn('Erro ao salvar entradaBobinas no localStorage:', e);
-}
+      }   // ← ADD THIS to close function infoEstoque()   
 
       document
         .getElementById("fileEstoque")
@@ -11714,14 +11673,12 @@ try {
       // ================================================================
       //                    OBSERVAÇÕES DO ESTOQUE
       // ================================================================
-      var estObservacoes = {};
-
       function carregarObservacoes() {
-        try {
-          var o = localStorage.getItem("enc_obs");
-          if (o) estObservacoes = JSON.parse(o);
-        } catch (e) {}
-      }
+  try {
+    var o = localStorage.getItem("enc_obs");
+    if (o) estObservacoes = JSON.parse(o);
+  } catch (e) {}
+}
 
       function salvarObservacao(item, texto) {
         if (texto) estObservacoes[item] = texto;
@@ -11733,243 +11690,85 @@ try {
       // ================================================================
       //                    COMPARAR ESTOQUES
       // ================================================================
-      function compararEstoques(anterior, atual) {
-        var antMap = {},
-          atuMap = {};
-        bobinasNovas = {};
-        localStorage.removeItem("enc_novas");
+function compararEstoques(anterior, atual) {
+  var antMap = {}, atuMap = {};
+  function getIc(o){ return getItemEstoque(o); }
+  for (var i=0;i<anterior.length;i++){
+    var a=anterior[i], ic=getIc(a);
+    if(!ic || /-4$/.test(ic)) continue;
+    var qtde = parseFloat(a["QTDE_ESTOQUE"])||0;
+    var ver = String(a["VERSAO"]||'').trim();
+    var key = ic+'|'+ver+'|'+qtde;
+    antMap[key] = {item:ic, ver:ver, qtde:qtde, material:a["MATERIAL"]||''};
+  }
+  for (var j=0;j<atual.length;j++){
+    var e=atual[j], ic2=getIc(e);
+    if(!ic2 || /-4$/.test(ic2)) continue;
+    var qtde2 = parseFloat(e["QTDE_ESTOQUE"])||0;
+    var ver2 = String(e["VERSAO"]||'').trim();
+    var key2 = ic2+'|'+ver2+'|'+qtde2;
+    atuMap[key2] = {item:ic2, ver:ver2, qtde:qtde2, material:e["MATERIAL"]||''};
+  }
+  var novas=[], sumiram=[], pesoAntes=0,pesoAgora=0,bobAntes=0,bobAgora=0;
+  for (var ka in atuMap){ bobAgora++; pesoAgora+=atuMap[ka].qtde; if(!antMap[ka]) novas.push(atuMap[ka]); }
+  for (var kb in antMap){ bobAntes++; pesoAntes+=antMap[kb].qtde; if(!atuMap[kb]) sumiram.push(antMap[kb]); }
 
-        for (var i = 0; i < anterior.length; i++) {
-          var ic = getItemEstoque(anterior[i]);
-          if (!ic || /-4$/.test(ic)) continue;
-          var qtde = parseFloat(anterior[i]["QTDE_ESTOQUE"]) || 0;
-          var key = ic + "_" + qtde;
-          antMap[key] = {
-            item: ic,
-            qtde: qtde,
-            ver: anterior[i]["VERSAO"] || "",
-            material: anterior[i]["MATERIAL"] || "",
-          };
-        }
+  // NEW = só as novas deste import
+  bobinasNovas = {};
+  var dataImport = new Date().toISOString().slice(0,10);
+  for (var n=0;n<novas.length;n++){
+    var nn = novas[n];
+    var chave = nn.item + '_' + nn.qtde;
+    bobinasNovas[chave] = {item:nn.item, qtde:nn.qtde, ver:nn.ver, data:dataImport};
+    // compat versão com pipe
+    bobinasNovas[nn.item+'|'+nn.ver+'|'+nn.qtde] = bobinasNovas[chave];
+  }
+  try{ localStorage.setItem('enc_novas_v2', JSON.stringify(bobinasNovas)); }catch(e){}
+  try{ localStorage.setItem('enc_novas', JSON.stringify(bobinasNovas)); }catch(e){}
 
-        for (var j = 0; j < atual.length; j++) {
-          var ic2 = getItemEstoque(atual[j]);
-          if (!ic2 || /-4$/.test(ic2)) continue;
-          var qtde2 = parseFloat(atual[j]["QTDE_ESTOQUE"]) || 0;
-          var key2 = ic2 + "_" + qtde2;
-          atuMap[key2] = {
-            item: ic2,
-            qtde: qtde2,
-            ver: atual[j]["VERSAO"] || "",
-            material: atual[j]["MATERIAL"] || "",
-          };
-        }
+  if (novas.length===0 && sumiram.length===0){ toast('Estoque idêntico ao anterior','info'); return; }
 
-        var novas = [],
-          sumiram = [],
-          pesoAntes = 0,
-          pesoAgora = 0,
-          bobAntes = 0,
-          bobAgora = 0;
+  // --- modal comparativo (igual visual original) ---
+  var diffBob = bobAgora - bobAntes;
+  var diffPeso = pesoAgora - pesoAntes;
+  var html = '<h3 style="font-size:1em;color:#1a1a2e;margin-bottom:12px;">📊 Comparativo de Estoque</h3>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;">';
+  html += '<div style="background:#f8fafc;border-radius:8px;padding:8px;text-align:center;border:1px solid #e0e0e0;"><div style="font-size:0.6em;color:#888;">Antes</div><div style="font-size:0.85em;font-weight:700;color:#555;">'+bobAntes+' bob | '+Math.round(pesoAntes)+'kg</div></div>';
+  html += '<div style="background:#f8fafc;border-radius:8px;padding:8px;text-align:center;border:1px solid #e0e0e0;"><div style="font-size:0.6em;color:#888;">Agora</div><div style="font-size:0.85em;font-weight:700;color:#555;">'+bobAgora+' bob | '+Math.round(pesoAgora)+'kg</div></div></div>';
+  html += '<div style="text-align:center;margin-bottom:12px;font-size:0.82em;font-weight:700;color:'+(diffBob>=0?'#10b981':'#ef4444')+';">Diferença: '+(diffBob>=0?'+':'')+diffBob+' bobinas | '+(diffPeso>=0?'+':'')+Math.round(diffPeso)+'kg</div>';
 
-        // Novas: estão no atual mas não no anterior
-        for (var ka in atuMap) {
-          bobAgora++;
-          pesoAgora += atuMap[ka].qtde;
-          if (!antMap[ka]) novas.push(atuMap[ka]);
-        }
+  function bloco(titulo, lista, cor, bg, icone){
+    if(!lista.length) return '';
+    var peso=0; lista.forEach(function(x){peso+=x.qtde;});
+    var h='<div style="background:#fff;border-radius:10px;border:1px solid #e0e0e0;margin-bottom:8px;overflow:hidden;">';
+    h+='<div style="padding:8px 12px;background:'+bg+';font-size:0.82em;font-weight:700;color:'+cor+';">'+icone+' '+titulo+' ('+lista.length+') | '+Math.round(peso)+'kg</div>';
+    lista.forEach(function(s){
+      var tipoC = temCapa(s.item)?'#ef4444':'#10b981';
+      var tipoI = temCapa(s.item)?'🔴':'🟢';
+      h+='<div style="padding:6px 12px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:6px;font-size:0.78em;">';
+      h+='<span style="color:'+tipoC+';">'+tipoI+'</span>';
+      h+='<span style="font-family:monospace;font-weight:600;">'+s.item+'</span>';
+      h+='<span style="color:#888;">v'+s.ver+'</span>';
+      if(s.material) h+='<span style="color:#2563eb;font-size:0.85em;">🧪'+s.material+'</span>';
+      h+='<span style="margin-left:auto;font-weight:700;">'+Math.round(s.qtde)+'kg</span>';
+      h+='</div>';
+    });
+    h+='</div>'; return h;
+  }
+  html += bloco('Novas', novas, '#16a34a', '#dcfce7', '🆕');
+  html += bloco('Saíram', sumiram, '#ef4444', '#fee2e2', '❌');
+  html += '<div style="display:flex;gap:8px;margin-top:12px;">';
+  html += '<button onclick="fecharModal(\'compModal\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;cursor:pointer;">Fechar</button>';
+  html += '<button onclick="limparNovas();fecharModal(\'compModal\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">✅ Limpar NEW</button>';
+  html += '</div>';
 
-        // Sumiram: estão no anterior mas não no atual
-        for (var kb in antMap) {
-          bobAntes++;
-          pesoAntes += antMap[kb].qtde;
-          if (!atuMap[kb]) sumiram.push(antMap[kb]);
-        }
+  criarModal('compModal', html, {maxWidth:'400px'});
 
-        if (novas.length === 0 && sumiram.length === 0) {
-          toast("Estoque idêntico ao anterior", "info");
-          return;
-        }
-
-        var html =
-          '<h3 style="font-size:1em;color:#1a1a2e;margin-bottom:12px;">📊 Comparativo de Estoque</h3>';
-
-        // Resumo
-        var diffBob = bobAgora - bobAntes;
-        var diffPeso = pesoAgora - pesoAntes;
-        html +=
-          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;">';
-        html +=
-          '<div style="background:#f8fafc;border-radius:8px;padding:8px;text-align:center;border:1px solid #e0e0e0;">';
-        html += '<div style="font-size:0.6em;color:#888;">Antes</div>';
-        html +=
-          '<div style="font-size:0.85em;font-weight:700;color:#555;">' +
-          bobAntes +
-          " bob | " +
-          Math.round(pesoAntes) +
-          "kg</div></div>";
-        html +=
-          '<div style="background:#f8fafc;border-radius:8px;padding:8px;text-align:center;border:1px solid #e0e0e0;">';
-        html += '<div style="font-size:0.6em;color:#888;">Agora</div>';
-        html +=
-          '<div style="font-size:0.85em;font-weight:700;color:#555;">' +
-          bobAgora +
-          " bob | " +
-          Math.round(pesoAgora) +
-          "kg</div></div>";
-        html += "</div>";
-
-        html +=
-          '<div style="text-align:center;margin-bottom:12px;font-size:0.82em;font-weight:700;color:' +
-          (diffBob >= 0 ? "#10b981" : "#ef4444") +
-          ';">';
-        html +=
-          "Diferença: " +
-          (diffBob >= 0 ? "+" : "") +
-          diffBob +
-          " bobinas | " +
-          (diffPeso >= 0 ? "+" : "") +
-          Math.round(diffPeso) +
-          "kg</div>";
-
-        // Novas
-        if (novas.length > 0) {
-          var pesoNovas = 0;
-          novas.forEach(function (n) {
-            pesoNovas += n.qtde;
-          });
-          html +=
-            '<div style="background:#fff;border-radius:10px;border:1px solid #e0e0e0;margin-bottom:8px;overflow:hidden;">';
-          html +=
-            '<div style="padding:8px 12px;background:#dcfce7;font-size:0.82em;font-weight:700;color:#16a34a;">🆕 Novas (' +
-            novas.length +
-            ") | " +
-            Math.round(pesoNovas) +
-            "kg</div>";
-          novas.forEach(function (n) {
-            html +=
-              '<div style="padding:6px 12px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:6px;font-size:0.78em;">';
-            html +=
-              '<span style="color:' +
-              (temCapa(n.item) ? "#ef4444" : "#10b981") +
-              ';">' +
-              (temCapa(n.item) ? "🔴" : "🟢") +
-              "</span>";
-            html +=
-              '<span style="font-family:monospace;font-weight:600;">' +
-              n.item +
-              "</span>";
-            html += '<span style="color:#888;">v' + n.ver + "</span>";
-            if (n.material)
-              html +=
-                '<span style="color:#2563eb;font-size:0.85em;">🧪' +
-                n.material +
-                "</span>";
-            html +=
-              '<span style="margin-left:auto;font-weight:700;">' +
-              Math.round(n.qtde) +
-              "kg</span>";
-            html += "</div>";
-          });
-          html += "</div>";
-        }
-
-        // Sumiram
-        if (sumiram.length > 0) {
-          var pesoSumiram = 0;
-          sumiram.forEach(function (s) {
-            pesoSumiram += s.qtde;
-          });
-          html +=
-            '<div style="background:#fff;border-radius:10px;border:1px solid #e0e0e0;margin-bottom:8px;overflow:hidden;">';
-          html +=
-            '<div style="padding:8px 12px;background:#fee2e2;font-size:0.82em;font-weight:700;color:#ef4444;">❌ Saíram (' +
-            sumiram.length +
-            ") | " +
-            Math.round(pesoSumiram) +
-            "kg</div>";
-          sumiram.forEach(function (s) {
-            html +=
-              '<div style="padding:6px 12px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:6px;font-size:0.78em;">';
-            html +=
-              '<span style="color:' +
-              (temCapa(s.item) ? "#ef4444" : "#10b981") +
-              ';">' +
-              (temCapa(s.item) ? "🔴" : "🟢") +
-              "</span>";
-            html +=
-              '<span style="font-family:monospace;font-weight:600;">' +
-              s.item +
-              "</span>";
-            html += '<span style="color:#888;">v' + s.ver + "</span>";
-            if (s.material)
-              html +=
-                '<span style="color:#2563eb;font-size:0.85em;">🧪' +
-                s.material +
-                "</span>";
-            html +=
-              '<span style="margin-left:auto;font-weight:700;">' +
-              Math.round(s.qtde) +
-              "kg</span>";
-            html += "</div>";
-          });
-          html += "</div>";
-        }
-
-        // Salva bobinas novas para marcar com NEW
-        bobinasNovas = {};
-        novas.forEach(function (n) {
-          bobinasNovas[n.item + "_" + n.qtde] = true;
-        });
-        localStorage.setItem("enc_novas", JSON.stringify(bobinasNovas));
-
-        // Se a bobina nova é CAPA, define data de entrada = ontem
-        var manualDatas = {};
-        try {
-          manualDatas = JSON.parse(localStorage.getItem("enc_datas") || "{}");
-        } catch (e) {}
-        var ontem = new Date();
-        ontem.setDate(ontem.getDate() - 1);
-        var ontemStr =
-          ontem.getFullYear() +
-          "-" +
-          String(ontem.getMonth() + 1).padStart(2, "0") +
-          "-" +
-          String(ontem.getDate()).padStart(2, "0");
-
-        var datasAlteradas = false;
-        novas.forEach(function (n) {
-          if (temCapa(n.item) && !manualDatas[n.item]) {
-            manualDatas[n.item] = ontemStr;
-            datasAlteradas = true;
-          }
-        });
-
-        if (datasAlteradas) {
-          localStorage.setItem("enc_datas", JSON.stringify(manualDatas));
-          // Salva no Firebase também
-          novas.forEach(function (n) {
-            if (temCapa(n.item)) {
-              try {
-                db.collection("datas_manuais").doc(n.item).set({
-                  item: n.item,
-                  data: ontemStr,
-                  timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                });
-              } catch (e) {}
-            }
-          });
-        }
-
-        html += '<div style="display:flex;gap:8px;margin-top:12px;">';
-        html +=
-          '<button onclick="fecharModal(\'compModal\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;cursor:pointer;">Fechar</button>';
-        html +=
-          '<button onclick="limparNovas();fecharModal(\'compModal\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">✅ Limpar NEW</button>';
-        html += "</div>";
-
-        criarModal("compModal", html, { maxWidth: "400px" });
-      }
+  // repinta
+  try{ build(); }catch(e){}
+  try{ atualizarInfo(); }catch(e){}
+  toast('🆕 '+novas.length+' novas | ❌ '+sumiram.length+' saíram', novas.length?'success':'info', 4000);
+}
 
       // ================================================================
       //                    LISTENERS
@@ -13448,15 +13247,12 @@ try {
         console.error("Erro carregarObservacoes:", e);
       }
 
-// Carregar datas de entrada das bobinas (NEW por data)
+// Carregar bobinas NEW (diff estoque)
 try {
-    var ent = localStorage.getItem('enc_entrada');
-    if (ent) {
-        entradaBobinas = JSON.parse(ent);
-    }
-} catch (e) {
-    entradaBobinas = {};
-}
+  var nn = localStorage.getItem('enc_novas_v2') || localStorage.getItem('enc_novas');
+  if (nn) bobinasNovas = JSON.parse(nn);
+} catch(e){ bobinasNovas = {}; }
+window.bobinasNovas = bobinasNovas;
 
       try {
         var modoNuvem = deveUsarNuvem();
@@ -13511,12 +13307,19 @@ try {
         console.error("Erro no init:", e);
       }
 
-      function limparNovas() {
-        bobinasNovas = {};
-        localStorage.removeItem("enc_novas");
-        build();
-        toast("Tags NEW removidas", "success");
-      }
+      function limparNovas(){
+  bobinasNovas = {};
+  window.bobinasNovas = {};
+  try{
+    localStorage.removeItem('enc_novas_v2');
+    localStorage.removeItem('enc_novas');
+    localStorage.removeItem('enc_entrada');
+  }catch(e){}
+  try{ build(); }catch(e){}
+  try{ if(typeof estRender==='function') estRender(); }catch(e){}
+  try{ if(typeof confRender==='function') confRender(); }catch(e){}
+  toast('Tags NEW removidas','success');
+}
       // ================================================================
       //                    FOCAR ENCAIXE (UMA OP POR VEZ)
       // ================================================================
@@ -13855,5 +13658,149 @@ try {
         </div>
       </div>
     </div>
+<script>
+/* ===== ENCAIXES NEW v2 – diff estoque novo vs velho =====
+   remove NEW 3 dias → NEW = entrou neste import */
+(function(){
+  console.log('[NEW v2] ativo');
+
+  // limpa legacy
+  try{
+    localStorage.removeItem('enc_entrada');
+    localStorage.removeItem('enc_novas');
+  }catch(e){}
+  window.entradaBobinas = {};
+
+  // store novo
+  var bobinasNovas = {};
+  try{
+    var n = localStorage.getItem('enc_novas_v2');
+    if(n) bobinasNovas = JSON.parse(n);
+  }catch(e){}
+  window.bobinasNovas = bobinasNovas;
+
+  function chaveBobina(item, qtde){
+    return String(item||'').trim() + '_' + (parseFloat(qtde)||0);
+  }
+  function salvarNovas(){
+    try{ localStorage.setItem('enc_novas_v2', JSON.stringify(bobinasNovas)); }catch(e){}
+    window.bobinasNovas = bobinasNovas;
+  }
+
+  // NEW = está no set ?
+  window.isBobinaNova = function(item, qtde){
+    return !!bobinasNovas[chaveBobina(item, qtde)];
+  };
+
+  // infoEstoque sem entradaBobinas
+  window.infoEstoque = function(){
+    try{
+      localStorage.setItem("enc_import_ts", Date.now().toString());
+      localStorage.setItem("enc_modo_nuvem", "0");
+    }catch(e){}
+    var total=0, metalizados=0;
+    for(var i=0;i<estoque.length;i++){
+      if(/-4$/.test(getItemEstoque(estoque[i]))) metalizados++; else total++;
+    }
+    var txt = estoque.length ? "✅ Est: " + total : "1️⃣ Estoque";
+    if(metalizados>0) txt += " | ✨ Met: " + metalizados;
+    txt += " | " + (fila.length ? "✅ Fila Extrusão: " + fila.length : "2️⃣ Fila Extrusão");
+    txt += " | " + (filaLaminacao.length ? "✅ Fila Laminação: " + filaLaminacao.length : "3️⃣ Fila Laminação");
+    document.getElementById("fInfo").textContent = txt;
+    save();
+    try{ localStorage.setItem("enc_estoque", JSON.stringify(estoque)); }catch(e){}
+    try{ localStorage.setItem("enc_fila", JSON.stringify(fila)); }catch(e){}
+  };
+
+  // compararEstoques = diff real
+  window.compararEstoques = function(anterior, atual){
+    var antMap={}, atuMap={};
+    for(var i=0;i<anterior.length;i++){
+      var a=anterior[i], ic=getItemEstoque(a);
+      if(!ic || /-4$/.test(ic)) continue;
+      var qtde=parseFloat(a["QTDE_ESTOQUE"])||0;
+      var ver=String(a["VERSAO"]||'').trim();
+      antMap[ic+'|'+ver+'|'+qtde] = {item:ic,ver:ver,qtde:qtde,material:a["MATERIAL"]||''};
+    }
+    for(var j=0;j<atual.length;j++){
+      var e=atual[j], ic2=getItemEstoque(e);
+      if(!ic2 || /-4$/.test(ic2)) continue;
+      var qtde2=parseFloat(e["QTDE_ESTOQUE"])||0;
+      var ver2=String(e["VERSAO"]||'').trim();
+      atuMap[ic2+'|'+ver2+'|'+qtde2] = {item:ic2,ver:ver2,qtde:qtde2,material:e["MATERIAL"]||''};
+    }
+    var novas=[], sumiram=[], pesoAntes=0,pesoAgora=0,bobAntes=0,bobAgora=0;
+    for(var ka in atuMap){ bobAgora++; pesoAgora+=atuMap[ka].qtde; if(!antMap[ka]) novas.push(atuMap[ka]); }
+    for(var kb in antMap){ bobAntes++; pesoAntes+=antMap[kb].qtde; if(!atuMap[kb]) sumiram.push(antMap[kb]); }
+
+    // NEW = só as novas
+    bobinasNovas = {};
+    var dataImport = new Date().toISOString().slice(0,10);
+    for(var n=0;n<novas.length;n++){
+      var nn=novas[n];
+      bobinasNovas[chaveBobina(nn.item,nn.qtde)] = {item:nn.item,qtde:nn.qtde,ver:nn.ver,data:dataImport};
+      bobinasNovas[nn.item+'|'+nn.ver+'|'+nn.qtde] = bobinasNovas[chaveBobina(nn.item,nn.qtde)];
+    }
+    salvarNovas();
+    try{ localStorage.setItem('enc_novas', JSON.stringify(bobinasNovas)); }catch(e){}
+
+    if(novas.length===0 && sumiram.length===0){ toast('Estoque idêntico ao anterior','info'); return; }
+
+    var diffBob=bobAgora-bobAntes, diffPeso=pesoAgora-pesoAntes;
+    var html='<h3 style="font-size:1em;color:#1a1a2e;margin-bottom:12px;">📊 Comparativo de Estoque</h3>';
+    html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;">';
+    html+='<div style="background:#f8fafc;border-radius:8px;padding:8px;text-align:center;border:1px solid #e0e0e0;"><div style="font-size:0.6em;color:#888;">Antes</div><div style="font-size:0.85em;font-weight:700;color:#555;">'+bobAntes+' bob | '+Math.round(pesoAntes)+'kg</div></div>';
+    html+='<div style="background:#f8fafc;border-radius:8px;padding:8px;text-align:center;border:1px solid #e0e0e0;"><div style="font-size:0.6em;color:#888;">Agora</div><div style="font-size:0.85em;font-weight:700;color:#555;">'+bobAgora+' bob | '+Math.round(pesoAgora)+'kg</div></div></div>';
+    html+='<div style="text-align:center;margin-bottom:12px;font-size:0.82em;font-weight:700;color:'+(diffBob>=0?'#10b981':'#ef4444')+';">Diferença: '+(diffBob>=0?'+':'')+diffBob+' bobinas | '+(diffPeso>=0?'+':'')+Math.round(diffPeso)+'kg</div>';
+
+    function bloco(titulo,lista,cor,bg,icone){
+      if(!lista.length) return '';
+      var peso=0; lista.forEach(function(x){peso+=x.qtde;});
+      var h='<div style="background:#fff;border-radius:10px;border:1px solid #e0e0e0;margin-bottom:8px;overflow:hidden;">';
+      h+='<div style="padding:8px 12px;background:'+bg+';font-size:0.82em;font-weight:700;color:'+cor+';">'+icone+' '+titulo+' ('+lista.length+') | '+Math.round(peso)+'kg</div>';
+      lista.forEach(function(s){
+        var c=temCapa(s.item)?'#ef4444':'#10b981', icn=temCapa(s.item)?'🔴':'🟢';
+        h+='<div style="padding:6px 12px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:6px;font-size:0.78em;">';
+        h+='<span style="color:'+c+';">'+icn+'</span>';
+        h+='<span style="font-family:monospace;font-weight:600;">'+s.item+'</span>';
+        h+='<span style="color:#888;">v'+s.ver+'</span>';
+        if(s.material) h+='<span style="color:#2563eb;font-size:0.85em;">🧪'+s.material+'</span>';
+        h+='<span style="margin-left:auto;font-weight:700;">'+Math.round(s.qtde)+'kg</span></div>';
+      });
+      return h+'</div>';
+    }
+    html+=bloco('Novas',novas,'#16a34a','#dcfce7','🆕');
+    html+=bloco('Saíram',sumiram,'#ef4444','#fee2e2','❌');
+    html+='<div style="display:flex;gap:8px;margin-top:12px;">';
+    html+='<button onclick="fecharModal(\'compModal\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.88em;cursor:pointer;">Fechar</button>';
+    html+='<button onclick="limparNovas();fecharModal(\'compModal\')" style="flex:1;padding:12px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">✅ Limpar NEW</button>';
+    html+='</div>';
+    criarModal('compModal', html, {maxWidth:'400px'});
+    build(); atualizarInfo();
+    toast('🆕 '+novas.length+' novas | ❌ '+sumiram.length+' saíram', novas.length?'success':'info', 4000);
+  };
+
+  // limparNovas correto
+  window.limparNovas = function(){
+    bobinasNovas = {};
+    window.bobinasNovas = {};
+    localStorage.removeItem('enc_novas_v2');
+    localStorage.removeItem('enc_novas');
+    localStorage.removeItem('enc_entrada');
+    build(); 
+    if(typeof estRender==='function') estRender();
+    if(typeof confRender==='function') confRender();
+    toast('Tags NEW removidas','success');
+  };
+
+  // carrega NEW salvo
+  try{
+    var nn = localStorage.getItem('enc_novas_v2') || localStorage.getItem('enc_novas');
+    if(nn) { bobinasNovas = JSON.parse(nn); window.bobinasNovas = bobinasNovas; }
+  }catch(e){}
+
+  console.log('[NEW v2] ativo –', Object.keys(bobinasNovas).length, 'bobinas marcadas');
+})();
+</script>
   </body>
 </html>
