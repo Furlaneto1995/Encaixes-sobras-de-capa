@@ -5806,11 +5806,16 @@ async function salvarTudoNuvem() {
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-// Bobinas Novas (NEW)
-await db.collection('config').doc('novas').set({
-    dados: JSON.stringify(bobinasNovas || {}),
-    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-});
+// ==================== BOBINAS NOVAS ====================
+try {
+    await db.collection('config').doc('novas').set({
+        dados: JSON.stringify(bobinasNovas || {}),
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    console.log('SYNC: novas salvo com sucesso');
+} catch (e) {
+    console.error('Erro ao salvar bobinasNovas:', e);
+}
 
         // Estoque
         lt.textContent = 'Salvando estoque...';
@@ -5940,12 +5945,21 @@ async function sincronizarDaNuvem() {
             localStorage.setItem('enc_divisoes', JSON.stringify(window.confDivisoes));
         }
 
-// Bobinas Novas (NEW)
-var docNovas = await db.collection('config').doc('novas').get();
-console.log('SYNC: novas ok');
-if (docNovas.exists && docNovas.data().dados) {
-    bobinasNovas = JSON.parse(docNovas.data().dados);
-    localStorage.setItem('enc_novas', JSON.stringify(bobinasNovas));
+// ==================== BOBINAS NOVAS ====================
+try {
+    var docNovas = await db.collection('config').doc('novas').get();
+    if (docNovas.exists && docNovas.data().dados) {
+        bobinasNovas = JSON.parse(docNovas.data().dados);
+        localStorage.setItem('enc_novas', JSON.stringify(bobinasNovas));
+        console.log('SYNC: novas carregado =', Object.keys(bobinasNovas).length);
+    } else {
+        bobinasNovas = {};
+        localStorage.removeItem('enc_novas');
+        console.log('SYNC: nenhuma bobina nova encontrada');
+    }
+} catch (e) {
+    console.error('Erro ao carregar bobinasNovas:', e);
+    bobinasNovas = {};
 }
 
         // Conferência
