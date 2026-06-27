@@ -10786,7 +10786,7 @@ function getOpItemGroups(g) {
         return new File([blob], nomeArquivo, { type: "image/jpeg" });
       }
 
-     async function shareFotos() {
+async function shareFotos() {
   xM("fm");
 
   var lo = document.getElementById("lo"),
@@ -10830,128 +10830,58 @@ function getOpItemGroups(g) {
 
     for (var o = 0; o < G.length; o++) {
       var g2 = G[o];
-      var gruposItemTexto = getOpItemGroups(g2);
+      var pt = 0;
 
       textoRelatorio += "🔷 OP " + g2.enc + "\n";
 
-      if (gruposItemTexto.length > 1) {
-        for (var ig = 0; ig < gruposItemTexto.length; ig++) {
-          var grupoTxt = gruposItemTexto[ig];
-          var refTxt = grupoTxt.ref;
-          var ptGrupo = 0;
+      for (var b2 = 0; b2 < g2.bs.length; b2++) {
+        var bob2 = B[g2.bs[b2]];
+        pt += parseFloat(bob2.qtde) || 0;
 
-          textoRelatorio +=
-            "  Item: " +
-            (refTxt.item || "-") +
-            " | Ver: " +
-            (refTxt.ver || "-") +
-            " | Larg: " +
-            (refTxt.larg || "-") +
-            " | Esp: " +
-            (refTxt.esp || "-") +
-            " | Pig: " +
-            (refTxt.pig || "-") +
-            "\n";
+        textoRelatorio +=
+          "  " +
+          (bob2.ok ? "✅" : "⬜") +
+          " " +
+          bob2.item +
+          " v" +
+          bob2.ver +
+          " → " +
+          bob2.qtde +
+          "kg";
 
-          for (var gb = 0; gb < grupoTxt.bs.length; gb++) {
-            var bobTxt = B[grupoTxt.bs[gb]];
-            ptGrupo += parseFloat(bobTxt.qtde) || 0;
-
-            textoRelatorio +=
-              "    " +
-              (bobTxt.ok ? "✅" : "⬜") +
-              " " +
-              bobTxt.qtde +
-              "kg";
-
-            if (bobTxt.manual) textoRelatorio += " [MANUAL]";
-            textoRelatorio += "\n";
-          }
-
-          textoRelatorio +=
-            "    📊 Total do item: " + ptGrupo.toFixed(0) + "kg\n\n";
-        }
-      } else {
-        var pt = 0;
-
-        for (var b2 = 0; b2 < g2.bs.length; b2++) {
-          var bob2 = B[g2.bs[b2]];
-          pt += parseFloat(bob2.qtde) || 0;
-
-          textoRelatorio +=
-            "  " +
-            (bob2.ok ? "✅" : "⬜") +
-            " " +
-            bob2.item +
-            " v" +
-            bob2.ver +
-            " → " +
-            bob2.qtde +
-            "kg";
-
-          if (bob2.manual) textoRelatorio += " [MANUAL]";
-          textoRelatorio += "\n";
-        }
-
-        textoRelatorio += "  📊 Total: " + pt.toFixed(0) + "kg\n";
+        if (bob2.manual) textoRelatorio += " [MANUAL]";
+        textoRelatorio += "\n";
       }
 
-      textoRelatorio += "───────────────────\n\n";
+      textoRelatorio +=
+        "  📊 Total: " + pt.toFixed(0) + "kg\n───────────────────\n\n";
     }
 
     var canvas = document.createElement("canvas"),
-      largura = 900,
+      largura = 800,
       linhaAltura = 28,
       headerAltura = 80,
       linhas = [];
 
     for (var o2 = 0; o2 < G.length; o2++) {
       var g3 = G[o2];
-      var gruposItem = getOpItemGroups(g3);
 
-      linhas.push({ tipo: "op", enc: g3.enc, total: g3.bs.length });
+      linhas.push({ tipo: "op", enc: g3.enc });
 
-      if (gruposItem.length > 1) {
-        for (var ig2 = 0; ig2 < gruposItem.length; ig2++) {
-          var grupo = gruposItem[ig2];
-          var ref = grupo.ref;
-
-          linhas.push({
-            tipo: "itemHeader",
-            item: ref.item,
-            ver: ref.ver,
-            larg: ref.larg,
-            esp: ref.esp,
-            pig: ref.pig,
-          });
-
-          for (var b3 = 0; b3 < grupo.bs.length; b3++) {
-            var bob3 = B[grupo.bs[b3]];
-            linhas.push({
-              tipo: "bobGrupo",
-              qtde: bob3.qtde,
-              manual: bob3.manual,
-              foto: bob3.foto ? "📷" : "⬜",
-              ok: bob3.ok,
-            });
-          }
-        }
-      } else {
-        for (var b4 = 0; b4 < g3.bs.length; b4++) {
-          var bob4 = B[g3.bs[b4]];
-          linhas.push({
-            tipo: "bob",
-            item: bob4.item,
-            ver: bob4.ver,
-            larg: bob4.larg,
-            esp: bob4.esp,
-            pig: bob4.pig,
-            qtde: bob4.qtde,
-            manual: bob4.manual,
-            foto: bob4.foto ? "📷" : "⬜",
-            ok: bob4.ok,
-          });
-        }
+      for (var b3 = 0; b3 < g3.bs.length; b3++) {
+        var bob3 = B[g3.bs[b3]];
+        linhas.push({
+          tipo: "bob",
+          item: bob3.item,
+          ver: bob3.ver,
+          larg: bob3.larg,
+          esp: bob3.esp,
+          pig: bob3.pig,
+          qtde: bob3.qtde,
+          manual: bob3.manual,
+          foto: bob3.foto ? "📷" : "⬜",
+          ok: bob3.ok,
+        });
       }
 
       linhas.push({ tipo: "sep" });
@@ -10994,11 +10924,11 @@ function getOpItemGroups(g) {
     ctx.fillText("ENCAIXE", 20, y + 18);
     ctx.fillText("ITEM", 120, y + 18);
     ctx.fillText("VER", 280, y + 18);
-    ctx.fillText("LARG", 340, y + 18);
-    ctx.fillText("ESP", 410, y + 18);
-    ctx.fillText("PIG", 470, y + 18);
-    ctx.fillText("PESO", 540, y + 18);
-    ctx.fillText("FOTO", 680, y + 18);
+    ctx.fillText("LARG", 330, y + 18);
+    ctx.fillText("ESP", 400, y + 18);
+    ctx.fillText("PIG", 460, y + 18);
+    ctx.fillText("PESO", 510, y + 18);
+    ctx.fillText("FOTO", 660, y + 18);
     y += linhaAltura;
 
     for (var l = 0; l < linhas.length; l++) {
@@ -11021,34 +10951,6 @@ function getOpItemGroups(g) {
         continue;
       }
 
-      if (lin.tipo === "itemHeader") {
-        ctx.fillStyle = "#f8fafc";
-        ctx.fillRect(0, y, largura, linhaAltura);
-
-        ctx.fillStyle = "#555";
-        ctx.font = "bold 12px Arial";
-        ctx.fillText(lin.item || "-", 120, y + 18);
-        ctx.fillText(lin.ver || "-", 280, y + 18);
-        ctx.fillText(lin.larg || "-", 340, y + 18);
-        ctx.fillText(lin.esp || "-", 410, y + 18);
-        ctx.fillText(lin.pig || "-", 470, y + 18);
-
-        y += linhaAltura;
-        continue;
-      }
-
-      if (lin.tipo === "bobGrupo") {
-        ctx.fillStyle = "#333";
-        ctx.font = "13px Arial";
-        ctx.fillText((lin.ok ? "✅ " : "⬜ ") + (lin.qtde || "") + " kg", 540, y + 18);
-        if (lin.manual) {
-          ctx.fillText("[MANUAL]", 640, y + 18);
-        }
-        ctx.fillText(lin.foto, 760, y + 18);
-        y += linhaAltura;
-        continue;
-      }
-
       if (lin.tipo === "bob") {
         if (l % 2 === 0) {
           ctx.fillStyle = "#fafafa";
@@ -11059,18 +10961,15 @@ function getOpItemGroups(g) {
         ctx.font = "13px monospace";
         ctx.fillText(lin.item || "", 120, y + 18);
         ctx.fillText(lin.ver || "", 280, y + 18);
-        ctx.fillText(lin.larg || "", 340, y + 18);
-        ctx.fillText(lin.esp || "", 410, y + 18);
-        ctx.fillText(lin.pig || "", 470, y + 18);
+        ctx.fillText(lin.larg || "", 330, y + 18);
+        ctx.fillText(lin.esp || "", 400, y + 18);
+        ctx.fillText(lin.pig || "", 460, y + 18);
 
         ctx.font = "bold 13px Arial";
-        ctx.fillText((lin.ok ? "✅ " : "⬜ ") + lin.qtde + " kg", 540, y + 18);
+        ctx.fillText((lin.ok ? "✅ " : "⬜ ") + lin.qtde + " kg", 510, y + 18);
 
         ctx.font = "13px Arial";
-        if (lin.manual) {
-          ctx.fillText("[MANUAL]", 640, y + 18);
-        }
-        ctx.fillText(lin.foto, 760, y + 18);
+        ctx.fillText(lin.foto, 660, y + 18);
 
         y += linhaAltura;
       }
@@ -11146,7 +11045,7 @@ function getOpItemGroups(g) {
     lo.classList.remove("active");
     toast("Erro: " + err.message, "error");
   }
-}      
+}     
 
       async function shareTexto() {
         xM("fm");
