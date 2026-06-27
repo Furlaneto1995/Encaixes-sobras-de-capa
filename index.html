@@ -5090,236 +5090,302 @@ var estObservacoes = {};
         );
       }
 
+function getOpItemGroups(g) {
+  var mapa = {};
+  var ordem = [];
+
+  for (var i = 0; i < g.bs.length; i++) {
+    var bi = g.bs[i];
+    var bob = B[bi];
+
+    var chave = [
+      bob.item || "",
+      bob.ver || "",
+      bob.larg || "",
+      bob.esp || "",
+      bob.pig || "",
+    ].join("|");
+
+    if (!mapa[chave]) {
+      mapa[chave] = {
+        chave: chave,
+        ref: {
+          item: bob.item || "",
+          ver: bob.ver || "",
+          larg: bob.larg || "",
+          esp: bob.esp || "",
+          pig: bob.pig || "",
+        },
+        bs: [],
+      };
+      ordem.push(mapa[chave]);
+    }
+
+    mapa[chave].bs.push(bi);
+  }
+
+  return ordem;
+}
+
       function mkCard(gi) {
-        var g = G[gi];
-        if (!showG(gi)) return null;
+  var g = G[gi];
+  if (!showG(gi)) return null;
 
-        var dn = 0,
-          tm = true;
-        for (var k = 0; k < g.bs.length; k++) {
-          if (B[g.bs[k]].ok) dn++;
-          if (!B[g.bs[k]].manual) tm = false;
-        }
+  var dn = 0,
+    tm = true;
+  for (var k = 0; k < g.bs.length; k++) {
+    if (B[g.bs[k]].ok) dn++;
+    if (!B[g.bs[k]].manual) tm = false;
+  }
 
-        var ao = dn === g.bs.length;
-        var card = document.createElement("div");
-        card.className = "op-card" + (ao ? " all-ok" : "");
-        card.id = "g-" + gi;
+  var ao = dn === g.bs.length;
+  var gruposItem = getOpItemGroups(g);
+  var multiItem = gruposItem.length > 1;
 
-        var bc = ao ? "b-ok" : "b-pend";
-        var ot = tm ? " " + tagManual() : "";
+  var card = document.createElement("div");
+  card.className = "op-card" + (ao ? " all-ok" : "");
+  card.id = "g-" + gi;
 
-        // ===================== NOVO: Verifica se tem mais de 1 item diferente =====================
-        var itensUnicos = [...new Set(g.bs.map((i) => B[i].item))];
-        var mostrarItem = itensUnicos.length > 1;
-        // =========================================================================================
+  var bc = ao ? "b-ok" : "b-pend";
+  var ot = tm ? " " + tagManual() : "";
 
-        var hd =
-          '<div class="op-head"><div class="op-head-left"><div class="op-title-row"><span class="op-title">OP ' +
-          g.enc +
-          ot +
-          "</span></div>" +
-          '<table style="margin-top:4px;border-collapse:collapse;font-size:0.68em;"><tr><td style="color:#aaa;padding:0 4px;">Item</td><td style="color:#aaa;padding:0 4px;">Ver</td><td style="color:#aaa;padding:0 4px;">Larg</td><td style="color:#aaa;padding:0 4px;">Esp</td><td style="color:#aaa;padding:0 4px;">Pig</td></tr>' +
-          '<tr><td style="color:#555;padding:0 4px;font-family:monospace;">' +
-          (B[g.bs[0]].item || "-") +
-          '</td><td style="color:#555;padding:0 4px;font-family:monospace;">' +
-          (B[g.bs[0]].ver || "-") +
-          '</td><td style="color:#555;padding:0 4px;font-family:monospace;">' +
-          (B[g.bs[0]].larg || "-") +
-          '</td><td style="color:#555;padding:0 4px;font-family:monospace;">' +
-          (B[g.bs[0]].esp || "-") +
-          '</td><td style="color:#555;padding:0 4px;font-family:monospace;">' +
-          (B[g.bs[0]].pig || "-") +
-          "</td></tr></table></div>" +
-          '<div class="op-head-right"><span class="badge ' +
-          bc +
-          '">' +
-          dn +
-          "/" +
-          g.bs.length +
-          "</span>" +
-          '<button class="btn-del-op" data-g="' +
-          gi +
-          '" style="margin-left:2px;">🗑️</button>' +
-          '<button class="btn-del-op" data-g="' +
-          gi +
-          '" data-dbg="1" style="border-color:#f59e0b;color:#f59e0b;margin-left:2px;" title="Debug">🔍</button>' +
-          '<button data-g="' +
-          gi +
-          '" data-foco="1" style="width:30px;height:30px;border-radius:6px;border:1px solid #f3e8ff;background:#fff;color:#8b5cf6;cursor:pointer;font-size:0.8em;display:inline-flex;align-items:center;justify-content:center;margin-left:2px;" title="Focar nesta OP">🎯</button></div></div>';
+  var hd =
+    '<div class="op-head"><div class="op-head-left"><div class="op-title-row"><span class="op-title">OP ' +
+    g.enc +
+    ot +
+    "</span></div>";
 
-        var bl = '<div class="bob-wrap">';
+  if (!multiItem) {
+    hd +=
+      '<table style="margin-top:4px;border-collapse:collapse;font-size:0.68em;">' +
+      '<tr><td style="color:#aaa;padding:0 4px;">Item</td><td style="color:#aaa;padding:0 4px;">Ver</td><td style="color:#aaa;padding:0 4px;">Larg</td><td style="color:#aaa;padding:0 4px;">Esp</td><td style="color:#aaa;padding:0 4px;">Pig</td></tr>' +
+      '<tr><td style="color:#555;padding:0 4px;font-family:monospace;">' +
+      (B[g.bs[0]].item || "-") +
+      '</td><td style="color:#555;padding:0 4px;font-family:monospace;">' +
+      (B[g.bs[0]].ver || "-") +
+      '</td><td style="color:#555;padding:0 4px;font-family:monospace;">' +
+      (B[g.bs[0]].larg || "-") +
+      '</td><td style="color:#555;padding:0 4px;font-family:monospace;">' +
+      (B[g.bs[0]].esp || "-") +
+      '</td><td style="color:#555;padding:0 4px;font-family:monospace;">' +
+      (B[g.bs[0]].pig || "-") +
+      "</td></tr></table>";
+  }
 
-        for (var b = 0; b < g.bs.length; b++) {
-          var bi = g.bs[b],
-            bob = B[bi];
-          if (filt === "ok" && !bob.ok) continue;
-          if (filt === "pend" && bob.ok) continue;
+  hd +=
+    '</div><div class="op-head-right"><span class="badge ' +
+    bc +
+    '">' +
+    dn +
+    "/" +
+    g.bs.length +
+    "</span>" +
+    '<button class="btn-del-op" data-g="' +
+    gi +
+    '" style="margin-left:2px;">🗑️</button>' +
+    '<button class="btn-del-op" data-g="' +
+    gi +
+    '" data-dbg="1" style="border-color:#f59e0b;color:#f59e0b;margin-left:2px;" title="Debug">🔍</button>' +
+    '<button data-g="' +
+    gi +
+    '" data-foco="1" style="width:30px;height:30px;border-radius:6px;border:1px solid #f3e8ff;background:#fff;color:#8b5cf6;cursor:pointer;font-size:0.8em;display:inline-flex;align-items:center;justify-content:center;margin-left:2px;" title="Focar nesta OP">🎯</button></div></div>';
 
-          var obsHTML = estObservacoes[bob.item]
-            ? '<div style="font-size:0.6em;color:#f59e0b;margin-top:2px;">💬 ' +
-              estObservacoes[bob.item] +
-              "</div>"
-            : "";
+  var bl = '<div class="bob-wrap">';
 
-          // ===================== NOVO: Mostra item apenas se a OP tiver mais de 1 item =====================
-          var itemHTML = mostrarItem
-            ? '<span style="font-family:monospace;font-weight:700;color:#2563eb;margin-right:6px;">' +
-              bob.item +
-              "</span>"
-            : "";
-          // =============================================================================================
+  function buildBobRow(bi) {
+    var bob = B[bi];
 
-          bl +=
-            '<div class="bob-row' +
-            (bob.ok ? " done" : "") +
-            '">' +
-            '<button class="bob-chk' +
-            (bob.ok ? " done" : "") +
-            '" data-b="' +
-            bi +
-            '">' +
-            (bob.ok ? "✔" : "📷") +
-            "</button>" +
-            '<div class="bob-mid"><span class="bob-peso">' +
-            itemHTML + // ← Item aparece aqui (condicional)
-            bob.qtde +
-            " kg" +
-            (bob.largOP && bob.larg !== bob.largOP
-              ? ' <span style="font-size:0.6em;padding:2px 6px;border-radius:6px;background:#fef3c7;color:#d97706;font-weight:700;">📐 ' +
-                bob.larg +
-                "cm→" +
-                bob.largOP +
-                "cm" +
-                (bob.apresentacao === "saco" ||
-                bob.apresentacao === "saco picotado" ||
-                bob.apresentacao === "folha"
-                  ? " 📦 SACO"
-                  : "") +
-                "</span>"
-              : "") +
-            (isMetalizado(bob.item)
-              ? ' <span style="font-size:0.6em;padding:2px 6px;border-radius:6px;background:#f1f5f9;color:#94a3b8;font-weight:700;">METAL</span>'
-              : "") +
-            (bob.manual ? tagManual() : "") +
-            (isBobinaNova(bob.item, bob.qtde) ? tagNew() : "") +
-            "</span>" +
-            obsHTML +
-            getEnderecoMini(bob) +
-            "</div>" +
-            (bob.foto
-              ? '<img src="' +
-                bob.foto +
-                '" class="bob-mini" data-b="' +
-                bi +
-                '">'
-              : "") +
-            '<div class="bob-actions">' +
-            '<button class="bob-act bob-act-edit" data-b="' +
-            bi +
-            '" data-g="' +
-            gi +
-            '" title="Editar peso">✏️</button>' +
-            '<button class="bob-act bob-act-split" data-b="' +
-            bi +
-            '" data-g="' +
-            gi +
-            '" title="Dividir bobina">✂️</button>' +
-            '<button class="btn-del-bob" data-b="' +
-            bi +
-            '" data-g="' +
-            gi +
-            '">✖</button>' +
-            "</div>" +
-            "</div>";
-        }
+    if (filt === "ok" && !bob.ok) return "";
+    if (filt === "pend" && bob.ok) return "";
 
-        bl += "</div>";
+    var obsHTML = estObservacoes[bob.item]
+      ? '<div style="font-size:0.6em;color:#f59e0b;margin-top:2px;">💬 ' +
+        estObservacoes[bob.item] +
+        "</div>"
+      : "";
 
-        card.innerHTML =
-          hd +
-          bl +
-          '<button class="btn-add" data-g="' +
-          gi +
-          '">➕ Adicionar bobina</button>';
+    return (
+      '<div class="bob-row' +
+      (bob.ok ? " done" : "") +
+      '">' +
+      '<button class="bob-chk' +
+      (bob.ok ? " done" : "") +
+      '" data-b="' +
+      bi +
+      '">' +
+      (bob.ok ? "✔" : "📷") +
+      "</button>" +
+      '<div class="bob-mid"><span class="bob-peso">' +
+      bob.qtde +
+      " kg" +
+      (bob.largOP && bob.larg !== bob.largOP
+        ? ' <span style="font-size:0.6em;padding:2px 6px;border-radius:6px;background:#fef3c7;color:#d97706;font-weight:700;">📐 ' +
+          bob.larg +
+          "cm→" +
+          bob.largOP +
+          "cm" +
+          (bob.apresentacao === "saco" ||
+          bob.apresentacao === "saco picotado" ||
+          bob.apresentacao === "folha"
+            ? " 📦 SACO"
+            : "") +
+          "</span>"
+        : "") +
+      (isMetalizado(bob.item)
+        ? ' <span style="font-size:0.6em;padding:2px 6px;border-radius:6px;background:#f1f5f9;color:#94a3b8;font-weight:700;">METAL</span>'
+        : "") +
+      (bob.manual ? tagManual() : "") +
+      (isBobinaNova(bob.item, bob.qtde) ? tagNew() : "") +
+      "</span>" +
+      obsHTML +
+      getEnderecoMini(bob) +
+      "</div>" +
+      (bob.foto
+        ? '<img src="' + bob.foto + '" class="bob-mini" data-b="' + bi + '">'
+        : "") +
+      '<div class="bob-actions">' +
+      '<button class="bob-act bob-act-edit" data-b="' +
+      bi +
+      '" data-g="' +
+      gi +
+      '" title="Editar peso">✏️</button>' +
+      '<button class="bob-act bob-act-split" data-b="' +
+      bi +
+      '" data-g="' +
+      gi +
+      '" title="Dividir bobina">✂️</button>' +
+      '<button class="btn-del-bob" data-b="' +
+      bi +
+      '" data-g="' +
+      gi +
+      '">✖</button>' +
+      "</div>" +
+      "</div>"
+    );
+  }
 
-        // ... (o restante dos event listeners permanece igual)
-        card.querySelectorAll(".bob-chk").forEach(function (el) {
-          el.addEventListener("click", function () {
-            var bi2 = parseInt(this.getAttribute("data-b"));
-            if (B[bi2].ok) {
-              B[bi2].ok = false;
-              B[bi2].foto = null;
-              B[bi2].fotoNm = "";
-              save();
-              build();
-            } else {
-              openCam(bi2);
-            }
-          });
-        });
+  if (multiItem) {
+    for (var ig = 0; ig < gruposItem.length; ig++) {
+      var grupo = gruposItem[ig];
+      var ref = grupo.ref;
 
-        card.querySelectorAll(".bob-mini").forEach(function (el) {
-          el.addEventListener("click", function (ev) {
-            ev.stopPropagation();
-            document.getElementById("ai").src =
-              B[parseInt(this.getAttribute("data-b"))].foto;
-            document.getElementById("ao").classList.add("active");
-          });
-        });
+      bl +=
+        '<div style="border-top:' +
+        (ig === 0 ? "none" : "1px dashed #e0e0e0") +
+        ';padding:10px 14px 6px;">' +
+        '<table style="border-collapse:collapse;font-size:0.68em;margin-bottom:6px;">' +
+        '<tr><td style="color:#aaa;padding:0 4px;">Item</td><td style="color:#aaa;padding:0 4px;">Ver</td><td style="color:#aaa;padding:0 4px;">Larg</td><td style="color:#aaa;padding:0 4px;">Esp</td><td style="color:#aaa;padding:0 4px;">Pig</td></tr>' +
+        '<tr><td style="color:#555;padding:0 4px;font-family:monospace;">' +
+        (ref.item || "-") +
+        '</td><td style="color:#555;padding:0 4px;font-family:monospace;">' +
+        (ref.ver || "-") +
+        '</td><td style="color:#555;padding:0 4px;font-family:monospace;">' +
+        (ref.larg || "-") +
+        '</td><td style="color:#555;padding:0 4px;font-family:monospace;">' +
+        (ref.esp || "-") +
+        '</td><td style="color:#555;padding:0 4px;font-family:monospace;">' +
+        (ref.pig || "-") +
+        "</td></tr></table>" +
+        "</div>";
 
-        card.querySelector(".btn-add").addEventListener("click", function () {
-          openAddPeso(parseInt(this.getAttribute("data-g")));
-        });
-        card
-          .querySelectorAll(".btn-del-op:not([data-dbg])")
-          .forEach(function (el) {
-            el.addEventListener("click", function () {
-              delOP(parseInt(this.getAttribute("data-g")));
-            });
-          });
-        card.querySelectorAll("[data-dbg]").forEach(function (el) {
-          el.addEventListener("click", function (ev) {
-            ev.stopPropagation();
-            var g2 = G[parseInt(this.getAttribute("data-g"))];
-            debugarItem(B[g2.bs[0]].item);
-          });
-        });
-        card.querySelectorAll("[data-foco]").forEach(function (el) {
-          el.addEventListener("click", function (ev) {
-            ev.stopPropagation();
-            aplicarFoco(parseInt(this.getAttribute("data-g")));
-          });
-        });
-        card.querySelectorAll(".btn-del-bob").forEach(function (el) {
-          el.addEventListener("click", function () {
-            delBob(parseInt(this.getAttribute("data-b")));
-          });
-        });
-
-        card.querySelectorAll(".bob-act-edit").forEach(function (el) {
-          el.addEventListener("click", function (ev) {
-            ev.stopPropagation();
-            editarPesoBob(
-              parseInt(this.getAttribute("data-b")),
-              parseInt(this.getAttribute("data-g")),
-            );
-          });
-        });
-
-        card.querySelectorAll(".bob-act-split").forEach(function (el) {
-          el.addEventListener("click", function (ev) {
-            ev.stopPropagation();
-            dividirBob(
-              parseInt(this.getAttribute("data-b")),
-              parseInt(this.getAttribute("data-g")),
-            );
-          });
-        });
-
-        return card;
+      for (var gb = 0; gb < grupo.bs.length; gb++) {
+        bl += buildBobRow(grupo.bs[gb]);
       }
+    }
+  } else {
+    for (var b = 0; b < g.bs.length; b++) {
+      bl += buildBobRow(g.bs[b]);
+    }
+  }
 
+  bl += "</div>";
+
+  card.innerHTML =
+    hd +
+    bl +
+    '<button class="btn-add" data-g="' +
+    gi +
+    '">➕ Adicionar bobina</button>';
+
+  card.querySelectorAll(".bob-chk").forEach(function (el) {
+    el.addEventListener("click", function () {
+      var bi2 = parseInt(this.getAttribute("data-b"));
+      if (B[bi2].ok) {
+        B[bi2].ok = false;
+        B[bi2].foto = null;
+        B[bi2].fotoNm = "";
+        save();
+        build();
+      } else {
+        openCam(bi2);
+      }
+    });
+  });
+
+  card.querySelectorAll(".bob-mini").forEach(function (el) {
+    el.addEventListener("click", function (ev) {
+      ev.stopPropagation();
+      document.getElementById("ai").src =
+        B[parseInt(this.getAttribute("data-b"))].foto;
+      document.getElementById("ao").classList.add("active");
+    });
+  });
+
+  card.querySelector(".btn-add").addEventListener("click", function () {
+    openAddPeso(parseInt(this.getAttribute("data-g")));
+  });
+
+  card
+    .querySelectorAll(".btn-del-op:not([data-dbg])")
+    .forEach(function (el) {
+      el.addEventListener("click", function () {
+        delOP(parseInt(this.getAttribute("data-g")));
+      });
+    });
+
+  card.querySelectorAll("[data-dbg]").forEach(function (el) {
+    el.addEventListener("click", function (ev) {
+      ev.stopPropagation();
+      var g2 = G[parseInt(this.getAttribute("data-g"))];
+      debugarItem(B[g2.bs[0]].item);
+    });
+  });
+
+  card.querySelectorAll("[data-foco]").forEach(function (el) {
+    el.addEventListener("click", function (ev) {
+      ev.stopPropagation();
+      aplicarFoco(parseInt(this.getAttribute("data-g")));
+    });
+  });
+
+  card.querySelectorAll(".btn-del-bob").forEach(function (el) {
+    el.addEventListener("click", function () {
+      delBob(parseInt(this.getAttribute("data-b")));
+    });
+  });
+
+  card.querySelectorAll(".bob-act-edit").forEach(function (el) {
+    el.addEventListener("click", function (ev) {
+      ev.stopPropagation();
+      editarPesoBob(
+        parseInt(this.getAttribute("data-b")),
+        parseInt(this.getAttribute("data-g"))
+      );
+    });
+  });
+
+  card.querySelectorAll(".bob-act-split").forEach(function (el) {
+    el.addEventListener("click", function (ev) {
+      ev.stopPropagation();
+      dividirBob(
+        parseInt(this.getAttribute("data-b")),
+        parseInt(this.getAttribute("data-g"))
+      );
+    });
+  });
+
+  return card;
+}
       // ================================================================
       //                    DELETE COM UNDO
       // ================================================================
@@ -10720,263 +10786,367 @@ var estObservacoes = {};
         return new File([blob], nomeArquivo, { type: "image/jpeg" });
       }
 
-      async function shareFotos() {
-        xM("fm");
-        var lo = document.getElementById("lo"),
-          lt = document.getElementById("lt");
-        lo.classList.add("active");
-        lt.textContent = "Preparando fotos...";
+     async function shareFotos() {
+  xM("fm");
+
+  var lo = document.getElementById("lo"),
+    lt = document.getElementById("lt");
+
+  lo.classList.add("active");
+  lt.textContent = "Preparando fotos...";
+
+  try {
+    var arquivos = [],
+      contPorOp = {};
+
+    for (var i = 0; i < G.length; i++) {
+      var g = G[i];
+
+      for (var b = 0; b < g.bs.length; b++) {
+        var bob = B[g.bs[b]];
+        if (!bob.foto && !bob.fotoEtiqueta) continue;
+
+        contPorOp[g.enc] = (contPorOp[g.enc] || 0) + 1;
+        var n = contPorOp[g.enc];
+        var nome = g.enc + (n > 1 ? " (" + n + ")" : "") + ".jpg";
+
         try {
-          var arquivos = [],
-            contPorOp = {};
-          for (var i = 0; i < G.length; i++) {
-            var g = G[i];
-            for (var b = 0; b < g.bs.length; b++) {
-              var bob = B[g.bs[b]];
-              if (!bob.foto && !bob.fotoEtiqueta) continue;
+          var arquivoCombinado = await gerarFotoCombinadaVertical(bob, nome);
+          if (arquivoCombinado) arquivos.push(arquivoCombinado);
+        } catch (e) {}
+      }
+    }
 
-              contPorOp[g.enc] = (contPorOp[g.enc] || 0) + 1;
-              var n = contPorOp[g.enc];
-              var nome = g.enc + (n > 1 ? " (" + n + ")" : "") + ".jpg";
+    lt.textContent = "Gerando relatório...";
 
-              try {
-                var arquivoCombinado = await gerarFotoCombinadaVertical(
-                  bob,
-                  nome,
-                );
-                if (arquivoCombinado) arquivos.push(arquivoCombinado);
-              } catch (e) {}
-            }
-          }
+    var textoRelatorio =
+      "📦 RELATÓRIO DE ENCAIXES\n📅 " +
+      new Date().toLocaleString("pt-BR") +
+      "\n📷 " +
+      B.length +
+      " bobinas | " +
+      G.length +
+      " OPs\n═══════════════════\n\n";
 
-          lt.textContent = "Gerando relatório...";
+    for (var o = 0; o < G.length; o++) {
+      var g2 = G[o];
+      var gruposItemTexto = getOpItemGroups(g2);
 
-          // Gera texto do relatório
-          var textoRelatorio =
-            "📦 RELATÓRIO DE ENCAIXES\n📅 " +
-            new Date().toLocaleString("pt-BR") +
-            "\n📷 " +
-            B.length +
-            " bobinas | " +
-            G.length +
-            " OPs\n═══════════════════\n\n";
-          for (var o = 0; o < G.length; o++) {
-            var g2 = G[o];
-            textoRelatorio += "🔷 OP " + g2.enc + "\n";
-            var pt = 0;
-            for (var b2 = 0; b2 < g2.bs.length; b2++) {
-              var bob2 = B[g2.bs[b2]];
-              pt += parseFloat(bob2.qtde) || 0;
-              textoRelatorio +=
-                "  " +
-                (bob2.ok ? "✅" : "⬜") +
-                " " +
-                bob2.item +
-                " v" +
-                bob2.ver +
-                " → " +
-                bob2.qtde +
-                "kg";
-              if (bob2.manual) textoRelatorio += " [MANUAL]";
-              textoRelatorio += "\n";
-            }
+      textoRelatorio += "🔷 OP " + g2.enc + "\n";
+
+      if (gruposItemTexto.length > 1) {
+        for (var ig = 0; ig < gruposItemTexto.length; ig++) {
+          var grupoTxt = gruposItemTexto[ig];
+          var refTxt = grupoTxt.ref;
+          var ptGrupo = 0;
+
+          textoRelatorio +=
+            "  Item: " +
+            (refTxt.item || "-") +
+            " | Ver: " +
+            (refTxt.ver || "-") +
+            " | Larg: " +
+            (refTxt.larg || "-") +
+            " | Esp: " +
+            (refTxt.esp || "-") +
+            " | Pig: " +
+            (refTxt.pig || "-") +
+            "\n";
+
+          for (var gb = 0; gb < grupoTxt.bs.length; gb++) {
+            var bobTxt = B[grupoTxt.bs[gb]];
+            ptGrupo += parseFloat(bobTxt.qtde) || 0;
+
             textoRelatorio +=
-              "  📊 Total: " + pt.toFixed(0) + "kg\n───────────────────\n\n";
+              "    " +
+              (bobTxt.ok ? "✅" : "⬜") +
+              " " +
+              bobTxt.qtde +
+              "kg";
+
+            if (bobTxt.manual) textoRelatorio += " [MANUAL]";
+            textoRelatorio += "\n";
           }
 
-          // Gera imagem do relatório
-          var canvas = document.createElement("canvas"),
-            largura = 800,
-            linhaAltura = 28,
-            headerAltura = 80,
-            linhas = [];
-          for (var o2 = 0; o2 < G.length; o2++) {
-            var g3 = G[o2];
-            linhas.push({ tipo: "op", enc: g3.enc });
-            for (var b3 = 0; b3 < g3.bs.length; b3++) {
-              var bob3 = B[g3.bs[b3]];
-              linhas.push({
-                tipo: "bob",
-                item: bob3.item,
-                ver: bob3.ver,
-                larg: bob3.larg,
-                esp: bob3.esp,
-                pig: bob3.pig,
-                qtde: bob3.qtde,
-                manual: bob3.manual,
-                foto: bob3.foto ? "📷" : "⬜",
-              });
-            }
-            linhas.push({ tipo: "sep" });
-          }
-          var altura = headerAltura + linhas.length * linhaAltura + 40;
-          canvas.width = largura;
-          canvas.height = altura;
+          textoRelatorio +=
+            "    📊 Total do item: " + ptGrupo.toFixed(0) + "kg\n\n";
+        }
+      } else {
+        var pt = 0;
 
-          var ctx = canvas.getContext("2d");
-          ctx.fillStyle = "#fff";
-          ctx.fillRect(0, 0, largura, altura);
+        for (var b2 = 0; b2 < g2.bs.length; b2++) {
+          var bob2 = B[g2.bs[b2]];
+          pt += parseFloat(bob2.qtde) || 0;
 
-          ctx.fillStyle = "#2563eb";
-          ctx.fillRect(0, 0, largura, headerAltura);
-          ctx.fillStyle = "#fff";
-          ctx.font = "bold 22px Arial";
-          ctx.fillText("📦 Relatório de Encaixes", 20, 35);
-          ctx.font = "14px Arial";
-          ctx.fillText(
-            "📅 " +
-              new Date().toLocaleString("pt-BR") +
-              "  |  " +
-              B.length +
-              " bobinas  |  " +
-              G.length +
-              " OPs",
-            20,
-            60,
-          );
+          textoRelatorio +=
+            "  " +
+            (bob2.ok ? "✅" : "⬜") +
+            " " +
+            bob2.item +
+            " v" +
+            bob2.ver +
+            " → " +
+            bob2.qtde +
+            "kg";
 
-          // Cabeçalho
-          var y = headerAltura + 10;
-          ctx.fillStyle = "#f0f2f5";
-          ctx.fillRect(0, y, largura, linhaAltura);
-          ctx.fillStyle = "#888";
-          ctx.font = "bold 12px Arial";
-          ctx.fillText("ENCAIXE", 20, y + 18);
-          ctx.fillText("ITEM", 120, y + 18);
-          ctx.fillText("VER", 280, y + 18);
-          ctx.fillText("LARG", 330, y + 18);
-          ctx.fillText("ESP", 400, y + 18);
-          ctx.fillText("PIG", 460, y + 18);
-          ctx.fillText("PESO", 510, y + 18);
-          ctx.fillText("FOTO", 660, y + 18);
-          y += linhaAltura;
+          if (bob2.manual) textoRelatorio += " [MANUAL]";
+          textoRelatorio += "\n";
+        }
 
-          // ===================== LÓGICA DE EXIBIÇÃO DO ITEM =====================
-          var opsComMultiplosItens = {};
-          for (var o = 0; o < G.length; o++) {
-            var g = G[o];
-            var itens = [...new Set(g.bs.map((i) => B[i].item))];
-            opsComMultiplosItens[g.enc] = itens.length > 1;
-          }
-          // =====================================================================
+        textoRelatorio += "  📊 Total: " + pt.toFixed(0) + "kg\n";
+      }
 
-          for (var l = 0; l < linhas.length; l++) {
-            var lin = linhas[l];
+      textoRelatorio += "───────────────────\n\n";
+    }
 
-            if (lin.tipo === "sep") {
-              ctx.fillStyle = "#e0e0e0";
-              ctx.fillRect(20, y + 10, largura - 40, 1);
-              y += linhaAltura / 2;
-              continue;
-            }
+    var canvas = document.createElement("canvas"),
+      largura = 900,
+      linhaAltura = 28,
+      headerAltura = 80,
+      linhas = [];
 
-            if (lin.tipo === "op") {
-              ctx.fillStyle = "#eff6ff";
-              ctx.fillRect(0, y, largura, linhaAltura);
-              ctx.fillStyle = "#2563eb";
-              ctx.font = "bold 14px Arial";
-              ctx.fillText("OP " + lin.enc, 20, y + 18);
-              y += linhaAltura;
-              continue;
-            }
+    for (var o2 = 0; o2 < G.length; o2++) {
+      var g3 = G[o2];
+      var gruposItem = getOpItemGroups(g3);
 
-            if (lin.tipo === "bob") {
-              if (l % 2 === 0) {
-                ctx.fillStyle = "#fafafa";
-                ctx.fillRect(0, y, largura, linhaAltura);
-              }
+      linhas.push({ tipo: "op", enc: g3.enc, total: g3.bs.length });
 
-              ctx.fillStyle = "#333";
-              ctx.font = "13px monospace";
+      if (gruposItem.length > 1) {
+        for (var ig2 = 0; ig2 < gruposItem.length; ig2++) {
+          var grupo = gruposItem[ig2];
+          var ref = grupo.ref;
 
-              // ===================== MOSTRA ITEM SOMENTE SE A OP TIVER MAIS DE 1 ITEM =====================
-              if (opsComMultiplosItens[lin.enc]) {
-                ctx.fillText(lin.item || "", 120, y + 18);
-              }
-              // =========================================================================================
-
-              ctx.fillText(lin.ver || "", 280, y + 18);
-              ctx.fillText(lin.larg || "", 330, y + 18);
-              ctx.fillText(lin.esp || "", 400, y + 18);
-              ctx.fillText(lin.pig || "", 460, y + 18);
-
-              ctx.font = "bold 13px Arial";
-              ctx.fillText(lin.qtde + " kg", 510, y + 18);
-              ctx.font = "13px Arial";
-              ctx.fillText(lin.foto, 660, y + 18);
-
-              y += linhaAltura;
-            }
-          }
-
-          ctx.fillStyle = "#aaa";
-          ctx.font = "11px Arial";
-          ctx.fillText(
-            "Sistema Encaixes | " + new Date().toLocaleString("pt-BR"),
-            20,
-            altura - 15,
-          );
-
-          var relBlob = await new Promise(function (resolve) {
-            canvas.toBlob(resolve, "image/jpeg", 0.95);
+          linhas.push({
+            tipo: "itemHeader",
+            item: ref.item,
+            ver: ref.ver,
+            larg: ref.larg,
+            esp: ref.esp,
+            pig: ref.pig,
           });
 
-          arquivos.push(
-            new File([relBlob], "RELATORIO.jpg", { type: "image/jpeg" }),
-          );
-
-          lo.classList.remove("active");
-          if (arquivos.length === 0) {
-            toast("Nenhuma foto", "warning");
-            return;
-          }
-
-          // Compartilhar com texto do relatório junto
-          if (
-            navigator.share &&
-            navigator.canShare &&
-            navigator.canShare({ files: arquivos })
-          ) {
-            try {
-              await navigator.share({
-                files: arquivos,
-                title: "📦 Encaixes " + new Date().toLocaleDateString("pt-BR"),
-                text: textoRelatorio,
-              });
-              return;
-            } catch (e) {
-              if (e.name === "AbortError") return;
-            }
-          }
-
-          // Fallback: baixa fotos + abre WhatsApp com texto
-          lt.textContent = "Baixando...";
-          lo.classList.add("active");
-          for (var f2 = 0; f2 < arquivos.length; f2++) {
-            var url = URL.createObjectURL(arquivos[f2]);
-            var link = document.createElement("a");
-            link.href = url;
-            link.download = arquivos[f2].name;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            await new Promise(function (res) {
-              setTimeout(res, 300);
+          for (var b3 = 0; b3 < grupo.bs.length; b3++) {
+            var bob3 = B[grupo.bs[b3]];
+            linhas.push({
+              tipo: "bobGrupo",
+              qtde: bob3.qtde,
+              manual: bob3.manual,
+              foto: bob3.foto ? "📷" : "⬜",
+              ok: bob3.ok,
             });
           }
-          lo.classList.remove("active");
-          setTimeout(function () {
-            window.open(
-              "https://wa.me/?text=" + encodeURIComponent(textoRelatorio),
-              "_blank",
-            );
-          }, 500);
-        } catch (err) {
-          lo.classList.remove("active");
-          toast("Erro: " + err.message, "error");
+        }
+      } else {
+        for (var b4 = 0; b4 < g3.bs.length; b4++) {
+          var bob4 = B[g3.bs[b4]];
+          linhas.push({
+            tipo: "bob",
+            item: bob4.item,
+            ver: bob4.ver,
+            larg: bob4.larg,
+            esp: bob4.esp,
+            pig: bob4.pig,
+            qtde: bob4.qtde,
+            manual: bob4.manual,
+            foto: bob4.foto ? "📷" : "⬜",
+            ok: bob4.ok,
+          });
         }
       }
+
+      linhas.push({ tipo: "sep" });
+    }
+
+    var altura = headerAltura + linhas.length * linhaAltura + 40;
+    canvas.width = largura;
+    canvas.height = altura;
+
+    var ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, largura, altura);
+
+    ctx.fillStyle = "#2563eb";
+    ctx.fillRect(0, 0, largura, headerAltura);
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 22px Arial";
+    ctx.fillText("📦 Relatório de Encaixes", 20, 35);
+
+    ctx.font = "14px Arial";
+    ctx.fillText(
+      "📅 " +
+        new Date().toLocaleString("pt-BR") +
+        "  |  " +
+        B.length +
+        " bobinas  |  " +
+        G.length +
+        " OPs",
+      20,
+      60
+    );
+
+    var y = headerAltura + 10;
+
+    ctx.fillStyle = "#f0f2f5";
+    ctx.fillRect(0, y, largura, linhaAltura);
+    ctx.fillStyle = "#888";
+    ctx.font = "bold 12px Arial";
+    ctx.fillText("ENCAIXE", 20, y + 18);
+    ctx.fillText("ITEM", 120, y + 18);
+    ctx.fillText("VER", 280, y + 18);
+    ctx.fillText("LARG", 340, y + 18);
+    ctx.fillText("ESP", 410, y + 18);
+    ctx.fillText("PIG", 470, y + 18);
+    ctx.fillText("PESO", 540, y + 18);
+    ctx.fillText("FOTO", 680, y + 18);
+    y += linhaAltura;
+
+    for (var l = 0; l < linhas.length; l++) {
+      var lin = linhas[l];
+
+      if (lin.tipo === "sep") {
+        ctx.fillStyle = "#e0e0e0";
+        ctx.fillRect(20, y + 10, largura - 40, 1);
+        y += linhaAltura / 2;
+        continue;
+      }
+
+      if (lin.tipo === "op") {
+        ctx.fillStyle = "#eff6ff";
+        ctx.fillRect(0, y, largura, linhaAltura);
+        ctx.fillStyle = "#2563eb";
+        ctx.font = "bold 14px Arial";
+        ctx.fillText("OP " + lin.enc, 20, y + 18);
+        y += linhaAltura;
+        continue;
+      }
+
+      if (lin.tipo === "itemHeader") {
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillRect(0, y, largura, linhaAltura);
+
+        ctx.fillStyle = "#555";
+        ctx.font = "bold 12px Arial";
+        ctx.fillText(lin.item || "-", 120, y + 18);
+        ctx.fillText(lin.ver || "-", 280, y + 18);
+        ctx.fillText(lin.larg || "-", 340, y + 18);
+        ctx.fillText(lin.esp || "-", 410, y + 18);
+        ctx.fillText(lin.pig || "-", 470, y + 18);
+
+        y += linhaAltura;
+        continue;
+      }
+
+      if (lin.tipo === "bobGrupo") {
+        ctx.fillStyle = "#333";
+        ctx.font = "13px Arial";
+        ctx.fillText((lin.ok ? "✅ " : "⬜ ") + (lin.qtde || "") + " kg", 540, y + 18);
+        if (lin.manual) {
+          ctx.fillText("[MANUAL]", 640, y + 18);
+        }
+        ctx.fillText(lin.foto, 760, y + 18);
+        y += linhaAltura;
+        continue;
+      }
+
+      if (lin.tipo === "bob") {
+        if (l % 2 === 0) {
+          ctx.fillStyle = "#fafafa";
+          ctx.fillRect(0, y, largura, linhaAltura);
+        }
+
+        ctx.fillStyle = "#333";
+        ctx.font = "13px monospace";
+        ctx.fillText(lin.item || "", 120, y + 18);
+        ctx.fillText(lin.ver || "", 280, y + 18);
+        ctx.fillText(lin.larg || "", 340, y + 18);
+        ctx.fillText(lin.esp || "", 410, y + 18);
+        ctx.fillText(lin.pig || "", 470, y + 18);
+
+        ctx.font = "bold 13px Arial";
+        ctx.fillText((lin.ok ? "✅ " : "⬜ ") + lin.qtde + " kg", 540, y + 18);
+
+        ctx.font = "13px Arial";
+        if (lin.manual) {
+          ctx.fillText("[MANUAL]", 640, y + 18);
+        }
+        ctx.fillText(lin.foto, 760, y + 18);
+
+        y += linhaAltura;
+      }
+    }
+
+    ctx.fillStyle = "#aaa";
+    ctx.font = "11px Arial";
+    ctx.fillText(
+      "Sistema Encaixes | " + new Date().toLocaleString("pt-BR"),
+      20,
+      altura - 15
+    );
+
+    var relBlob = await new Promise(function (resolve) {
+      canvas.toBlob(resolve, "image/jpeg", 0.95);
+    });
+
+    arquivos.push(
+      new File([relBlob], "RELATORIO.jpg", { type: "image/jpeg" })
+    );
+
+    lo.classList.remove("active");
+
+    if (arquivos.length === 0) {
+      toast("Nenhuma foto", "warning");
+      return;
+    }
+
+    if (
+      navigator.share &&
+      navigator.canShare &&
+      navigator.canShare({ files: arquivos })
+    ) {
+      try {
+        await navigator.share({
+          files: arquivos,
+          title: "📦 Encaixes " + new Date().toLocaleDateString("pt-BR"),
+          text: textoRelatorio,
+        });
+        return;
+      } catch (e) {
+        if (e.name === "AbortError") return;
+      }
+    }
+
+    lt.textContent = "Baixando...";
+    lo.classList.add("active");
+
+    for (var f2 = 0; f2 < arquivos.length; f2++) {
+      var url = URL.createObjectURL(arquivos[f2]);
+      var link = document.createElement("a");
+      link.href = url;
+      link.download = arquivos[f2].name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      await new Promise(function (res) {
+        setTimeout(res, 300);
+      });
+    }
+
+    lo.classList.remove("active");
+
+    setTimeout(function () {
+      window.open(
+        "https://wa.me/?text=" + encodeURIComponent(textoRelatorio),
+        "_blank"
+      );
+    }, 500);
+  } catch (err) {
+    lo.classList.remove("active");
+    toast("Erro: " + err.message, "error");
+  }
+}      
 
       async function shareTexto() {
         xM("fm");
