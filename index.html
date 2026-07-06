@@ -7141,7 +7141,30 @@ function getOpItemGroups(g) {
               dataEntrada = null,
               origem = "";
 
-            if (primeiraVez[ic]) {
+            var dataFinalizacao = e["DATA_FINALIZACAO_OP"] ? String(e["DATA_FINALIZACAO_OP"]).trim() : "";
+            var dFormatado = null;
+            if (dataFinalizacao && dataFinalizacao.match(/^\d{2}\/\d{2}\/\d{2,4}$/)) {
+              var p = dataFinalizacao.split("/");
+              var dAno = parseInt(p[2], 10);
+              if (dAno < 100) dAno += 2000;
+              var dMes = parseInt(p[1], 10) - 1;
+              var dDia = parseInt(p[0], 10);
+              dFormatado = new Date(dAno, dMes, dDia);
+            }
+
+            if (primeiraVez[ic] && primeiraVez[ic].lote === "manual") {
+              var pv = primeiraVez[ic];
+              if (pv.timestamp && pv.timestamp.toDate) {
+                var dt2 = pv.timestamp.toDate();
+                diasParado = Math.floor((agora - dt2) / 86400000);
+                dataEntrada = dt2.toLocaleDateString("pt-BR");
+                origem = "manual";
+              }
+            } else if (dFormatado && !isNaN(dFormatado.getTime())) {
+              diasParado = Math.floor((agora - dFormatado) / 86400000);
+              dataEntrada = dFormatado.toLocaleDateString("pt-BR");
+              origem = "planilha";
+            } else if (primeiraVez[ic]) {
               var pv = primeiraVez[ic];
               if (pv.timestamp && pv.timestamp.toDate) {
                 var dt2 = pv.timestamp.toDate();
@@ -8692,12 +8715,26 @@ function getOpItemGroups(g) {
           var dataEntrada = manualDatas[ic] || "";
           var diasParado = "";
 
+          var dataFinalizacao = e["DATA_FINALIZACAO_OP"] ? String(e["DATA_FINALIZACAO_OP"]).trim() : "";
+          var dFormatado = null;
+          if (dataFinalizacao && dataFinalizacao.match(/^\d{2}\/\d{2}\/\d{2,4}$/)) {
+            var p = dataFinalizacao.split("/");
+            var dAno = parseInt(p[2], 10);
+            if (dAno < 100) dAno += 2000;
+            var dMes = parseInt(p[1], 10) - 1;
+            var dDia = parseInt(p[0], 10);
+            dFormatado = new Date(dAno, dMes, dDia);
+          }
+
           if (dataEntrada) {
-            var dt = new Date(dataEntrada);
+            var dt = new Date(dataEntrada + "T00:00:00");
             if (!isNaN(dt.getTime())) {
               diasParado = Math.floor((new Date() - dt) / 86400000);
               dataEntrada = dt.toLocaleDateString("pt-BR");
             }
+          } else if (dFormatado && !isNaN(dFormatado.getTime())) {
+            diasParado = Math.floor((new Date() - dFormatado) / 86400000);
+            dataEntrada = dFormatado.toLocaleDateString("pt-BR");
           }
 
           // Status
@@ -13789,5 +13826,5 @@ async function shareFotos() {
         </div>
       </div>
     </div>
-  </body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a16f273208f79cf2',t:'MTc4MzM0NjYwOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
