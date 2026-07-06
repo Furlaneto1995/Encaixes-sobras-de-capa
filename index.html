@@ -7143,13 +7143,20 @@ function getOpItemGroups(g) {
 
             var dataFinalizacao = e["DATA_FINALIZACAO_OP"] ? String(e["DATA_FINALIZACAO_OP"]).trim() : "";
             var dFormatado = null;
-            if (dataFinalizacao && dataFinalizacao.match(/^\d{2}\/\d{2}\/\d{2,4}$/)) {
-              var p = dataFinalizacao.split("/");
-              var dAno = parseInt(p[2], 10);
-              if (dAno < 100) dAno += 2000;
-              var dMes = parseInt(p[1], 10) - 1;
-              var dDia = parseInt(p[0], 10);
-              dFormatado = new Date(dAno, dMes, dDia);
+            if (dataFinalizacao) {
+              if (dataFinalizacao.match(/^\d{2}\/\d{2}\/\d{2,4}$/)) {
+                var p = dataFinalizacao.split("/");
+                var dAno = parseInt(p[2], 10);
+                if (dAno < 100) dAno += 2000;
+                var dMes = parseInt(p[1], 10) - 1;
+                var dDia = parseInt(p[0], 10);
+                dFormatado = new Date(dAno, dMes, dDia);
+              } else if (!isNaN(parseFloat(dataFinalizacao)) && parseFloat(dataFinalizacao) > 30000) {
+                var serial = parseFloat(dataFinalizacao);
+                var utc_days = Math.floor(serial - 25569);
+                dFormatado = new Date(utc_days * 86400 * 1000);
+                dFormatado = new Date(dFormatado.getUTCFullYear(), dFormatado.getUTCMonth(), dFormatado.getUTCDate());
+              }
             }
 
             if (primeiraVez[ic] && primeiraVez[ic].lote === "manual") {
@@ -8717,13 +8724,20 @@ function getOpItemGroups(g) {
 
           var dataFinalizacao = e["DATA_FINALIZACAO_OP"] ? String(e["DATA_FINALIZACAO_OP"]).trim() : "";
           var dFormatado = null;
-          if (dataFinalizacao && dataFinalizacao.match(/^\d{2}\/\d{2}\/\d{2,4}$/)) {
-            var p = dataFinalizacao.split("/");
-            var dAno = parseInt(p[2], 10);
-            if (dAno < 100) dAno += 2000;
-            var dMes = parseInt(p[1], 10) - 1;
-            var dDia = parseInt(p[0], 10);
-            dFormatado = new Date(dAno, dMes, dDia);
+          if (dataFinalizacao) {
+            if (dataFinalizacao.match(/^\d{2}\/\d{2}\/\d{2,4}$/)) {
+              var p = dataFinalizacao.split("/");
+              var dAno = parseInt(p[2], 10);
+              if (dAno < 100) dAno += 2000;
+              var dMes = parseInt(p[1], 10) - 1;
+              var dDia = parseInt(p[0], 10);
+              dFormatado = new Date(dAno, dMes, dDia);
+            } else if (!isNaN(parseFloat(dataFinalizacao)) && parseFloat(dataFinalizacao) > 30000) {
+              var serial = parseFloat(dataFinalizacao);
+              var utc_days = Math.floor(serial - 25569);
+              dFormatado = new Date(utc_days * 86400 * 1000);
+              dFormatado = new Date(dFormatado.getUTCFullYear(), dFormatado.getUTCMonth(), dFormatado.getUTCDate());
+            }
           }
 
           if (dataEntrada) {
@@ -13826,5 +13840,5 @@ async function shareFotos() {
         </div>
       </div>
     </div>
-  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a16f273208f79cf2',t:'MTc4MzM0NjYwOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a16f5ccd9b65f1dd',t:'MTc4MzM0ODgwNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
