@@ -4820,6 +4820,51 @@ var estObservacoes = {};
         }
       }
 
+      async function limparDatasManuaisObsoletas() {
+        if (!estoque || estoque.length === 0) return;
+        
+        var itensAtuais = {};
+        for (var i = 0; i < estoque.length; i++) {
+          var cod = getItemEstoque(estoque[i]);
+          if (cod) itensAtuais[cod] = true;
+        }
+
+        var alterouLocal = false;
+        try {
+          var manualDatas = JSON.parse(localStorage.getItem("enc_datas") || "{}");
+          for (var item in manualDatas) {
+            if (!itensAtuais[item]) {
+              delete manualDatas[item];
+              alterouLocal = true;
+            }
+          }
+          if (alterouLocal) {
+            localStorage.setItem("enc_datas", JSON.stringify(manualDatas));
+          }
+        } catch (e) {}
+
+        try {
+          var snapDatas = await db.collection("datas_manuais").get();
+          if (!snapDatas.empty) {
+            var batch = db.batch();
+            var deletouNuvem = false;
+            snapDatas.forEach(function (doc) {
+              var id = doc.id;
+              if (!itensAtuais[id]) {
+                batch.delete(doc.ref);
+                deletouNuvem = true;
+              }
+            });
+            if (deletouNuvem) {
+              await batch.commit();
+              console.log("Limpeza de datas manuais obsoletas concluída no Firebase.");
+            }
+          }
+        } catch (e) {
+          console.error("Erro na limpeza de datas obsoletas:", e);
+        }
+      }
+
       function limpar() {
         if (!confirm("Apagar tudo?")) return;
         B = [];
@@ -4877,6 +4922,7 @@ var estObservacoes = {};
                     (nMetal > 0 ? " | " + nMetal + " metalizados" : ""),
                   "success",
                 );
+              limparDatasManuaisObsoletas();
             };
             r.readAsText(f, "UTF-8");
           } else {
@@ -4915,6 +4961,7 @@ var estObservacoes = {};
                     (nMetal > 0 ? " | " + nMetal + " metalizados" : ""),
                   "success",
                 );
+              limparDatasManuaisObsoletas();
             };
             r.readAsArrayBuffer(f);
           }
@@ -13805,5 +13852,5 @@ async function shareFotos() {
         </div>
       </div>
     </div>
-  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a16ff4e62b166ea8',t:'MTc4MzM1NTAzNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a17074c91905da79',t:'MTc4MzM2MDI3Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
