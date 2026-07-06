@@ -3732,7 +3732,7 @@ var estObservacoes = {};
         if (!v) return null;
         var t = String(v).trim();
         if (t.indexOf(" ") > -1) t = t.split(" ")[0];
-        var p = t.split("/");
+        var p = t.split(/[\/\-]/);
         if (p.length === 3) {
           var d = parseInt(p[0], 10),
             m = parseInt(p[1], 10) - 1,
@@ -3740,6 +3740,12 @@ var estObservacoes = {};
           if (a < 100) a += 2000;
           var dt = new Date(a, m, d);
           if (!isNaN(dt.getTime())) return dt;
+        }
+        var serial = parseFloat(v);
+        if (!isNaN(serial) && serial > 30000) {
+          var utc_days = Math.floor(serial - 25569);
+          var dtExcel = new Date(utc_days * 86400 * 1000);
+          return new Date(dtExcel.getUTCFullYear(), dtExcel.getUTCMonth(), dtExcel.getUTCDate());
         }
         var d2 = new Date(t);
         if (!isNaN(d2.getTime())) return d2;
@@ -7039,7 +7045,7 @@ function getOpItemGroups(g) {
       async function carregarIdadeBobinas() {
         var body = document.getElementById("idadeBody");
         body.innerHTML =
-          '<div style="text-align:center;padding:40px;color:#f59e0b;">⏳ Buscando nas últimas 10 conferências...</div>';
+          '<div style="text-align:center;padding:40px;color:#f59e0b;">⏳ Carregando dados...</div>';
 
         try {
           var snap = await db
@@ -7142,22 +7148,7 @@ function getOpItemGroups(g) {
               origem = "";
 
             var dataFinalizacao = e["DATA_FINALIZACAO_OP"] ? String(e["DATA_FINALIZACAO_OP"]).trim() : "";
-            var dFormatado = null;
-            if (dataFinalizacao) {
-              if (dataFinalizacao.match(/^\d{2}\/\d{2}\/\d{2,4}$/)) {
-                var p = dataFinalizacao.split("/");
-                var dAno = parseInt(p[2], 10);
-                if (dAno < 100) dAno += 2000;
-                var dMes = parseInt(p[1], 10) - 1;
-                var dDia = parseInt(p[0], 10);
-                dFormatado = new Date(dAno, dMes, dDia);
-              } else if (!isNaN(parseFloat(dataFinalizacao)) && parseFloat(dataFinalizacao) > 30000) {
-                var serial = parseFloat(dataFinalizacao);
-                var utc_days = Math.floor(serial - 25569);
-                dFormatado = new Date(utc_days * 86400 * 1000);
-                dFormatado = new Date(dFormatado.getUTCFullYear(), dFormatado.getUTCMonth(), dFormatado.getUTCDate());
-              }
-            }
+            var dFormatado = parseDataBR(dataFinalizacao);
 
             if (primeiraVez[ic] && primeiraVez[ic].lote === "manual") {
               var pv = primeiraVez[ic];
@@ -7171,14 +7162,6 @@ function getOpItemGroups(g) {
               diasParado = Math.floor((agora - dFormatado) / 86400000);
               dataEntrada = dFormatado.toLocaleDateString("pt-BR");
               origem = "planilha";
-            } else if (primeiraVez[ic]) {
-              var pv = primeiraVez[ic];
-              if (pv.timestamp && pv.timestamp.toDate) {
-                var dt2 = pv.timestamp.toDate();
-                diasParado = Math.floor((agora - dt2) / 86400000);
-                dataEntrada = dt2.toLocaleDateString("pt-BR");
-                origem = "conferência";
-              }
             }
 
             itensParados.push({
@@ -7203,10 +7186,7 @@ function getOpItemGroups(g) {
           });
 
           document.getElementById("idadeSubtitle").textContent =
-            itensParados.length +
-            " itens | " +
-            ultimos10.length +
-            " conferências analisadas";
+            itensParados.length + " itens analisados";
 
           if (itensParados.length === 0) {
             body.innerHTML =
@@ -8723,22 +8703,7 @@ function getOpItemGroups(g) {
           var diasParado = "";
 
           var dataFinalizacao = e["DATA_FINALIZACAO_OP"] ? String(e["DATA_FINALIZACAO_OP"]).trim() : "";
-          var dFormatado = null;
-          if (dataFinalizacao) {
-            if (dataFinalizacao.match(/^\d{2}\/\d{2}\/\d{2,4}$/)) {
-              var p = dataFinalizacao.split("/");
-              var dAno = parseInt(p[2], 10);
-              if (dAno < 100) dAno += 2000;
-              var dMes = parseInt(p[1], 10) - 1;
-              var dDia = parseInt(p[0], 10);
-              dFormatado = new Date(dAno, dMes, dDia);
-            } else if (!isNaN(parseFloat(dataFinalizacao)) && parseFloat(dataFinalizacao) > 30000) {
-              var serial = parseFloat(dataFinalizacao);
-              var utc_days = Math.floor(serial - 25569);
-              dFormatado = new Date(utc_days * 86400 * 1000);
-              dFormatado = new Date(dFormatado.getUTCFullYear(), dFormatado.getUTCMonth(), dFormatado.getUTCDate());
-            }
-          }
+          var dFormatado = parseDataBR(dataFinalizacao);
 
           if (dataEntrada) {
             var dt = new Date(dataEntrada + "T00:00:00");
@@ -13767,7 +13732,7 @@ async function shareFotos() {
         "
       >
         <div style="font-size: 0.75em; color: #888; flex: 1">
-          Baseado nas últimas 10 conferências do Firebase
+          Baseado na data da planilha (coluna M)
         </div>
         <button
           onclick="carregarIdadeBobinas()"
@@ -13840,5 +13805,5 @@ async function shareFotos() {
         </div>
       </div>
     </div>
-  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a16f5ccd9b65f1dd',t:'MTc4MzM0ODgwNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a16ff4e62b166ea8',t:'MTc4MzM1NTAzNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
