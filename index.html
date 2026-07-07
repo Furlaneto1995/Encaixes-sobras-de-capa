@@ -5048,7 +5048,59 @@ var estObservacoes = {};
         );
       }
 
+      function htmlSafe(v) {
+        return String(v || "").replace(/[&<>"']/g, function (c) {
+          return {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;",
+          }[c];
+        });
+      }
+
+      function getConfStatusAtual(item, ver, qtde) {
+        var itemTxt = String(item || "").trim();
+        var verTxt = String(ver || "").trim();
+        var qtdeTxt = String(qtde || "").trim().replace(",", ".");
+        var n = parseFloat(qtdeTxt);
+        var candidatos = [];
+
+        function add(k) {
+          if (k && candidatos.indexOf(k) === -1) candidatos.push(k);
+        }
+
+        add(itemTxt + "_" + verTxt + "_" + qtdeTxt);
+        if (!isNaN(n)) {
+          add(itemTxt + "_" + verTxt + "_" + String(n));
+          add(itemTxt + "_" + verTxt + "_" + n.toFixed(1));
+          add(itemTxt + "_" + verTxt + "_" + n.toFixed(0));
+        }
+
+        for (var i = 0; i < candidatos.length; i++) {
+          var info = confStatus[candidatos[i]];
+          if (info && info.status === "ok") return info;
+        }
+        return null;
+      }
+
+      function getObsBobinaAtual(item, ver, qtde) {
+        var atual = getConfStatusAtual(item, ver, qtde);
+        if (atual && atual.observacao) return atual.observacao;
+        return estObservacoes[item] || "";
+      }
+
       function getEnderecoMini(bob) {
+        var atual = getConfStatusAtual(bob.item, bob.ver, bob.qtde);
+        if (atual && atual.endereco) {
+          return (
+            '<div style="font-size:0.58em;color:#10b981;margin-top:2px;">📌 ' +
+            htmlSafe(atual.endereco) +
+            "</div>"
+          );
+        }
+
         // Se a bobina é nova, nunca deve herdar endereços antigos do histórico
         if (isBobinaNova(bob.item, bob.qtde)) return "";
 
@@ -5058,7 +5110,7 @@ var estObservacoes = {};
         if (!hist || !hist.endereco) return "";
         return (
           '<div style="font-size:0.58em;color:#2563eb;margin-top:2px;">📌 ' +
-          hist.endereco +
+          htmlSafe(hist.endereco) +
           "</div>"
         );
       }
@@ -5171,9 +5223,10 @@ function getOpItemGroups(g) {
     if (filt === "ok" && !bob.ok) return "";
     if (filt === "pend" && bob.ok) return "";
 
-    var obsHTML = estObservacoes[bob.item]
+    var obsAtualBob = getObsBobinaAtual(bob.item, bob.ver, bob.qtde);
+    var obsHTML = obsAtualBob
       ? '<div style="font-size:0.6em;color:#f59e0b;margin-top:2px;">💬 ' +
-        estObservacoes[bob.item] +
+        htmlSafe(obsAtualBob) +
         "</div>"
       : "";
 
@@ -8354,13 +8407,20 @@ function getOpItemGroups(g) {
             cSem++;
             pSem += qtde;
           }
+          var confAtual = getConfStatusAtual(ic, ver, qtde);
+          var enderecoConf = confAtual && confAtual.endereco ? confAtual.endereco : "";
+          var obsAtual =
+            confAtual && confAtual.observacao
+              ? confAtual.observacao
+              : estObservacoes[ic] || "";
+
           if (!estFiltros[categoria]) continue;
 
           if (busca) {
             if (
               !itemBateComBusca(
                 busca,
-                [ic, e["MATERIAL"] || "", eop || ""],
+                [ic, e["MATERIAL"] || "", eop || "", enderecoConf, obsAtual],
                 comp,
                 pig,
               )
@@ -8384,6 +8444,8 @@ function getOpItemGroups(g) {
             isMetal: isMetal,
             isOculto: isOculto,
             material: normalizarTexto(e["MATERIAL"] || ""),
+            endereco: enderecoConf,
+            observacao: obsAtual,
           });
         }
 
@@ -8444,7 +8506,8 @@ function getOpItemGroups(g) {
           var it = itens[j];
           var bg = it.isOculto ? "#f5f3ff" : it.te ? "#f0fdf4" : "#fff";
           var bord = it.isOculto ? "#c4b5fd" : it.te ? "#bbf7d0" : "#e0e0e0";
-          var obsAtual = estObservacoes[it.item] || "";
+          var obsAtual = it.observacao || "";
+          var endAtual = it.endereco || "";
 
           var icone = it.isMetal
             ? "⚪"
@@ -8546,8 +8609,10 @@ function getOpItemGroups(g) {
           if (it.isOculto)
             html +=
               '<span style="color:#8b5cf6;font-weight:600;">👁️ OCULTA</span>';
+          if (endAtual)
+            html += '<span style="color:#10b981;font-weight:600;">📌 ' + htmlSafe(endAtual) + "</span>";
           if (obsAtual)
-            html += '<span style="color:#f59e0b;">💬 ' + obsAtual + "</span>";
+            html += '<span style="color:#f59e0b;">💬 ' + htmlSafe(obsAtual) + "</span>";
           html += "</div>";
 
           // Fecha o card
@@ -9237,6 +9302,88 @@ function getOpItemGroups(g) {
         }
       }
 
+      var confStatusNuvemTimer = null;
+      var confStatusListenerAtivo = false;
+
+      function salvarConferenciaNuvem(imediato) {
+        try {
+          localStorage.setItem("enc_conf", JSON.stringify(confStatus));
+        } catch (e) {}
+
+        function gravar() {
+          try {
+            if (typeof db === "undefined" || !db) return;
+            db.collection("config")
+              .doc("confStatus")
+              .set({
+                dados: JSON.stringify(confStatus),
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+              });
+          } catch (e) {
+            console.error("Erro ao salvar conferência na nuvem:", e);
+          }
+        }
+
+        if (confStatusNuvemTimer) clearTimeout(confStatusNuvemTimer);
+        if (imediato) gravar();
+        else confStatusNuvemTimer = setTimeout(gravar, 350);
+      }
+
+      async function carregarConferenciaNuvem() {
+        try {
+          if (typeof db === "undefined" || !db) return;
+          var docConf = await db.collection("config").doc("confStatus").get();
+          if (docConf.exists && docConf.data().dados) {
+            confStatus = JSON.parse(docConf.data().dados || "{}");
+            localStorage.setItem("enc_conf", JSON.stringify(confStatus));
+            build();
+            if (document.getElementById("estModal").classList.contains("active"))
+              estRender();
+            if (document.getElementById("confModal").classList.contains("active"))
+              confRender();
+          }
+        } catch (e) {
+          console.error("Erro ao carregar conferência da nuvem:", e);
+        }
+      }
+
+      function iniciarListenerConferenciaNuvem() {
+        if (confStatusListenerAtivo) return;
+        if (typeof db === "undefined" || !db) return;
+        confStatusListenerAtivo = true;
+        db.collection("config")
+          .doc("confStatus")
+          .onSnapshot(
+            function (doc) {
+              try {
+                if (!doc.exists || !doc.data().dados) {
+                  if (Object.keys(confStatus || {}).length > 0)
+                    salvarConferenciaNuvem(true);
+                  return;
+                }
+                var novo = JSON.parse(doc.data().dados || "{}");
+                var atualTxt = JSON.stringify(confStatus || {});
+                var novoTxt = JSON.stringify(novo || {});
+                if (atualTxt === novoTxt) return;
+
+                confStatus = novo || {};
+                localStorage.setItem("enc_conf", JSON.stringify(confStatus));
+
+                build();
+                if (document.getElementById("estModal").classList.contains("active"))
+                  estRender();
+                if (document.getElementById("confModal").classList.contains("active"))
+                  confRender();
+              } catch (e) {
+                console.error("Erro no listener da conferência:", e);
+              }
+            },
+            function (e) {
+              console.error("Listener conferência nuvem:", e);
+            },
+          );
+      }
+
       async function carregarObsNuvem() {
         try {
           var docObs = await db.collection("config").doc("observacoes").get();
@@ -9264,6 +9411,8 @@ function getOpItemGroups(g) {
         } catch (e) {
           console.error("Erro ao carregar ocultos da nuvem:", e);
         }
+
+        await carregarConferenciaNuvem();
 
         try {
           var docNovas = await db.collection("config").doc("bobinasNovas").get();
@@ -9842,7 +9991,7 @@ function getOpItemGroups(g) {
           endereco: endereco,
           observacao: observacao,
         };
-        localStorage.setItem("enc_conf", JSON.stringify(confStatus));
+        salvarConferenciaNuvem(true);
 
         var itemNome = key.split("_")[0];
         if (observacao) {
@@ -10095,7 +10244,7 @@ function getOpItemGroups(g) {
             ];
           }
           window.confDivisoes = {};
-          localStorage.setItem("enc_conf", JSON.stringify(confStatus));
+          salvarConferenciaNuvem(true);
           localStorage.removeItem("enc_divisoes");
           save();
           lo.classList.remove("active");
@@ -10137,8 +10286,8 @@ function getOpItemGroups(g) {
       }
 
       function confDesmarcar(key) {
-        confStatus[key] = { status: "pend", endereco: "" };
-        localStorage.setItem("enc_conf", JSON.stringify(confStatus));
+        delete confStatus[key];
+        salvarConferenciaNuvem(true);
         confRender();
       }
 
@@ -10147,8 +10296,9 @@ function getOpItemGroups(g) {
         confStatus = {};
         confOcultos = {};
         window.confDivisoes = {};
-        localStorage.setItem("enc_conf", JSON.stringify(confStatus));
+        salvarConferenciaNuvem(true);
         localStorage.setItem("enc_ocultos", JSON.stringify(confOcultos));
+        salvarOcultosNuvem();
         localStorage.removeItem("enc_divisoes");
         confRender();
         toast("Conferência resetada", "info");
@@ -10198,7 +10348,7 @@ function getOpItemGroups(g) {
           oldInfo = confStatus[key] || { status: "pend", endereco: "" };
         delete confStatus[key];
         confStatus[partes[0] + "_" + partes[1] + "_" + novoPeso] = oldInfo;
-        localStorage.setItem("enc_conf", JSON.stringify(confStatus));
+        salvarConferenciaNuvem(true);
         save();
         fecharModal("confPesoModal");
         confRender();
@@ -10489,7 +10639,7 @@ function getOpItemGroups(g) {
           confStatus[key] = { status: "ok", endereco: end };
           ultimoEndereco = end;
         }
-        localStorage.setItem("enc_conf", JSON.stringify(confStatus));
+        salvarConferenciaNuvem(true);
         save();
         fecharModal("confAddModal");
         confRender();
@@ -13374,6 +13524,11 @@ async function shareFotos() {
         carregarObservacoes();
       } catch (e) {
         console.error("Erro carregarObservacoes:", e);
+      }
+      try {
+        iniciarListenerConferenciaNuvem();
+      } catch (e) {
+        console.error("Erro iniciarListenerConferenciaNuvem:", e);
       }
 
       try {
