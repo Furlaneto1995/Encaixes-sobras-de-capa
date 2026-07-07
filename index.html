@@ -1664,28 +1664,6 @@
         }
       }
 
-      #confBusca,
-      #confBuscaKg {
-        max-width: none !important;
-        min-width: 0 !important;
-      }
-
-      #confBuscaKg {
-        flex: 0.6 !important;
-      }
-
-      #confBusca {
-        flex: 1.4 !important;
-        min-width: 0 !important;
-        max-width: none !important;
-      }
-
-      #confBuscaKg {
-        flex: 0.6 !important;
-        min-width: 0 !important;
-        max-width: none !important;
-      }
-
       #dashModal .modal-head,
       #idadeModal .modal-head {
         flex-shrink: 0;
@@ -2854,7 +2832,7 @@
       </div>
     </div>
 
-    <!-- MELHORIA 5: Busca conferência com campos menores -->
+    <!-- Conferência: escolha por tipo de bobina -->
     <div class="modal modal-full" id="confModal" style="background: #f0f2f5">
       <div class="modal-head">
         <div class="modal-head-info">
@@ -2865,122 +2843,60 @@
       </div>
       <div
         style="
-          padding: 10px 14px;
+          padding: 10px 14px 4px;
           flex-shrink: 0;
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          align-items: center;
+          text-align: center;
         "
       >
-        <div style="display: flex; gap: 6px; width: 100%; max-width: 400px">
-          <input
-            type="text"
-            id="confBusca"
-            placeholder="🔍 Item"
-            style="
-              flex: 1;
-              min-width: 0;
-              padding: 10px;
-              border-radius: 10px;
-              border: 1px solid #e0e0e0;
-              background: #fff;
-              color: #333;
-              font-size: 0.85em;
-            "
-          />
-          <input
-            type="number"
-            id="confBuscaKg"
-            placeholder="⚖️ Kg"
-            step="0.1"
-            inputmode="decimal"
-            style="
-              width: 80px;
-              min-width: 0;
-              padding: 10px;
-              border-radius: 10px;
-              border: 1px solid #e0e0e0;
-              background: #fff;
-              color: #333;
-              font-size: 0.85em;
-            "
-          />
+        <div style="font-size: 0.72em; color: #64748b; font-weight: 700">
+          Tipo de conferência
         </div>
       </div>
       <div
-        style="display: flex; gap: 4px; padding: 0 14px 4px; flex-wrap: wrap"
+        style="display: flex; gap: 4px; padding: 0 14px 8px; flex-wrap: wrap"
         id="confStats"
       >
         <div
-          class="st-btn on"
-          id="confFEnc"
-          onclick="confToggleFiltro('enc')"
-          style="flex: 1; min-width: 45px; padding: 6px 2px; cursor: pointer"
+          class="st-btn"
+          id="confFTipoMetal"
+          onclick="confSelecionarTipo('metal')"
+          style="flex: 1; min-width: 80px; padding: 8px 4px; cursor: pointer"
         >
           <div
-            style="font-size: 0.95em; color: #f59e0b; font-weight: 700"
-            id="confCEnc"
-          >
-            0
-          </div>
-          <div style="font-size: 0.5em; color: #888">Encaixe</div>
-        </div>
-        <div
-          class="st-btn on"
-          id="confFSem"
-          onclick="confToggleFiltro('sem')"
-          style="flex: 1; min-width: 45px; padding: 6px 2px; cursor: pointer"
-        >
-          <div
-            style="font-size: 0.95em; color: #ef4444; font-weight: 700"
-            id="confCSem"
-          >
-            0
-          </div>
-          <div style="font-size: 0.5em; color: #888">Sem enc.</div>
-        </div>
-        <div
-          class="st-btn on"
-          id="confFOk"
-          onclick="confToggleFiltro('ok')"
-          style="flex: 1; min-width: 45px; padding: 6px 2px; cursor: pointer"
-        >
-          <div
-            style="font-size: 0.95em; color: #10b981; font-weight: 700"
-            id="confCOk"
-          >
-            0
-          </div>
-          <div style="font-size: 0.5em; color: #888">Encontr.</div>
-        </div>
-        <div
-          class="st-btn on"
-          id="confFMetal"
-          onclick="confToggleFiltro('metal')"
-          style="flex: 1; min-width: 45px; padding: 6px 2px; cursor: pointer"
-        >
-          <div
-            style="font-size: 0.95em; color: #94a3b8; font-weight: 700"
+            style="font-size: 1em; color: #94a3b8; font-weight: 700"
             id="confCMetal"
           >
             0
           </div>
-          <div style="font-size: 0.5em; color: #888">Metal.</div>
+          <div style="font-size: 0.58em; color: #888">Metalizados</div>
         </div>
         <div
           class="st-btn on"
-          id="confFOculto"
-          onclick="confToggleFiltro('oculto')"
-          style="flex: 1; min-width: 45px; padding: 6px 2px; cursor: pointer"
+          id="confFTipoCapas"
+          onclick="confSelecionarTipo('capas')"
+          style="flex: 1; min-width: 80px; padding: 8px 4px; cursor: pointer"
         >
           <div
-            style="font-size: 0.95em; color: #8b5cf6; font-weight: 700"
+            style="font-size: 1em; color: #ef4444; font-weight: 700"
+            id="confCCapas"
+          >
+            0
+          </div>
+          <div style="font-size: 0.58em; color: #888">Capas</div>
+        </div>
+        <div
+          class="st-btn"
+          id="confFTipoOculto"
+          onclick="confSelecionarTipo('oculto')"
+          style="flex: 1; min-width: 80px; padding: 8px 4px; cursor: pointer"
+        >
+          <div
+            style="font-size: 1em; color: #8b5cf6; font-weight: 700"
             id="confCOculto"
           >
             0
           </div>
-          <div style="font-size: 0.5em; color: #888">Ocultas</div>
+          <div style="font-size: 0.58em; color: #888">Ocultas</div>
         </div>
       </div>
       <div
@@ -3393,6 +3309,10 @@
         metal: true,
         oculto: true,
       };
+      var confTipo = "capas";
+      try {
+        confTipo = localStorage.getItem("enc_conf_tipo") || "capas";
+      } catch (e) {}
       var ultimosProblemasImportacaoEstoque = [];
       var undoStack = [];
       var fotoRotacao = 0;
@@ -9430,19 +9350,55 @@ function getOpItemGroups(g) {
       // ================================================================
       //                    CONFERÊNCIA
       // ================================================================
-      function confToggleFiltro(tipo) {
-        confFiltros[tipo] = !confFiltros[tipo];
+      function confTipoLabel(tipo) {
+        if (tipo === "metal") return "Metalizados";
+        if (tipo === "oculto") return "Ocultas";
+        return "Capas";
+      }
+
+      function confCategoriaBobina(itemCode) {
+        var isMetal = isMetalizado(itemCode);
+        if (isMetal) return "metal";
+        if (confOcultos[itemCode] === true) return "oculto";
+        return "capas";
+      }
+
+      function confTipoRegistro(itemCode) {
+        if (isMetalizado(itemCode)) return "METAL";
+        if (confOcultos[itemCode] === true) return "OCULTA";
+        return temCapa(itemCode) ? "CAPA" : "BASE";
+      }
+
+      function confAtualizarTipoBtns() {
         var ids = {
-          enc: "confFEnc",
-          sem: "confFSem",
-          ok: "confFOk",
-          metal: "confFMetal",
-          oculto: "confFOculto",
+          metal: "confFTipoMetal",
+          capas: "confFTipoCapas",
+          oculto: "confFTipoOculto",
         };
-        document
-          .getElementById(ids[tipo])
-          .classList.toggle("on", confFiltros[tipo]);
+        Object.keys(ids).forEach(function (k) {
+          var el = document.getElementById(ids[k]);
+          if (!el) return;
+          el.classList.toggle("on", (confTipo || "capas") === k);
+        });
+      }
+
+      function confSelecionarTipo(tipo) {
+        if (["metal", "capas", "oculto"].indexOf(tipo) === -1) tipo = "capas";
+        confTipo = tipo;
+        try {
+          localStorage.setItem("enc_conf_tipo", confTipo);
+        } catch (e) {}
+        confAtualizarTipoBtns();
         confRender();
+      }
+
+      // Mantém compatibilidade com chamadas antigas.
+      function confToggleFiltro(tipo) {
+        if (tipo === "metal" || tipo === "oculto" || tipo === "capas") {
+          confSelecionarTipo(tipo);
+        } else {
+          confSelecionarTipo("capas");
+        }
       }
       async function abrirConferencia() {
         if (estoque.length === 0) {
@@ -9450,6 +9406,7 @@ function getOpItemGroups(g) {
           return;
         }
         document.getElementById("confModal").classList.add("active");
+        confAtualizarTipoBtns();
         await carregarHistoricoConferencia();
         confRender();
       }
@@ -9514,24 +9471,16 @@ function getOpItemGroups(g) {
       }
 
       function confRender() {
-        var body = document.getElementById("confBody"),
-          busca = document
-            .getElementById("confBusca")
-            .value.trim()
-            .toUpperCase();
-        var buscaKgTxt = document
-            .getElementById("confBuscaKg")
-            .value.trim()
-            .replace(",", "."),
-          buscaKg = buscaKgTxt !== "" ? parseFloat(buscaKgTxt) : null;
+        var body = document.getElementById("confBody");
+        if (!body) return;
+        var tipoSelecionado = confTipo || "capas";
         var itensComEncaixe = {};
         for (var b = 0; b < B.length; b++) itensComEncaixe[B[b].item] = true;
         var itens = [],
-          cEnc = 0,
-          cSem = 0,
-          cOk = 0,
+          cCapas = 0,
           cMetal = 0,
-          cOculto = 0;
+          cOculto = 0,
+          cOkTipo = 0;
         for (var i = 0; i < estoque.length; i++) {
           var e = estoque[i],
             itemCode = getItemEstoque(e),
@@ -9543,46 +9492,17 @@ function getOpItemGroups(g) {
           var qtde = parseFloat(e["QTDE_ESTOQUE"]) || 0,
             ver = e["VERSAO"] || "",
             isCapa = temCapa(itemCode);
-          var isMetal = /-4$/.test(itemCode),
+          var isMetal = isMetalizado(itemCode),
             isOculto = !isMetal && confOcultos[itemCode] === true,
             temEnc = itensComEncaixe[itemCode] === true;
           var key = itemCode + "_" + ver + "_" + qtde,
             info = confStatus[key] || { status: "pend", endereco: "" };
-          var categoria = "";
-          if (isMetal) {
-            categoria = "metal";
-            cMetal++;
-          } else if (isOculto) {
-            categoria = "oculto";
-            cOculto++;
-          } else if (info.status === "ok") {
-            categoria = "ok";
-            cOk++;
-          } else if (temEnc) {
-            categoria = "enc";
-            cEnc++;
-          } else {
-            categoria = "sem";
-            cSem++;
-          }
-          if (!confFiltros[categoria]) continue;
-          if (busca) {
-            if (
-              !itemBateComBusca(
-                busca,
-                [itemCode, estoque[i]["MATERIAL"] || ""],
-                comp,
-                pig,
-              )
-            )
-              continue;
-          }
-          if (
-            buscaKg !== null &&
-            !isNaN(buscaKg) &&
-            Math.abs(qtde - buscaKg) > 0.05
-          )
-            continue;
+          var categoria = isMetal ? "metal" : isOculto ? "oculto" : "capas";
+          if (categoria === "metal") cMetal++;
+          else if (categoria === "oculto") cOculto++;
+          else cCapas++;
+          if (categoria !== tipoSelecionado) continue;
+          if (info.status === "ok") cOkTipo++;
           itens.push({
             item: itemCode,
             ver: ver,
@@ -9591,7 +9511,7 @@ function getOpItemGroups(g) {
             comp: comp,
             pig: pig,
             qtde: qtde,
-            tipo: isCapa ? "CAPA" : "BASE",
+            tipo: isMetal ? "METAL" : isOculto ? "OCULTA" : isCapa ? "CAPA" : "BASE",
             desc: desc,
             status: info.status,
             endereco: info.endereco,
@@ -9606,22 +9526,26 @@ function getOpItemGroups(g) {
               desc.indexOf("ITEM MANUAL") > -1,
           });
         }
-        document.getElementById("confCEnc").textContent = cEnc;
-        document.getElementById("confCSem").textContent = cSem;
-        document.getElementById("confCOk").textContent = cOk;
-        document.getElementById("confCMetal").textContent = cMetal;
-        document.getElementById("confCOculto").textContent = cOculto;
-        var totalVis = 0;
-        if (confFiltros.enc) totalVis += cEnc;
-        if (confFiltros.sem) totalVis += cSem;
-        if (confFiltros.ok) totalVis += cOk;
-        if (confFiltros.metal) totalVis += cMetal;
-        if (confFiltros.oculto) totalVis += cOculto;
+        var elCapas = document.getElementById("confCCapas");
+        if (elCapas) elCapas.textContent = cCapas;
+        var elMetal = document.getElementById("confCMetal");
+        if (elMetal) elMetal.textContent = cMetal;
+        var elOculto = document.getElementById("confCOculto");
+        if (elOculto) elOculto.textContent = cOculto;
+        confAtualizarTipoBtns();
+        var totalVis =
+          tipoSelecionado === "metal"
+            ? cMetal
+            : tipoSelecionado === "oculto"
+              ? cOculto
+              : cCapas;
         document.getElementById("confSubtitle").textContent =
+          confTipoLabel(tipoSelecionado) +
+          ": " +
           totalVis +
-          " visíveis | " +
-          (cEnc + cSem + cOk + cMetal + cOculto) +
-          " total";
+          " bobinas | " +
+          cOkTipo +
+          " encontradas";
         if (itens.length === 0) {
           body.innerHTML =
             '<div style="text-align:center;padding:40px;color:#aaa;"><div style="font-size:2.5em;margin-bottom:8px;">📭</div><p>Nenhuma bobina neste filtro</p></div>';
@@ -9635,24 +9559,20 @@ function getOpItemGroups(g) {
           var it = itens[j],
             isOk2 = it.status === "ok",
             cardStyle = "";
-          if (it.oculto) cardStyle = "opacity:0.6;border-color:#8b5cf6;";
-          else if (isOk2)
-            cardStyle = "border-color:#10b981;background:#f0fdf4;";
+          if (isOk2) cardStyle = "border-color:#10b981;background:#f0fdf4;";
+          else if (it.oculto) cardStyle = "opacity:0.85;border-color:#8b5cf6;background:#faf5ff;";
           else if (it.temEnc)
             cardStyle = "border-color:#f59e0b;background:#fffbeb;";
 
-          var icone = it.metal ? "⚪" : it.tipo === "CAPA" ? "🔴" : "🔵";
+          var icone = it.metal ? "⚪" : it.oculto ? "👁️‍🗨️" : it.tipo === "CAPA" ? "🔴" : "🔵";
 
           html +=
             '<div class="conf-card" style="' +
             cardStyle +
             '"><div style="display:flex;align-items:center;gap:6px;width:100%;">';
 
-          // Checkbox / ícone oculto
-          if (it.oculto)
-            html +=
-              '<div style="width:22px;height:22px;min-width:22px;display:flex;align-items:center;justify-content:center;font-size:0.85em;color:#8b5cf6;">👁️‍🗨️</div>';
-          else if (isOk2)
+          // Checkbox de conferência
+          if (isOk2)
             html +=
               '<button class="conf-chk ok" onclick="event.stopPropagation();confDesmarcar(\'' +
               it.key +
@@ -9685,7 +9605,7 @@ function getOpItemGroups(g) {
 
           // Mostra endereço e obs do histórico (quando não está conferida ainda)
           // Não mostra em bobinas NEW
-          if (!isOk2 && !it.oculto && !isBobinaNova(it.item, it.qtde)) {
+          if (!isOk2 && !isBobinaNova(it.item, it.qtde)) {
             var chaveHist = it.item + "|" + it.ver + "|" + String(it.qtde);
             var hist =
               confHistorico[chaveHist] || confHistorico[it.item] || null;
@@ -9774,7 +9694,7 @@ function getOpItemGroups(g) {
           '<div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;">';
         html +=
           '<button onclick="event.stopPropagation();confAdicionarItem()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">➕ Adicionar</button>';
-        if (cOk > 0)
+        if (cOkTipo > 0)
           html +=
             '<button onclick="event.stopPropagation();confCompartilhar()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">📤 Compartilhar</button>';
         html +=
@@ -9934,14 +9854,7 @@ function getOpItemGroups(g) {
         var modal = document.getElementById("confEndModal");
         if (modal) modal.remove();
 
-        document.getElementById("confBusca").value = "";
-        document.getElementById("confBuscaKg").value = "";
         confRender();
-
-        setTimeout(function () {
-          var cb = document.getElementById("confBusca");
-          if (cb) cb.focus();
-        }, 200);
 
         var msg = itemNome + " → " + endereco;
         if (observacao) msg += " | 💬 obs salva";
@@ -9953,8 +9866,8 @@ function getOpItemGroups(g) {
       // ================================================================
 
       async function confFinalizar() {
-        var itensComEncaixe = {};
-        for (var b = 0; b < B.length; b++) itensComEncaixe[B[b].item] = true;
+        var tipoSelecionado = confTipo || "capas";
+        var tipoLabel = confTipoLabel(tipoSelecionado);
 
         var encontradas = 0,
           naoEncontradas = 0,
@@ -9964,6 +9877,8 @@ function getOpItemGroups(g) {
 
         for (var i = 0; i < estoque.length; i++) {
           var ic = getItemEstoque(estoque[i]);
+          var categoriaConf = confCategoriaBobina(ic);
+          if (categoriaConf !== tipoSelecionado) continue;
 
           var qtde = parseFloat(estoque[i]["QTDE_ESTOQUE"]) || 0;
           var ver = estoque[i]["VERSAO"] || "";
@@ -9974,12 +9889,9 @@ function getOpItemGroups(g) {
             endereco: "",
             observacao: "",
           };
-          var isOculto = confOcultos[ic] === true;
           var isManual =
             desc.indexOf("BOBINA MANUAL") > -1 ||
             desc.indexOf("ITEM MANUAL") > -1;
-
-          if (isOculto) continue;
 
           var status = "";
           if (info.status === "ok") {
@@ -10002,7 +9914,7 @@ function getOpItemGroups(g) {
             versao: ver,
             descricao: desc,
             qtde: qtde,
-            tipo: temCapa(ic) ? "CAPA" : "BASE",
+            tipo: confTipoRegistro(ic),
             endereco: info.endereco || "",
             observacao: info.observacao || "",
             status: status,
@@ -10013,19 +9925,23 @@ function getOpItemGroups(g) {
         }
 
         if (naoEncontradas === 0 && encontradas === 0) {
-          toast("Nenhuma bobina para conferir", "warning");
+          toast("Nenhuma bobina para conferir em " + tipoLabel, "warning");
           return;
         }
 
         if (
           !confirm(
-            "🏁 Finalizar conferência?\n\n✅ " +
+            "🏁 Finalizar conferência de " +
+              tipoLabel +
+              "?\n\n✅ " +
               encontradas +
               " encontradas\n➕ " +
               adicionais +
               " adicionais\n❌ " +
               naoEncontradas +
-              " NÃO encontradas\n\nAs não encontradas serão removidas.",
+              " NÃO encontradas\n\nSomente " +
+              tipoLabel +
+              " serão finalizadas. As não encontradas serão removidas.",
           )
         )
           return;
@@ -10072,7 +9988,9 @@ function getOpItemGroups(g) {
           }
 
           var relatorio =
-            "📋 CONFERÊNCIA\n📅 " +
+            "📋 CONFERÊNCIA - " +
+            tipoLabel.toUpperCase() +
+            "\n📅 " +
             dataStr +
             "\n═══════════════════\n\n" +
             "✅ " +
@@ -10170,14 +10088,19 @@ function getOpItemGroups(g) {
             }
           }
 
-          confStatus = {};
+          for (var cs = 0; cs < listaTodas.length; cs++) {
+            var regLimpar = listaTodas[cs];
+            delete confStatus[
+              regLimpar.item + "_" + regLimpar.versao + "_" + regLimpar.qtde
+            ];
+          }
           window.confDivisoes = {};
           localStorage.setItem("enc_conf", JSON.stringify(confStatus));
           localStorage.removeItem("enc_divisoes");
           save();
           lo.classList.remove("active");
           toast(
-            "Conferência finalizada! " + salvos + " salvos",
+            "Conferência de " + tipoLabel + " finalizada! " + salvos + " salvos",
             "success",
             4000,
           );
@@ -10216,8 +10139,6 @@ function getOpItemGroups(g) {
       function confDesmarcar(key) {
         confStatus[key] = { status: "pend", endereco: "" };
         localStorage.setItem("enc_conf", JSON.stringify(confStatus));
-        document.getElementById("confBusca").value = "";
-        document.getElementById("confBuscaKg").value = "";
         confRender();
       }
 
@@ -10699,29 +10620,30 @@ function getOpItemGroups(g) {
       }
 
       function confCompartilhar() {
-        var itensComEncaixe = {};
-        for (var b = 0; b < B.length; b++) itensComEncaixe[B[b].item] = true;
+        var tipoSelecionado = confTipo || "capas";
+        var tipoLabel = confTipoLabel(tipoSelecionado);
         var data = new Date().toLocaleDateString("pt-BR"),
-          texto = "📋 CONFERÊNCIA\n📅 " + data + "\n═══════════════\n\n";
+          texto =
+            "📋 CONFERÊNCIA - " +
+            tipoLabel.toUpperCase() +
+            "\n📅 " +
+            data +
+            "\n═══════════════\n\n";
         var cok = 0,
           cnok = 0,
-          coculto = 0,
           secOk = "✅ ENCONTRADAS\n",
-          secNok = "❌ NÃO ENCONTRADAS\n",
-          secOculto = "👁️‍🗨️ OCULTAS\n";
+          secNok = "❌ NÃO ENCONTRADAS\n";
         for (var i = 0; i < estoque.length; i++) {
           var e = estoque[i],
             ic = getItemEstoque(e);
-          if (/-4$/.test(ic)) continue;
-          if (itensComEncaixe[ic]) continue;
+          if (confCategoriaBobina(ic) !== tipoSelecionado) continue;
           var qtde = parseFloat(e["QTDE_ESTOQUE"]) || 0,
             ver = e["VERSAO"] || "";
           var key = ic + "_" + ver + "_" + qtde,
             info = confStatus[key] || { status: "pend", endereco: "" };
-          var isOculto = confOcultos[ic] === true;
           var linha =
             "  " +
-            (temCapa(ic) ? "CAPA" : "BASE") +
+            confTipoRegistro(ic) +
             " " +
             ic +
             " v" +
@@ -10730,11 +10652,9 @@ function getOpItemGroups(g) {
             qtde.toFixed(0) +
             "kg";
           if (info.endereco) linha += " 📌" + info.endereco;
+          if (info.observacao) linha += " 💬" + info.observacao;
           linha += "\n";
-          if (isOculto) {
-            coculto++;
-            secOculto += linha;
-          } else if (info.status === "ok") {
+          if (info.status === "ok") {
             cok++;
             secOk += linha;
           } else {
@@ -10747,12 +10667,9 @@ function getOpItemGroups(g) {
           cok +
           " encontradas | " +
           cnok +
-          " não encontradas | " +
-          coculto +
-          " ocultas\n\n";
+          " não encontradas\n\n";
         if (cok > 0) texto += secOk + "\n";
         if (cnok > 0) texto += secNok + "\n";
-        if (coculto > 0) texto += secOculto + "\n";
         if (navigator.share) {
           navigator
             .share({ title: "Conferência", text: texto })
@@ -12016,8 +11933,6 @@ async function shareFotos() {
       }
       addL("estBusca", "input", estRender);
       addL("estFiltro", "change", estRender);
-      addL("confBusca", "input", confRender);
-      addL("confBuscaKg", "input", confRender);
       addL("fInfo", "click", function () {
         if (ultimoRelatorio) {
           document.getElementById("probBody").innerHTML = ultimoRelatorio;
