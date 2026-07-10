@@ -2844,9 +2844,31 @@
         </div>
         <button class="btn-close" onclick="xM('confModal')">✖</button>
       </div>
+      <div style="padding: 10px 14px 4px; flex-shrink: 0">
+        <div style="display: flex; gap: 6px; width: 100%; max-width: 420px; margin: 0 auto">
+          <input
+            type="text"
+            id="confBusca"
+            placeholder="🔢 Item"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            autocomplete="off"
+            style="flex: 1.2; min-width: 0; padding: 10px; border-radius: 10px; border: 1px solid #e0e0e0; background: #fff; color: #333; font-size: 0.85em"
+          />
+          <input
+            type="number"
+            id="confBuscaKg"
+            placeholder="⚖️ Kg"
+            step="0.1"
+            inputmode="decimal"
+            autocomplete="off"
+            style="flex: 0.8; min-width: 0; padding: 10px; border-radius: 10px; border: 1px solid #e0e0e0; background: #fff; color: #333; font-size: 0.85em"
+          />
+        </div>
+      </div>
       <div
         style="
-          padding: 10px 14px 4px;
+          padding: 6px 14px 4px;
           flex-shrink: 0;
           text-align: center;
         "
@@ -5225,6 +5247,57 @@ var estObservacoes = {};
           } catch (e) {}
           salvarEstoqueUidsNuvemDebounced();
         }
+      }
+
+      function chaveBobinaEstoque(item, ver, qtde) {
+        return (
+          String(item || "").trim() +
+          "|" +
+          String(ver || "").trim() +
+          "|" +
+          String(parseFloat(String(qtde || "").replace(",", ".")) || 0)
+        );
+      }
+
+      function bobinaEncaixeFinalizada(bob) {
+        return !!(bob && (bob.ok || bob.foto || bob.fotoEtiqueta));
+      }
+
+      function criarMapaEncaixesFinalizados() {
+        var mapa = { uid: {}, chave: {}, usados: {} };
+        for (var i = 0; i < B.length; i++) {
+          var b = B[i];
+          if (!bobinaEncaixeFinalizada(b)) continue;
+          var uid = getUidBobina(b);
+          if (uid) {
+            mapa.uid[uid] = { eop: b.enc || "", bob: b };
+          } else {
+            var k = chaveBobinaEstoque(b.item, b.ver, b.qtde);
+            if (!mapa.chave[k]) mapa.chave[k] = { qtd: 0, eop: b.enc || "" };
+            mapa.chave[k].qtd++;
+          }
+        }
+        return mapa;
+      }
+
+      function consumirEncaixeFinalizadoEstoque(e, mapa) {
+        if (!e || !mapa) return { tem: false, eop: "" };
+        var uid = e.__UID || "";
+        if (uid && mapa.uid[uid]) return { tem: true, eop: mapa.uid[uid].eop || "" };
+        var k = chaveBobinaEstoque(
+          getItemEstoque(e),
+          e["VERSAO"] || "",
+          e["QTDE_ESTOQUE"] || "",
+        );
+        var reg = mapa.chave[k];
+        if (reg) {
+          var usado = mapa.usados[k] || 0;
+          if (usado < reg.qtd) {
+            mapa.usados[k] = usado + 1;
+            return { tem: true, eop: reg.eop || "" };
+          }
+        }
+        return { tem: false, eop: "" };
       }
 
       function makeConfKey(item, ver, qtde, uid) {
@@ -8592,6 +8665,7 @@ function getOpItemGroups(g) {
           pSem = 0,
           pMetal = 0,
           pOculto = 0;
+        var mapaFinalizadosEstoque = criarMapaEncaixesFinalizados();
 
         for (var i = 0; i < estoque.length; i++) {
           var e = estoque[i],
@@ -8599,6 +8673,7 @@ function getOpItemGroups(g) {
             qtde = parseFloat(e["QTDE_ESTOQUE"]) || 0,
             ver = e["VERSAO"] || "",
             desc = e["DESCRICAO"] || "";
+          if (consumirEncaixeFinalizadoEstoque(e, mapaFinalizadosEstoque).tem) continue;
           var larg = extrairLargura(desc),
             esp = extrairEspessura(desc),
             comp = normalizarComposicao(e["COMPOSICAO"] || ""),
@@ -9852,6 +9927,13 @@ function getOpItemGroups(g) {
         var body = document.getElementById("confBody");
         if (!body) return;
         var tipoSelecionado = confTipo || "capas";
+        var buscaEl = document.getElementById("confBusca");
+        var buscaKgEl = document.getElementById("confBuscaKg");
+        var busca = buscaEl ? buscaEl.value.trim().toUpperCase() : "";
+        var buscaKgTxt = buscaKgEl
+          ? buscaKgEl.value.trim().replace(",", ".")
+          : "";
+        var buscaKg = buscaKgTxt !== "" ? parseFloat(buscaKgTxt) : null;
         var itensComEncaixe = {};
         for (var b = 0; b < B.length; b++) itensComEncaixe[B[b].item] = true;
         var itens = [],
@@ -9859,10 +9941,12 @@ function getOpItemGroups(g) {
           cMetal = 0,
           cOculto = 0,
           cOkTipo = 0;
+        var mapaFinalizadosConf = criarMapaEncaixesFinalizados();
         for (var i = 0; i < estoque.length; i++) {
           var e = estoque[i],
             itemCode = getItemEstoque(e),
             desc = e["DESCRICAO"] || "";
+          if (consumirEncaixeFinalizadoEstoque(e, mapaFinalizadosConf).tem) continue;
           var larg = extrairLargura(desc),
             esp = extrairEspessura(desc),
             comp = normalizarComposicao(e["COMPOSICAO"] || ""),
@@ -9885,6 +9969,23 @@ function getOpItemGroups(g) {
           else cCapas++;
           if (categoria !== tipoSelecionado) continue;
           if (info.status === "ok") cOkTipo++;
+          if (busca) {
+            if (
+              !itemBateComBusca(
+                busca,
+                [itemCode, e["MATERIAL"] || ""],
+                comp,
+                pig,
+              )
+            )
+              continue;
+          }
+          if (
+            buscaKg !== null &&
+            !isNaN(buscaKg) &&
+            Math.abs(qtde - buscaKg) > 0.05
+          )
+            continue;
           itens.push({
             item: itemCode,
             ver: ver,
@@ -10228,7 +10329,15 @@ function getOpItemGroups(g) {
         var modal = document.getElementById("confEndModal");
         if (modal) modal.remove();
 
+        var cbItem = document.getElementById("confBusca");
+        var cbKg = document.getElementById("confBuscaKg");
+        if (cbItem) cbItem.value = "";
+        if (cbKg) cbKg.value = "";
         confRender();
+        setTimeout(function () {
+          var kg = document.getElementById("confBuscaKg");
+          if (kg) kg.focus();
+        }, 120);
 
         var msg = itemNome + " → " + endereco;
         if (observacao) msg += " | 💬 obs salva";
@@ -10322,6 +10431,16 @@ function getOpItemGroups(g) {
           )
         )
           return;
+
+        var janelaWppConf = null;
+        try {
+          janelaWppConf = window.open("", "_blank");
+          if (janelaWppConf) {
+            janelaWppConf.document.write(
+              "<div style='font-family:sans-serif;padding:24px'>Preparando WhatsApp...</div>",
+            );
+          }
+        } catch (e) {}
 
         var lo = document.getElementById("lo"),
           lt = document.getElementById("lt");
@@ -10485,7 +10604,13 @@ function getOpItemGroups(g) {
           );
 
           var urlWpp = "https://wa.me/?text=" + encodeURIComponent(relatorio);
-          var janela = window.open(urlWpp, "_blank");
+          var janela = null;
+          if (janelaWppConf && !janelaWppConf.closed) {
+            janelaWppConf.location.href = urlWpp;
+            janela = janelaWppConf;
+          } else {
+            janela = window.open(urlWpp, "_blank");
+          }
           if (
             !janela ||
             janela.closed ||
@@ -10510,6 +10635,7 @@ function getOpItemGroups(g) {
           confRender();
           atualizarInfo();
         } catch (err) {
+          if (janelaWppConf && !janelaWppConf.closed) janelaWppConf.close();
           lo.classList.remove("active");
           toast("Erro: " + err.message, "error");
         }
@@ -11172,6 +11298,16 @@ function getOpItemGroups(g) {
 async function shareFotos() {
   xM("fm");
 
+  var janelaWpp = null;
+  try {
+    janelaWpp = window.open("", "_blank");
+    if (janelaWpp) {
+      janelaWpp.document.write(
+        "<div style='font-family:sans-serif;padding:24px'>Preparando WhatsApp...</div>",
+      );
+    }
+  } catch (e) {}
+
   var lo = document.getElementById("lo"),
     lt = document.getElementById("lt");
 
@@ -11379,6 +11515,7 @@ async function shareFotos() {
     lo.classList.remove("active");
 
     if (arquivos.length === 0) {
+      if (janelaWpp && !janelaWpp.closed) janelaWpp.close();
       toast("Nenhuma foto", "warning");
       return;
     }
@@ -11394,9 +11531,13 @@ async function shareFotos() {
           title: "📦 Encaixes " + new Date().toLocaleDateString("pt-BR"),
           text: textoRelatorio,
         });
+        if (janelaWpp && !janelaWpp.closed) janelaWpp.close();
         return;
       } catch (e) {
-        if (e.name === "AbortError") return;
+        if (e.name === "AbortError") {
+          if (janelaWpp && !janelaWpp.closed) janelaWpp.close();
+          return;
+        }
       }
     }
 
@@ -11420,13 +11561,28 @@ async function shareFotos() {
 
     lo.classList.remove("active");
 
-    setTimeout(function () {
-      window.open(
-        "https://wa.me/?text=" + encodeURIComponent(textoRelatorio),
-        "_blank"
-      );
-    }, 500);
+    var urlWpp = "https://wa.me/?text=" + encodeURIComponent(textoRelatorio);
+    if (janelaWpp && !janelaWpp.closed) {
+      janelaWpp.location.href = urlWpp;
+    } else {
+      var jw = window.open(urlWpp, "_blank");
+      if (!jw || jw.closed || typeof jw.closed === "undefined") {
+        criarModal(
+          "wppRelatorioModal",
+          '<div style="text-align:center;">' +
+            '<div style="font-size:2em;margin-bottom:8px;">📤</div>' +
+            '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:8px;">Abrir WhatsApp</h3>' +
+            '<p style="font-size:0.75em;color:#888;margin-bottom:12px;">As fotos foram baixadas. Clique abaixo para abrir o WhatsApp com o relatório.</p>' +
+            '<a href="' +
+            urlWpp +
+            '" target="_blank" style="display:block;padding:13px;border-radius:10px;background:#25D366;color:#fff;font-size:0.9em;font-weight:600;text-decoration:none;">💬 WhatsApp</a>' +
+            '<button onclick="fecharModal(\'wppRelatorioModal\')" style="margin-top:8px;padding:12px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.85em;cursor:pointer;width:100%;">Fechar</button>' +
+            "</div>",
+        );
+      }
+    }
   } catch (err) {
+    if (janelaWpp && !janelaWpp.closed) janelaWpp.close();
     lo.classList.remove("active");
     toast("Erro: " + err.message, "error");
   }
@@ -12339,6 +12495,14 @@ async function shareFotos() {
       }
       addL("estBusca", "input", estRender);
       addL("estFiltro", "change", estRender);
+      addL("confBusca", "input", confRender);
+      addL("confBuscaKg", "input", confRender);
+      addL("confBusca", "focus", function () {
+        try { this.select(); } catch (e) {}
+      });
+      addL("confBuscaKg", "focus", function () {
+        try { this.select(); } catch (e) {}
+      });
       addL("fInfo", "click", function () {
         if (ultimoRelatorio) {
           document.getElementById("probBody").innerHTML = ultimoRelatorio;
