@@ -2845,15 +2845,15 @@
         <button class="btn-close" onclick="xM('confModal')">✖</button>
       </div>
       <div style="padding: 10px 14px 4px; flex-shrink: 0">
-        <div style="display: flex; gap: 4px; width: 100%; max-width: 420px; margin: 0 auto; box-sizing: border-box">
+        <div style="display: grid; grid-template-columns: minmax(0, 3fr) minmax(68px, 1fr); gap: 6px; width: 100%; max-width: 400px; margin: 0 auto; box-sizing: border-box">
           <input
             type="text"
             id="confBusca"
-            placeholder="🔢 Item"
+            placeholder="🔍 Item"
             inputmode="numeric"
             pattern="[0-9]*"
             autocomplete="off"
-            style="flex: 3 1 0; width: 0; min-width: 0; padding: 10px 9px; border-radius: 10px; border: 1px solid #e0e0e0; background: #fff; color: #333; font-size: 0.85em; box-sizing: border-box"
+            style="width: 100%; min-width: 0; padding: 10px; border-radius: 10px; border: 1px solid #e0e0e0; background: #fff; color: #333; font-size: 0.85em; box-sizing: border-box"
           />
           <input
             type="number"
@@ -2862,7 +2862,7 @@
             step="0.1"
             inputmode="decimal"
             autocomplete="off"
-            style="flex: 1 1 0; width: 0; min-width: 0; padding: 10px 7px; border-radius: 10px; border: 1px solid #e0e0e0; background: #fff; color: #333; font-size: 0.85em; box-sizing: border-box"
+            style="width: 100%; min-width: 0; padding: 10px 8px; border-radius: 10px; border: 1px solid #e0e0e0; background: #fff; color: #333; font-size: 0.85em; box-sizing: border-box"
           />
         </div>
       </div>
@@ -5211,25 +5211,30 @@ var estObservacoes = {};
 
       var estoqueUidNuvemTimer = null;
 
+      async function salvarEstoqueNuvemAgora() {
+        try {
+          if (typeof db === "undefined" || !db) return;
+          var estChunks = dividirEmPedacos(estoque, 200);
+          await db.collection("config").doc("estoque_meta").set({
+            total: estoque.length,
+            partes: estChunks.length,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+          });
+          for (var i = 0; i < estChunks.length; i++) {
+            await db
+              .collection("config")
+              .doc("estoque_" + i)
+              .set({ dados: JSON.stringify(estChunks[i]) });
+          }
+        } catch (e) {
+          console.error("Erro ao salvar estoque na nuvem:", e);
+        }
+      }
+
       function salvarEstoqueUidsNuvemDebounced() {
         if (estoqueUidNuvemTimer) clearTimeout(estoqueUidNuvemTimer);
         estoqueUidNuvemTimer = setTimeout(function () {
-          try {
-            if (typeof db === "undefined" || !db) return;
-            var estChunks = dividirEmPedacos(estoque, 200);
-            db.collection("config").doc("estoque_meta").set({
-              total: estoque.length,
-              partes: estChunks.length,
-              timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-            });
-            for (var i = 0; i < estChunks.length; i++) {
-              db.collection("config")
-                .doc("estoque_" + i)
-                .set({ dados: JSON.stringify(estChunks[i]) });
-            }
-          } catch (e) {
-            console.error("Erro ao salvar UIDs do estoque na nuvem:", e);
-          }
+          salvarEstoqueNuvemAgora();
         }, 1200);
       }
 
@@ -10651,6 +10656,7 @@ function getOpItemGroups(g) {
           salvarConferenciaNuvem(true);
           localStorage.removeItem("enc_divisoes");
           save();
+          await salvarEstoqueNuvemAgora();
           lo.classList.remove("active");
           toast(
             "Conferência de " + tipoLabel + " finalizada! " + salvos + " salvos",
@@ -10854,19 +10860,15 @@ function getOpItemGroups(g) {
       function confSplitGerarCampos(estoqueIdx, pesoTotal) {
         var qtd = parseInt(document.getElementById("confSplitQtd").value) || 2;
         var container = document.getElementById("confSplitPesos");
-        var html = '<div style="display:flex;flex-direction:column;gap:8px;">';
+        var html = '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
         for (var i = 0; i < qtd; i++) {
           html +=
-            '<div style="display:grid;grid-template-columns:80px 1fr;gap:6px;align-items:end;background:#f8fafc;border:1px solid #e0e0e0;border-radius:10px;padding:8px;">' +
-            '<div><label style="font-size:0.65em;color:#888;">Bob ' +
+            '<div style="flex:1;min-width:70px;">' +
+            '<label style="font-size:0.65em;color:#888;">Bob ' +
             (i + 1) +
             " (kg)</label>" +
             '<input type="number" class="confSplitInput" placeholder="0" step="0.1" inputmode="decimal" ' +
-            'style="width:100%;padding:9px;border-radius:8px;border:1px solid #e0e0e0;background:#fff;color:#1a1a2e;font-size:0.85em;box-sizing:border-box;"></div>' +
-            '<div><label style="font-size:0.65em;color:#888;">Endereço Bob ' +
-            (i + 1) +
-            '</label><input type="text" class="confSplitEnd" placeholder="Endereço" ' +
-            'style="width:100%;padding:9px;border-radius:8px;border:1px solid #e0e0e0;background:#fff;color:#1a1a2e;font-size:0.85em;box-sizing:border-box;"></div>' +
+            'style="width:100%;padding:10px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.85em;box-sizing:border-box;">' +
             "</div>";
         }
         html += "</div>";
@@ -10911,8 +10913,6 @@ function getOpItemGroups(g) {
         for (var i = 0; i < inputs.length; i++) {
           inputs[i].value = "";
         }
-        var ends = document.querySelectorAll(".confSplitEnd");
-        for (var e = 0; e < ends.length; e++) ends[e].value = "";
         document.getElementById("confSplitInfo").innerHTML =
           "Total original: " + Math.round(pesoTotal) + " kg";
         if (inputs.length > 0) inputs[0].focus();
@@ -10949,9 +10949,7 @@ function getOpItemGroups(g) {
 
       function confSplitSalvar(key, estoqueIdx) {
         var inputs = document.querySelectorAll(".confSplitInput");
-        var endInputs = document.querySelectorAll(".confSplitEnd");
-        var pesos = [],
-          enderecos = [];
+        var pesos = [];
         for (var i = 0; i < inputs.length; i++) {
           var v = inputs[i].value.trim();
           if (!v || parseFloat(v) <= 0) {
@@ -10961,7 +10959,6 @@ function getOpItemGroups(g) {
             return;
           }
           pesos.push(parseFloat(v));
-          enderecos.push(endInputs[i] ? endInputs[i].value.trim() : "");
         }
         if (pesos.length < 2) {
           toast("Mínimo 2 bobinas!", "error");
@@ -10990,7 +10987,6 @@ function getOpItemGroups(g) {
         var base = JSON.parse(JSON.stringify(e));
         var novasBobinas = [];
         var partesRelatorio = [];
-        var enderecosPreenchidos = [];
 
         // A bobina original deixa de existir como uma linha única.
         // Criamos uma linha real no estoque para cada parte, com UID próprio.
@@ -11010,22 +11006,7 @@ function getOpItemGroups(g) {
           nova.__SPLIT_ORIG_PESO = String(pesoOriginal);
           novasBobinas.push(nova);
 
-          var end = enderecos[pIdx] || "";
           var parteTxt = Math.round(pesos[pIdx]) + "kg";
-          if (end) {
-            parteTxt += " 📌" + end;
-            enderecosPreenchidos.push(end);
-            var kParte = makeConfKey(ic, ver, pesos[pIdx], novoUid);
-            confStatus[kParte] = {
-              status: "ok",
-              endereco: end,
-              observacao: "",
-              uid: novoUid,
-              item: ic,
-              versao: ver,
-              qtde: String(pesos[pIdx]),
-            };
-          }
           partesRelatorio.push(parteTxt);
         }
 
@@ -11038,12 +11019,9 @@ function getOpItemGroups(g) {
           JSON.stringify(window.confDivisoes),
         );
 
-        if (enderecosPreenchidos.length > 0)
-          ultimoEndereco = enderecosPreenchidos[enderecosPreenchidos.length - 1];
-
         salvarConferenciaNuvem(true);
         save();
-        salvarEstoqueUidsNuvemDebounced();
+        salvarEstoqueNuvemAgora();
         fecharModal("confSplitModal");
         confRender();
         if (document.getElementById("estModal").classList.contains("active")) estRender();
