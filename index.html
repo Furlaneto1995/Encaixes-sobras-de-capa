@@ -2420,6 +2420,9 @@
           <button style="background: var(--verde)" onclick="shareFotos()">
             📸 Compartilhar Fotos + Relatório
           </button>
+          <button style="background: #f59e0b" onclick="limparExcluidasRelatorio()">
+            🧹 Limpar Excluídas
+          </button>
         </div>
       </div>
     </div>
@@ -3315,6 +3318,7 @@
       } catch (e) {}
       var ultimosProblemasImportacaoEstoque = [];
       var undoStack = [];
+      var bobinasExcluidasEncaixe = [];
       var fotoRotacao = 0;
       var camEtapa = 1; // 1=etiqueta, 2=bobina
       var fotoEtiqueta = null;
@@ -3418,6 +3422,100 @@ var estObservacoes = {};
         });
         if (undoStack.length > 10) undoStack.shift();
       }
+
+      function salvarExcluidasEncaixe() {
+        try {
+          localStorage.setItem(
+            "enc_excluidas_encaixe",
+            JSON.stringify(bobinasExcluidasEncaixe || []),
+          );
+        } catch (e) {}
+      }
+
+      function carregarExcluidasEncaixe() {
+        try {
+          var s = localStorage.getItem("enc_excluidas_encaixe");
+          if (s) bobinasExcluidasEncaixe = JSON.parse(s) || [];
+        } catch (e) {
+          bobinasExcluidasEncaixe = [];
+        }
+      }
+
+      function registrarExclusaoEncaixe(bob, motivo) {
+        if (!bob) return null;
+        var reg = {
+          id: "exc_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+          data: new Date().toLocaleString("pt-BR"),
+          timestamp: Date.now(),
+          uid: getUidBobina(bob),
+          encaixe: bob.enc || "",
+          item: bob.item || "",
+          versao: bob.ver || "",
+          qtde: bob.qtde || "",
+          largura: bob.larg || "",
+          espessura: bob.esp || "",
+          pigmento: bob.pig || "",
+          material: bob.material || "",
+          manual: !!bob.manual,
+          motivo: motivo || "Excluída do encaixe",
+        };
+        bobinasExcluidasEncaixe.push(reg);
+        salvarExcluidasEncaixe();
+        return reg;
+      }
+
+      function removerRegistrosExcluidos(registros) {
+        if (!registros || !registros.length) return;
+        var ids = {};
+        for (var i = 0; i < registros.length; i++) ids[registros[i].id] = true;
+        bobinasExcluidasEncaixe = (bobinasExcluidasEncaixe || []).filter(function (r) {
+          return !ids[r.id];
+        });
+        salvarExcluidasEncaixe();
+      }
+
+      function limparExcluidasRelatorio() {
+        if (!bobinasExcluidasEncaixe.length) {
+          toast("Nenhuma bobina excluída registrada", "info");
+          return;
+        }
+        if (!confirm("Limpar a lista de bobinas excluídas do relatório?")) return;
+        bobinasExcluidasEncaixe = [];
+        salvarExcluidasEncaixe();
+        toast("Lista de excluídas limpa", "success");
+      }
+
+      function gerarTextoExcluidasEncaixe() {
+        if (!bobinasExcluidasEncaixe || bobinasExcluidasEncaixe.length === 0) return "";
+        var texto =
+          "❌ BOBINAS EXCLUÍDAS DO ENCAIXE — ZERAR DO SISTEMA (" +
+          bobinasExcluidasEncaixe.length +
+          ")\n───────────────────\n";
+        var total = 0;
+        for (var i = 0; i < bobinasExcluidasEncaixe.length; i++) {
+          var r = bobinasExcluidasEncaixe[i];
+          var kg = parseFloat(r.qtde) || 0;
+          total += kg;
+          texto +=
+            "  ❌ OP " +
+            (r.encaixe || "-") +
+            " | " +
+            (r.item || "") +
+            " v" +
+            (r.versao || "") +
+            " → " +
+            kg.toFixed(0) +
+            "kg";
+          if (r.largura || r.espessura)
+            texto += " | " + (r.largura || "-") + "cm x " + (r.espessura || "-") + "mu";
+          if (r.pigmento) texto += " | Pig " + r.pigmento;
+          if (r.manual) texto += " [MANUAL]";
+          texto += "\n";
+        }
+        texto += "  📊 Total excluído: " + total.toFixed(0) + "kg\n\n";
+        return texto;
+      }
+
       function executarUndo() {
         if (undoStack.length === 0) {
           toast("Nada para desfazer", "warning");
@@ -3431,6 +3529,7 @@ var estObservacoes = {};
           if (undo.dados.estoqueItens)
             for (var j = 0; j < undo.dados.estoqueItens.length; j++)
               estoque.push(undo.dados.estoqueItens[j]);
+          if (undo.dados.exclusoes) removerRegistrosExcluidos(undo.dados.exclusoes);
           reindex();
           grp();
           save();
@@ -3926,6 +4025,7 @@ var estObservacoes = {};
           return;
         }
 
+        garantirUidEstoque();
         document.getElementById("fInfo").textContent = "⚡ Calculando...";
         var problemasImportacao = validarEstoqueImportado();
         var problemas = [],
@@ -3989,6 +4089,7 @@ var estObservacoes = {};
             composicao: comp,
             pigmentado: pig,
             qtde: qtde,
+            uid: getUidEstoque(e),
             material: normalizarTexto(e["MATERIAL"] || ""),
             isCapa: temCapa(ic),
             isMetal: isMetalItem,
@@ -4285,6 +4386,7 @@ var estObservacoes = {};
                     esp: String(bob.espessura),
                     pig: bob.pigmentado,
                     qtde: String(bob.qtde),
+                    uid: bob.uid || "",
                     material: bob.material || "",
                     largOP: String(opUnica.largura || bob.largura),
                     apresentacao: opUnica.apresentacao || "",
@@ -4326,6 +4428,7 @@ var estObservacoes = {};
                       esp: String(bob.espessura),
                       pig: bob.pigmentado,
                       qtde: String(bob.qtde),
+                      uid: bob.uid || "",
                       material: bob.material || "",
                       largOP: String(opsJuntadas[0].largura || bob.largura),
                       apresentacao: opsJuntadas[0].apresentacao || "",
@@ -4352,6 +4455,7 @@ var estObservacoes = {};
             esp: rs.esp,
             pig: rs.pig,
             qtde: rs.qtde,
+            uid: rs.uid || "",
             material: rs.material || "",
             largOP: rs.largOP || rs.larg,
             apresentacao: rs.apresentacao || "",
@@ -4519,6 +4623,7 @@ var estObservacoes = {};
       // ================================================================
       function save() {
         try {
+          garantirUidEstoque();
           var dados = {
             B: B.map(function (b) {
               return {
@@ -4530,6 +4635,7 @@ var estObservacoes = {};
                 esp: b.esp,
                 pig: b.pig,
                 qtde: b.qtde,
+                uid: getUidBobina(b),
                 material: b.material || "",
                 largOP: b.largOP || b.larg || "",
                 apresentacao: b.apresentacao || "",
@@ -4584,6 +4690,7 @@ var estObservacoes = {};
           if (usarNuvem) {
             localStorage.setItem("enc_modo_nuvem", "1");
             carregarCacheNuvemLocal();
+            garantirUidEstoque();
             console.log(
               "load(): modo nuvem | est=" +
                 estoque.length +
@@ -4598,6 +4705,7 @@ var estObservacoes = {};
               if (estSep) {
                 var estParsed = JSON.parse(estSep);
                 if (estParsed && estParsed.length) estoque = estParsed;
+                garantirUidEstoque();
               }
             } catch (e) {}
             try {
@@ -4649,6 +4757,7 @@ var estObservacoes = {};
             if (!B[i].pig) B[i].pig = "";
             if (!B[i].qtde) B[i].qtde = "0";
             if (!B[i].material) B[i].material = "";
+            if (!B[i].uid) B[i].uid = "";
             if (B[i].foto === undefined) B[i].foto = null;
             if (B[i].fotoEtiqueta === undefined) B[i].fotoEtiqueta = null;
             if (B[i].fotoNm === undefined) B[i].fotoNm = "";
@@ -5060,7 +5169,87 @@ var estObservacoes = {};
         });
       }
 
-      function getConfStatusAtual(item, ver, qtde) {
+      function gerarUidBobina() {
+        return (
+          "bob" +
+          Date.now().toString(36) +
+          Math.random().toString(36).slice(2, 8)
+        );
+      }
+
+      function getUidEstoque(e) {
+        if (!e) return "";
+        if (!e.__UID) e.__UID = gerarUidBobina();
+        return e.__UID;
+      }
+
+      function getUidBobina(bob) {
+        return bob ? bob.uid || bob.__UID || "" : "";
+      }
+
+      var estoqueUidNuvemTimer = null;
+
+      function salvarEstoqueUidsNuvemDebounced() {
+        if (estoqueUidNuvemTimer) clearTimeout(estoqueUidNuvemTimer);
+        estoqueUidNuvemTimer = setTimeout(function () {
+          try {
+            if (typeof db === "undefined" || !db) return;
+            var estChunks = dividirEmPedacos(estoque, 200);
+            db.collection("config").doc("estoque_meta").set({
+              total: estoque.length,
+              partes: estChunks.length,
+              timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+            for (var i = 0; i < estChunks.length; i++) {
+              db.collection("config")
+                .doc("estoque_" + i)
+                .set({ dados: JSON.stringify(estChunks[i]) });
+            }
+          } catch (e) {
+            console.error("Erro ao salvar UIDs do estoque na nuvem:", e);
+          }
+        }, 1200);
+      }
+
+      function garantirUidEstoque() {
+        var alterou = false;
+        for (var i = 0; i < estoque.length; i++) {
+          if (estoque[i] && !estoque[i].__UID) {
+            estoque[i].__UID = gerarUidBobina();
+            alterou = true;
+          }
+        }
+        if (alterou) {
+          try {
+            localStorage.setItem("enc_estoque", JSON.stringify(estoque));
+          } catch (e) {}
+          salvarEstoqueUidsNuvemDebounced();
+        }
+      }
+
+      function makeConfKey(item, ver, qtde, uid) {
+        var itemTxt = String(item || "").trim();
+        var verTxt = String(ver || "").trim();
+        var n = parseFloat(String(qtde || "").replace(",", ".")) || 0;
+        if (uid) return itemTxt + "_" + verTxt + "_" + n + "_" + uid;
+        return itemTxt + "_" + verTxt + "_" + n;
+      }
+
+      function getUidFromConfKey(key) {
+        var partes = String(key || "").split("_");
+        return partes.length > 3 ? partes.slice(3).join("_") : "";
+      }
+
+      function getConfStatusAtual(item, ver, qtde, uid) {
+        // Se a bobina tem UID, ela é única. Não procura por item/versão/peso,
+        // para não herdar endereço/obs de uma bobina antiga igual.
+        if (uid) {
+          var kUid = makeConfKey(item, ver, qtde, uid);
+          var infoUid = confStatus[kUid];
+          return infoUid && infoUid.status === "ok" ? infoUid : null;
+        }
+
+        // Compatibilidade apenas para dados antigos sem UID.
         var itemTxt = String(item || "").trim();
         var verTxt = String(ver || "").trim();
         var qtdeTxt = String(qtde || "").trim().replace(",", ".");
@@ -5085,14 +5274,16 @@ var estObservacoes = {};
         return null;
       }
 
-      function getObsBobinaAtual(item, ver, qtde) {
-        var atual = getConfStatusAtual(item, ver, qtde);
+      function getObsBobinaAtual(item, ver, qtde, uid) {
+        var atual = getConfStatusAtual(item, ver, qtde, uid);
         if (atual && atual.observacao) return atual.observacao;
-        return estObservacoes[item] || "";
+        if (uid && estObservacoes[uid]) return estObservacoes[uid];
+        return "";
       }
 
       function getEnderecoMini(bob) {
-        var atual = getConfStatusAtual(bob.item, bob.ver, bob.qtde);
+        var uid = getUidBobina(bob);
+        var atual = getConfStatusAtual(bob.item, bob.ver, bob.qtde, uid);
         if (atual && atual.endereco) {
           return (
             '<div style="font-size:0.58em;color:#10b981;margin-top:2px;">📌 ' +
@@ -5101,12 +5292,8 @@ var estObservacoes = {};
           );
         }
 
-        // Se a bobina é nova, nunca deve herdar endereços antigos do histórico
-        if (isBobinaNova(bob.item, bob.qtde)) return "";
-
-        var chave = chaveHistConf(bob.item, bob.ver, bob.qtde);
-        // Tenta buscar pelo exato (Item+Ver+Peso), se não achar, não mostra nada para não mostrar endereço errado
-        var hist = confHistorico[chave] || null;
+        // Histórico só por UID. Nunca por item/versão/peso, para evitar herança.
+        var hist = uid ? confHistorico[uid] || null : null;
         if (!hist || !hist.endereco) return "";
         return (
           '<div style="font-size:0.58em;color:#2563eb;margin-top:2px;">📌 ' +
@@ -5223,7 +5410,7 @@ function getOpItemGroups(g) {
     if (filt === "ok" && !bob.ok) return "";
     if (filt === "pend" && bob.ok) return "";
 
-    var obsAtualBob = getObsBobinaAtual(bob.item, bob.ver, bob.qtde);
+    var obsAtualBob = getObsBobinaAtual(bob.item, bob.ver, bob.qtde, getUidBobina(bob));
     var obsHTML = obsAtualBob
       ? '<div style="font-size:0.6em;color:#f59e0b;margin-top:2px;">💬 ' +
         htmlSafe(obsAtualBob) +
@@ -5419,23 +5606,38 @@ function getOpItemGroups(g) {
         if (!confirm("Excluir esta OP?")) return;
         var g = G[gi],
           bobinas = [],
-          estoqueItens = [];
+          estoqueItens = [],
+          exclusoes = [];
         for (var i = 0; i < g.bs.length; i++) {
           var bob = B[g.bs[i]];
           bobinas.push(JSON.parse(JSON.stringify(bob)));
+          exclusoes.push(registrarExclusaoEncaixe(bob, "OP excluída do encaixe"));
           var qtdeNum = parseFloat(bob.qtde) || 0;
+          var uidBob = getUidBobina(bob);
           for (var k = 0; k < estoque.length; k++) {
             var ic = getItemEstoque(estoque[k]);
             var eq = parseFloat(estoque[k]["QTDE_ESTOQUE"]) || 0;
-            if (ic === bob.item && Math.abs(eq - qtdeNum) < 0.5) {
+            var uidEst = estoque[k].__UID || "";
+            if (
+              (uidBob && uidEst === uidBob) ||
+              (!uidBob && ic === bob.item && Math.abs(eq - qtdeNum) < 0.5)
+            ) {
               estoqueItens.push(JSON.parse(JSON.stringify(estoque[k])));
               break;
             }
           }
         }
-        salvarUndo("delOP", { bobinas: bobinas, estoqueItens: estoqueItens });
+        salvarUndo("delOP", {
+          bobinas: bobinas,
+          estoqueItens: estoqueItens,
+          exclusoes: exclusoes,
+        });
         for (var i2 = 0; i2 < g.bs.length; i2++)
-          removerDoEstoque(B[g.bs[i2]].item, B[g.bs[i2]].qtde);
+          removerDoEstoque(
+            B[g.bs[i2]].item,
+            B[g.bs[i2]].qtde,
+            getUidBobina(B[g.bs[i2]]),
+          );
         for (var j = g.bs.length - 1; j >= 0; j--) B.splice(g.bs[j], 1);
         reindex();
         grp();
@@ -5454,19 +5656,26 @@ function getOpItemGroups(g) {
         var bob = B[bi],
           estoqueItem = null,
           qtdeNum = parseFloat(bob.qtde) || 0;
+        var uidBob = getUidBobina(bob);
         for (var k = 0; k < estoque.length; k++) {
           var ic = getItemEstoque(estoque[k]);
           var eq = parseFloat(estoque[k]["QTDE_ESTOQUE"]) || 0;
-          if (ic === bob.item && Math.abs(eq - qtdeNum) < 0.5) {
+          var uidEst = estoque[k].__UID || "";
+          if (
+            (uidBob && uidEst === uidBob) ||
+            (!uidBob && ic === bob.item && Math.abs(eq - qtdeNum) < 0.5)
+          ) {
             estoqueItem = JSON.parse(JSON.stringify(estoque[k]));
             break;
           }
         }
+        var regExcluido = registrarExclusaoEncaixe(bob, "Bobina excluída do encaixe");
         salvarUndo("delBob", {
           bobinas: [JSON.parse(JSON.stringify(bob))],
           estoqueItens: estoqueItem ? [estoqueItem] : [],
+          exclusoes: regExcluido ? [regExcluido] : [],
         });
-        removerDoEstoque(bob.item, bob.qtde);
+        removerDoEstoque(bob.item, bob.qtde, uidBob);
         B.splice(bi, 1);
         reindex();
         grp();
@@ -5489,12 +5698,16 @@ function getOpItemGroups(g) {
           renderFS();
       }
 
-      function removerDoEstoque(item, qtde) {
+      function removerDoEstoque(item, qtde, uid) {
         var qtdeNum = parseFloat(qtde) || 0;
         for (var i = 0; i < estoque.length; i++) {
           var ic = getItemEstoque(estoque[i]);
           var eq = parseFloat(estoque[i]["QTDE_ESTOQUE"]) || 0;
-          if (ic === item && Math.abs(eq - qtdeNum) < 0.5) {
+          var uidEst = estoque[i].__UID || "";
+          if (
+            (uid && uidEst === uid) ||
+            (!uid && ic === item && Math.abs(eq - qtdeNum) < 0.5)
+          ) {
             estoque.splice(i, 1);
             return;
           }
@@ -5845,6 +6058,7 @@ function getOpItemGroups(g) {
           esp: ref.esp,
           pig: ref.pig,
           qtde: p,
+          uid: gerarUidBobina(),
           foto: null,
           fotoNm: "",
           ok: false,
@@ -7530,6 +7744,7 @@ function getOpItemGroups(g) {
         }
 
         var bob = B[bi];
+        if (!bob.uid) bob.uid = gerarUidBobina();
         var pesoOriginal = bob.qtde;
 
         // Primeira bobina: atualiza a existente
@@ -7551,6 +7766,7 @@ function getOpItemGroups(g) {
 
         // Demais bobinas: cria novas
         for (var k = 1; k < pesos.length; k++) {
+          var novoUidDiv = gerarUidBobina();
           B.push({
             id: B.length,
             enc: bob.enc,
@@ -7560,6 +7776,7 @@ function getOpItemGroups(g) {
             esp: bob.esp,
             pig: bob.pig,
             qtde: pesos[k],
+            uid: novoUidDiv,
             foto: null,
             fotoNm: "",
             ok: false,
@@ -7572,6 +7789,7 @@ function getOpItemGroups(g) {
             COMPOSICAO: "",
             PIGMENTADO: bob.pig,
             QTDE_ESTOQUE: pesos[k],
+            __UID: novoUidDiv,
             __A: bob.item,
             __I: "",
           });
@@ -7634,8 +7852,11 @@ function getOpItemGroups(g) {
           toast("Informe pelo menos um peso!", "error");
           return;
         }
+        var uidsNovos = [];
         for (var p = 0; p < pesos.length; p++) {
           var desc = "";
+          var uidNovoManual = gerarUidBobina();
+          uidsNovos.push(uidNovoManual);
           if (larg && esp)
             desc = "(" + larg + "cm x " + esp + "mu) ITEM MANUAL";
           estoque.push({
@@ -7645,6 +7866,7 @@ function getOpItemGroups(g) {
             COMPOSICAO: "",
             PIGMENTADO: pig,
             QTDE_ESTOQUE: pesos[p],
+            __UID: uidNovoManual,
             __A: item,
             __I: "",
           });
@@ -7664,6 +7886,7 @@ function getOpItemGroups(g) {
               esp: esp,
               pig: pig,
               qtde: pesos[p2],
+              uid: uidsNovos[p2] || gerarUidBobina(),
               foto: null,
               fotoNm: "",
               ok: false,
@@ -7978,6 +8201,7 @@ function getOpItemGroups(g) {
         var esp = String(extrairEspessura(desc));
         var pig = normalizarPigmentado(e["PIGMENTADO"] || "");
         var material = normalizarTexto(e["MATERIAL"] || "");
+        var uidEst = getUidEstoque(e);
 
         // Cria a bobina de encaixe
         B.push({
@@ -7989,6 +8213,7 @@ function getOpItemGroups(g) {
           esp: esp,
           pig: pig,
           qtde: String(qtde),
+          uid: uidEst,
           material: material,
           largOP: larg,
           apresentacao: "",
@@ -8202,6 +8427,7 @@ function getOpItemGroups(g) {
               formula: b.formula || buscarFormulaDoItem(b.item) || "",
               chave: mkChave(b),
               qtde: b.qtde || "",
+              uid: getUidBobina(b),
               manual: b.manual ? "S" : "N",
               material: b.material || "",
             });
@@ -8343,6 +8569,7 @@ function getOpItemGroups(g) {
       }
 
       function estRender() {
+        garantirUidEstoque();
         var body = document.getElementById("estBody"),
           busca = document
             .getElementById("estBusca")
@@ -8407,12 +8634,10 @@ function getOpItemGroups(g) {
             cSem++;
             pSem += qtde;
           }
-          var confAtual = getConfStatusAtual(ic, ver, qtde);
+          var uidEstoque = getUidEstoque(e);
+          var confAtual = getConfStatusAtual(ic, ver, qtde, uidEstoque);
           var enderecoConf = confAtual && confAtual.endereco ? confAtual.endereco : "";
-          var obsAtual =
-            confAtual && confAtual.observacao
-              ? confAtual.observacao
-              : estObservacoes[ic] || "";
+          var obsAtual = getObsBobinaAtual(ic, ver, qtde, uidEstoque);
 
           if (!estFiltros[categoria]) continue;
 
@@ -8444,6 +8669,7 @@ function getOpItemGroups(g) {
             isMetal: isMetal,
             isOculto: isOculto,
             material: normalizarTexto(e["MATERIAL"] || ""),
+            uid: uidEstoque,
             endereco: enderecoConf,
             observacao: obsAtual,
           });
@@ -8539,8 +8765,12 @@ function getOpItemGroups(g) {
             (it.isOculto ? "opacity:0.72;" : "") +
             '" oncontextmenu="event.preventDefault();estAbrirOpcoes(\'' +
             it.item.replace(/'/g, "\\'") +
+            '\',\'' +
+            (it.uid || "") +
             '\');" data-estitem="' +
             it.item +
+            '" data-estuid="' +
+            (it.uid || "") +
             '">';
 
           // Linha 1: tipo + item + versão + medidas + pigmento + peso
@@ -8626,11 +8856,12 @@ function getOpItemGroups(g) {
         cards.forEach(function (card) {
           var timer = null;
           var item = card.getAttribute("data-estitem");
+          var uid = card.getAttribute("data-estuid") || "";
 
           card.addEventListener("touchstart", function (e) {
             timer = setTimeout(function () {
               e.preventDefault();
-              estAbrirOpcoes(item);
+              estAbrirOpcoes(item, uid);
             }, 500);
           });
           card.addEventListener("touchend", function () {
@@ -8641,7 +8872,7 @@ function getOpItemGroups(g) {
           });
           card.addEventListener("mousedown", function () {
             timer = setTimeout(function () {
-              estAbrirOpcoes(item);
+              estAbrirOpcoes(item, uid);
             }, 500);
           });
           card.addEventListener("mouseup", function () {
@@ -8654,8 +8885,9 @@ function getOpItemGroups(g) {
       }
 
       // MELHORIA 8: Modal observação
-      function abrirModalObs(item) {
-        var obsAtual = estObservacoes[item] || "";
+      function abrirModalObs(item, uid) {
+        uid = uid || item;
+        var obsAtual = estObservacoes[uid] || "";
         criarModal(
           "obsModal",
           '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:4px;">💬 Observação</h3>' +
@@ -8674,7 +8906,7 @@ function getOpItemGroups(g) {
         document
           .getElementById("btnDelObs")
           .addEventListener("click", function () {
-            delete estObservacoes[item];
+            delete estObservacoes[uid];
             localStorage.setItem("enc_obs", JSON.stringify(estObservacoes));
             salvarObsNuvem();
             fecharModal("obsModal");
@@ -8685,8 +8917,8 @@ function getOpItemGroups(g) {
           .getElementById("btnSalvarObs")
           .addEventListener("click", function () {
             var texto = document.getElementById("obsInput").value.trim();
-            if (texto) estObservacoes[item] = texto;
-            else delete estObservacoes[item];
+            if (texto) estObservacoes[uid] = texto;
+            else delete estObservacoes[uid];
             localStorage.setItem("enc_obs", JSON.stringify(estObservacoes));
             salvarObsNuvem();
             fecharModal("obsModal");
@@ -8730,7 +8962,8 @@ function getOpItemGroups(g) {
           var isMetal = /-4$/.test(ic);
           var isOculto = confOcultos[ic] === true;
           var material = e["MATERIAL"] || "";
-          var obs = estObservacoes[ic] || "";
+          var uidEstCsv = getUidEstoque(e);
+          var obs = getObsBobinaAtual(ic, e["VERSAO"] || "", e["QTDE_ESTOQUE"], uidEstCsv);
           var dataEntrada = manualDatas[ic] || "";
           var diasParado = "";
 
@@ -8818,6 +9051,7 @@ function getOpItemGroups(g) {
         lt.textContent = "Salvando tudo na nuvem...";
 
         try {
+          garantirUidEstoque();
           // Observações
           await db
             .collection("config")
@@ -8917,6 +9151,7 @@ function getOpItemGroups(g) {
               esp: b.esp,
               pig: b.pig,
               qtde: b.qtde,
+              uid: getUidBobina(b),
               material: b.material || "",
               largOP: b.largOP || "",
               apresentacao: b.apresentacao || "",
@@ -9056,6 +9291,7 @@ function getOpItemGroups(g) {
             console.log("SYNC: estoque total carregado=" + estNovo.length);
             if (estNovo.length > 0) {
               estoque = estNovo;
+              garantirUidEstoque();
               try {
                 localStorage.setItem("enc_estoque", JSON.stringify(estoque));
               } catch (e) {
@@ -9154,6 +9390,7 @@ function getOpItemGroups(g) {
               B = encNovo;
               for (var n = 0; n < B.length; n++) {
                 if (B[n].id === undefined) B[n].id = n;
+                if (!B[n].uid) B[n].uid = "";
                 if (!B[n].foto) B[n].foto = null;
                 if (!B[n].fotoEtiqueta) B[n].fotoEtiqueta = null;
                 if (!B[n].fotoNm) B[n].fotoNm = "";
@@ -9199,6 +9436,7 @@ function getOpItemGroups(g) {
                 esp: b.esp,
                 pig: b.pig,
                 qtde: b.qtde,
+                uid: getUidBobina(b),
                 material: b.material || "",
                 largOP: b.largOP || "",
                 apresentacao: b.apresentacao || "",
@@ -9442,11 +9680,12 @@ function getOpItemGroups(g) {
         estRender();
       }
 
-      function estAbrirOpcoes(item) {
+      function estAbrirOpcoes(item, uid) {
         if (navigator.vibrate) navigator.vibrate([50]);
 
         var isOculto = confOcultos[item] === true;
-        var obsAtual = estObservacoes[item] || "";
+        uid = uid || "";
+        var obsAtual = uid && estObservacoes[uid] ? estObservacoes[uid] : "";
 
         var html =
           '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:4px;">' +
@@ -9479,6 +9718,8 @@ function getOpItemGroups(g) {
         html +=
           "<button onclick=\"fecharModal('estOpcoesModal');abrirModalObs('" +
           item.replace(/'/g, "\\'") +
+          "','" +
+          uid +
           '\');" style="width:100%;padding:12px;border:none;border-radius:10px;background:' +
           (obsAtual ? "#fef3c7" : "#f1f5f9") +
           ";color:" +
@@ -9577,34 +9818,22 @@ function getOpItemGroups(g) {
 
           snap.forEach(function (doc) {
             var d = doc.data();
-            var item = String(d.item || "").trim();
-            if (!item) return;
+            var uid = String(d.uid || "").trim();
+            if (!uid) return;
 
             var status = String(d.status || "").toUpperCase();
             if (status !== "ENCONTRADA" && status !== "ADICIONAL") return;
 
-            // Guarda por item (geral) e por item+versao+qtde (específico)
-            if (!confHistorico[item]) {
-              confHistorico[item] = {
+            // Histórico agora é por UID da bobina, nunca por item/versão/peso.
+            if (!confHistorico[uid]) {
+              confHistorico[uid] = {
                 endereco: d.endereco || "",
                 observacao: d.observacao || "",
                 data: d.data || "",
                 status: status,
-              };
-            }
-
-            var chaveEspecifica =
-              item +
-              "|" +
-              String(d.versao || "") +
-              "|" +
-              String(parseFloat(d.qtde) || 0);
-            if (!confHistorico[chaveEspecifica]) {
-              confHistorico[chaveEspecifica] = {
-                endereco: d.endereco || "",
-                observacao: d.observacao || "",
-                data: d.data || "",
-                status: status,
+                item: d.item || "",
+                versao: d.versao || "",
+                qtde: d.qtde || "",
               };
             }
           });
@@ -9644,8 +9873,12 @@ function getOpItemGroups(g) {
           var isMetal = isMetalizado(itemCode),
             isOculto = !isMetal && confOcultos[itemCode] === true,
             temEnc = itensComEncaixe[itemCode] === true;
-          var key = itemCode + "_" + ver + "_" + qtde,
-            info = confStatus[key] || { status: "pend", endereco: "" };
+          var uidEstoque = getUidEstoque(e);
+          var key = makeConfKey(itemCode, ver, qtde, uidEstoque),
+            info = getConfStatusAtual(itemCode, ver, qtde, uidEstoque) || {
+              status: "pend",
+              endereco: "",
+            };
           var categoria = isMetal ? "metal" : isOculto ? "oculto" : "capas";
           if (categoria === "metal") cMetal++;
           else if (categoria === "oculto") cOculto++;
@@ -9665,6 +9898,7 @@ function getOpItemGroups(g) {
             status: info.status,
             endereco: info.endereco,
             key: key,
+            uid: uidEstoque,
             estoqueIdx: i,
             oculto: isOculto,
             metal: isMetal,
@@ -9752,23 +9986,20 @@ function getOpItemGroups(g) {
             html += '<span style="color:#10b981;">📌' + it.endereco + "</span>";
           html += "</div>";
 
-          // Mostra endereço e obs do histórico (quando não está conferida ainda)
-          // Não mostra em bobinas NEW
-          if (!isOk2 && !isBobinaNova(it.item, it.qtde)) {
-            var chaveHist = it.item + "|" + it.ver + "|" + String(it.qtde);
-            var hist =
-              confHistorico[chaveHist] || confHistorico[it.item] || null;
+          // Mostra histórico somente da própria bobina (UID), nunca por item/peso.
+          if (!isOk2 && it.uid) {
+            var hist = confHistorico[it.uid] || null;
             if (hist) {
               html += '<div style="margin-top:3px;font-size:0.62em;">';
               if (hist.endereco)
                 html +=
                   '<span style="color:#2563eb;">📌 ' +
-                  hist.endereco +
+                  htmlSafe(hist.endereco) +
                   "</span> ";
               if (hist.observacao)
                 html +=
                   '<span style="color:#f59e0b;">💬 ' +
-                  hist.observacao +
+                  htmlSafe(hist.observacao) +
                   "</span>";
               if (hist.data)
                 html += ' <span style="color:#ccc;">(' + hist.data + ")</span>";
@@ -9878,22 +10109,16 @@ function getOpItemGroups(g) {
         var partes = key.split("_");
         var itemNome = partes[0] || "";
 
-        // Pega do histórico já carregado
+        // Histórico/observação somente pelo UID da própria bobina.
         var verAtual = partes[1] || "";
         var qtdeAtual = partes[2] || "0";
-        var chaveHist =
-          itemNome + "|" + verAtual + "|" + String(parseFloat(qtdeAtual) || 0);
-        var ehNova = isBobinaNova(itemNome, qtdeAtual);
+        var uidAtual = getUidFromConfKey(key);
 
-        var hist = null;
-        if (!ehNova) {
-          hist = confHistorico[chaveHist] || confHistorico[itemNome] || null;
-        }
-
+        var hist = uidAtual ? confHistorico[uidAtual] || null : null;
         var enderecoAnterior = hist ? hist.endereco : "";
         var obsAnterior = hist ? hist.observacao : "";
-        var obsLocal = estObservacoes[itemNome] || "";
-        if (!ehNova && !obsAnterior && obsLocal) obsAnterior = obsLocal;
+        var obsLocal = uidAtual && estObservacoes[uidAtual] ? estObservacoes[uidAtual] : "";
+        if (!obsAnterior && obsLocal) obsAnterior = obsLocal;
 
         var valorInicial = enderecoAnterior || ultimoEndereco || "";
 
@@ -9909,8 +10134,8 @@ function getOpItemGroups(g) {
           infoHist =
             '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:0.72em;color:#555;">' +
             '<span style="color:#2563eb;font-weight:700;">📋 Último:</span> ' +
-            (enderecoAnterior ? "📌 " + enderecoAnterior + " " : "") +
-            (obsAnterior ? "💬 " + obsAnterior + " " : "") +
+            (enderecoAnterior ? "📌 " + htmlSafe(enderecoAnterior) + " " : "") +
+            (obsAnterior ? "💬 " + htmlSafe(obsAnterior) + " " : "") +
             (hist.data
               ? '<span style="color:#ccc;">(' + hist.data + ")</span>"
               : "") +
@@ -9986,19 +10211,19 @@ function getOpItemGroups(g) {
         }
 
         ultimoEndereco = endereco;
+        var partesKey = key.split("_");
+        var itemNome = partesKey[0] || "";
+        var uidKey = getUidFromConfKey(key);
         confStatus[key] = {
           status: "ok",
           endereco: endereco,
           observacao: observacao,
+          uid: uidKey,
+          item: itemNome,
+          versao: partesKey[1] || "",
+          qtde: partesKey[2] || "",
         };
         salvarConferenciaNuvem(true);
-
-        var itemNome = key.split("_")[0];
-        if (observacao) {
-          estObservacoes[itemNome] = observacao;
-          localStorage.setItem("enc_obs", JSON.stringify(estObservacoes));
-          salvarObsNuvem();
-        }
 
         var modal = document.getElementById("confEndModal");
         if (modal) modal.remove();
@@ -10029,11 +10254,12 @@ function getOpItemGroups(g) {
           var categoriaConf = confCategoriaBobina(ic);
           if (categoriaConf !== tipoSelecionado) continue;
 
+          var uidEstoque = getUidEstoque(estoque[i]);
           var qtde = parseFloat(estoque[i]["QTDE_ESTOQUE"]) || 0;
           var ver = estoque[i]["VERSAO"] || "";
           var desc = estoque[i]["DESCRICAO"] || "";
-          var key = ic + "_" + ver + "_" + qtde;
-          var info = confStatus[key] || {
+          var key = makeConfKey(ic, ver, qtde, uidEstoque);
+          var info = getConfStatusAtual(ic, ver, qtde, uidEstoque) || {
             status: "pend",
             endereco: "",
             observacao: "",
@@ -10063,6 +10289,8 @@ function getOpItemGroups(g) {
             versao: ver,
             descricao: desc,
             qtde: qtde,
+            uid: uidEstoque,
+            confKey: key,
             tipo: confTipoRegistro(ic),
             endereco: info.endereco || "",
             observacao: info.observacao || "",
@@ -10122,6 +10350,7 @@ function getOpItemGroups(g) {
               tipo: reg.tipo,
               descricao: reg.descricao,
               divisao: reg.divisao || "",
+              uid: reg.uid || "",
             });
             salvos++;
             if (salvos % 400 === 0) {
@@ -10239,7 +10468,8 @@ function getOpItemGroups(g) {
 
           for (var cs = 0; cs < listaTodas.length; cs++) {
             var regLimpar = listaTodas[cs];
-            delete confStatus[
+            if (regLimpar.confKey) delete confStatus[regLimpar.confKey];
+            else delete confStatus[
               regLimpar.item + "_" + regLimpar.versao + "_" + regLimpar.qtde
             ];
           }
@@ -10345,9 +10575,15 @@ function getOpItemGroups(g) {
         }
         if (estoque[estoqueIdx]) estoque[estoqueIdx]["QTDE_ESTOQUE"] = novoPeso;
         var partes = key.split("_"),
+          uidKey = getUidFromConfKey(key),
           oldInfo = confStatus[key] || { status: "pend", endereco: "" };
         delete confStatus[key];
-        confStatus[partes[0] + "_" + partes[1] + "_" + novoPeso] = oldInfo;
+        var novaKey = makeConfKey(partes[0], partes[1], novoPeso, uidKey);
+        oldInfo.uid = uidKey;
+        oldInfo.item = partes[0] || "";
+        oldInfo.versao = partes[1] || "";
+        oldInfo.qtde = novoPeso;
+        confStatus[novaKey] = oldInfo;
         salvarConferenciaNuvem(true);
         save();
         fecharModal("confPesoModal");
@@ -10623,6 +10859,7 @@ function getOpItemGroups(g) {
         if (larg && esp)
           desc = "(" + larg + "cm x " + esp + "mu) BOBINA MANUAL";
         if (op) desc += (desc ? " " : "") + "OP:" + op;
+        var uidNovoConf = gerarUidBobina();
         estoque.push({
           ITEM: item,
           VERSAO: ver,
@@ -10630,13 +10867,21 @@ function getOpItemGroups(g) {
           COMPOSICAO: "",
           PIGMENTADO: pig,
           QTDE_ESTOQUE: peso,
+          __UID: uidNovoConf,
           __A: item,
           __I: "",
           OP_ORIGEM: op,
         });
-        var key = item + "_" + ver + "_" + peso;
+        var key = makeConfKey(item, ver, peso, uidNovoConf);
         if (end) {
-          confStatus[key] = { status: "ok", endereco: end };
+          confStatus[key] = {
+            status: "ok",
+            endereco: end,
+            uid: uidNovoConf,
+            item: item,
+            versao: ver,
+            qtde: peso,
+          };
           ultimoEndereco = end;
         }
         salvarConferenciaNuvem(true);
@@ -10672,8 +10917,12 @@ function getOpItemGroups(g) {
           var desc = e["DESCRICAO"] || "",
             qtde = parseFloat(e["QTDE_ESTOQUE"]) || 0,
             ver = e["VERSAO"] || "";
-          var key = ic + "_" + ver + "_" + qtde,
-            info = confStatus[key] || { status: "pend", endereco: "" };
+          var uidExp = getUidEstoque(e);
+          var key = makeConfKey(ic, ver, qtde, uidExp),
+            info = getConfStatusAtual(ic, ver, qtde, uidExp) || {
+              status: "pend",
+              endereco: "",
+            };
           var isOculto = confOcultos[ic] === true;
           var obj = {
             item: ic,
@@ -10789,8 +11038,12 @@ function getOpItemGroups(g) {
           if (confCategoriaBobina(ic) !== tipoSelecionado) continue;
           var qtde = parseFloat(e["QTDE_ESTOQUE"]) || 0,
             ver = e["VERSAO"] || "";
-          var key = ic + "_" + ver + "_" + qtde,
-            info = confStatus[key] || { status: "pend", endereco: "" };
+          var uidExp = getUidEstoque(e);
+          var key = makeConfKey(ic, ver, qtde, uidExp),
+            info = getConfStatusAtual(ic, ver, qtde, uidExp) || {
+              status: "pend",
+              endereco: "",
+            };
           var linha =
             "  " +
             confTipoRegistro(ic) +
@@ -10986,6 +11239,8 @@ async function shareFotos() {
       textoRelatorio +=
         "  📊 Total: " + pt.toFixed(0) + "kg\n───────────────────\n\n";
     }
+
+    textoRelatorio += gerarTextoExcluidasEncaixe();
 
     var canvas = document.createElement("canvas"),
       largura = 800,
@@ -11207,6 +11462,7 @@ async function shareFotos() {
           }
           texto += "  📊 " + pt.toFixed(1) + "kg\n───────────────\n\n";
         }
+        texto += gerarTextoExcluidasEncaixe();
         if (navigator.share) {
           try {
             await navigator.share({ title: "Relatório", text: texto });
@@ -13524,6 +13780,11 @@ async function shareFotos() {
         carregarObservacoes();
       } catch (e) {
         console.error("Erro carregarObservacoes:", e);
+      }
+      try {
+        carregarExcluidasEncaixe();
+      } catch (e) {
+        console.error("Erro carregarExcluidasEncaixe:", e);
       }
       try {
         iniciarListenerConferenciaNuvem();
