@@ -4646,6 +4646,7 @@ var estObservacoes = {};
       function save() {
         try {
           garantirUidEstoque();
+          salvarFotosLocaisTudo();
           var dados = {
             B: B.map(function (b) {
               return {
@@ -4662,8 +4663,9 @@ var estObservacoes = {};
                 largOP: b.largOP || b.larg || "",
                 apresentacao: b.apresentacao || "",
                 formula: b.formula || "",
-                foto: b.foto || null,
-                fotoEtiqueta: b.fotoEtiqueta || null,
+                // Fotos ficam no IndexedDB para não estourar o localStorage.
+                foto: null,
+                fotoEtiqueta: null,
                 fotoNm: b.fotoNm || "",
                 ok: b.ok || false,
                 manual: b.manual || false,
@@ -4673,23 +4675,11 @@ var estObservacoes = {};
             sessaoQrAtualId: sessaoQrAtualId || "",
           };
 
-          // Tenta salvar com fotos
+          // Salva dados leves no localStorage; fotos ficam no IndexedDB.
           try {
-            var comFoto = JSON.stringify(dados);
-            localStorage.setItem(LS, comFoto);
+            localStorage.setItem(LS, JSON.stringify(dados));
           } catch (e1) {
-            // Remove fotos e tenta novamente
-            dados.B.forEach(function (b) {
-              b.foto = null;
-              b.fotoEtiqueta = null;
-            });
-            try {
-              var semFoto = JSON.stringify(dados);
-              localStorage.setItem(LS, semFoto);
-              toast("Fotos removidas do backup (sem espaço)", "warning");
-            } catch (e2) {
-              console.error("Erro ao salvar mesmo sem fotos:", e2);
-            }
+            console.error("Erro ao salvar dados locais:", e1);
           }
         } catch (e) {
           console.error("Erro geral no save():", e);
@@ -4792,6 +4782,7 @@ var estObservacoes = {};
 
           grp();
           build();
+          restaurarFotosLocais(true);
 
           console.log("load(): " + B.length + " encaixes carregados");
 
@@ -5209,6 +5200,122 @@ var estObservacoes = {};
         return bob ? bob.uid || bob.__UID || "" : "";
       }
 
+      var fotosDBPromise = null;
+
+      function abrirFotosDB() {
+        if (!window.indexedDB) return Promise.resolve(null);
+        if (fotosDBPromise) return fotosDBPromise;
+        fotosDBPromise = new Promise(function (resolve) {
+          var req = indexedDB.open("encaixes_fotos_v1", 1);
+          req.onupgradeneeded = function (ev) {
+            var db = ev.target.result;
+            if (!db.objectStoreNames.contains("fotos")) {
+              db.createObjectStore("fotos", { keyPath: "id" });
+            }
+          };
+          req.onsuccess = function () {
+            resolve(req.result);
+          };
+          req.onerror = function () {
+            console.error("Erro IndexedDB fotos:", req.error);
+            resolve(null);
+          };
+        });
+        return fotosDBPromise;
+      }
+
+      function chaveFotoBobina(bob) {
+        if (!bob) return "";
+        var uid = getUidBobina(bob);
+        if (uid) return uid;
+        return [bob.enc || "", bob.item || "", bob.ver || "", bob.qtde || ""].join("|");
+      }
+
+      async function salvarFotoBobinaLocal(bob) {
+        try {
+          if (!bob || (!bob.foto && !bob.fotoEtiqueta)) return;
+          var id = chaveFotoBobina(bob);
+          if (!id) return;
+          var db = await abrirFotosDB();
+          if (!db) return;
+          var tx = db.transaction("fotos", "readwrite");
+          tx.objectStore("fotos").put({
+            id: id,
+            foto: bob.foto || null,
+            fotoEtiqueta: bob.fotoEtiqueta || null,
+            fotoNm: bob.fotoNm || "",
+            ok: !!bob.ok,
+            ts: Date.now(),
+          });
+        } catch (e) {
+          console.error("Erro salvarFotoBobinaLocal:", e);
+        }
+      }
+
+      async function apagarFotoBobinaLocal(bob) {
+        try {
+          var id = chaveFotoBobina(bob);
+          var db = await abrirFotosDB();
+          if (!db || !id) return;
+          var tx = db.transaction("fotos", "readwrite");
+          tx.objectStore("fotos").delete(id);
+        } catch (e) {}
+      }
+
+      function carregarFotoRegistro(id) {
+        return abrirFotosDB().then(function (db) {
+          return new Promise(function (resolve) {
+            if (!db || !id) return resolve(null);
+            var tx = db.transaction("fotos", "readonly");
+            var req = tx.objectStore("fotos").get(id);
+            req.onsuccess = function () {
+              resolve(req.result || null);
+            };
+            req.onerror = function () {
+              resolve(null);
+            };
+          });
+        });
+      }
+
+      async function restaurarFotosLocais(silencioso) {
+        try {
+          if (!B || B.length === 0) return 0;
+          var restauradas = 0;
+          for (var i = 0; i < B.length; i++) {
+            var b = B[i];
+            if (b.foto || b.fotoEtiqueta) continue;
+            var rec = await carregarFotoRegistro(chaveFotoBobina(b));
+            if (rec && (rec.foto || rec.fotoEtiqueta)) {
+              b.foto = rec.foto || null;
+              b.fotoEtiqueta = rec.fotoEtiqueta || null;
+              b.fotoNm = rec.fotoNm || b.fotoNm || "";
+              if (rec.ok) b.ok = true;
+              restauradas++;
+            }
+          }
+          if (restauradas > 0) {
+            grp();
+            build();
+            atualizarInfo();
+            if (!silencioso)
+              toast(restauradas + " foto(s) restaurada(s)", "success", 2500);
+          }
+          return restauradas;
+        } catch (e) {
+          console.error("Erro restaurarFotosLocais:", e);
+          return 0;
+        }
+      }
+
+      function salvarFotosLocaisTudo() {
+        try {
+          for (var i = 0; i < B.length; i++) {
+            if (B[i].foto || B[i].fotoEtiqueta) salvarFotoBobinaLocal(B[i]);
+          }
+        } catch (e) {}
+      }
+
       var estoqueUidNuvemTimer = null;
 
       async function salvarEstoqueNuvemAgora() {
@@ -5621,8 +5728,10 @@ function getOpItemGroups(g) {
     el.addEventListener("click", function () {
       var bi2 = parseInt(this.getAttribute("data-b"));
       if (B[bi2].ok) {
+        apagarFotoBobinaLocal(B[bi2]);
         B[bi2].ok = false;
         B[bi2].foto = null;
+        B[bi2].fotoEtiqueta = null;
         B[bi2].fotoNm = "";
         save();
         build();
@@ -5984,6 +6093,7 @@ function getOpItemGroups(g) {
             fotoEtiqueta = null;
             camEtapa = 1;
             xCam();
+            salvarFotoBobinaLocal(b);
             save();
             if (focoAtual >= 0) {
               // Verifica se OP atual ficou completa
@@ -7845,9 +7955,11 @@ function getOpItemGroups(g) {
         var pesoOriginal = bob.qtde;
 
         // Primeira bobina: atualiza a existente
+        apagarFotoBobinaLocal(bob);
         bob.qtde = pesos[0];
         bob.ok = false;
         bob.foto = null;
+        bob.fotoEtiqueta = null;
         bob.fotoNm = "";
 
         // Atualiza no estoque
@@ -8638,8 +8750,10 @@ function getOpItemGroups(g) {
         openCam(bi);
       }
       function fsDesmarcar(bi) {
+        apagarFotoBobinaLocal(B[bi]);
         B[bi].ok = false;
         B[bi].foto = null;
+        B[bi].fotoEtiqueta = null;
         B[bi].fotoNm = "";
         save();
         renderFS();
@@ -9496,6 +9610,7 @@ function getOpItemGroups(g) {
                 if (!B[n].formula) B[n].formula = "";
               }
               grp();
+              await restaurarFotosLocais(true);
             }
           }
 
@@ -14478,5 +14593,5 @@ async function shareFotos() {
         </div>
       </div>
     </div>
-  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a17074c91905da79',t:'MTc4MzM2MDI3Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a17074c91905da79',t:'MTc4MzM2MDI3Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1977bb17b78ffa8',t:'MTc4Mzc2OTUwMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
