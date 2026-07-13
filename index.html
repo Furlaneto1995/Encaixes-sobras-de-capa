@@ -2925,6 +2925,19 @@
         </div>
       </div>
       <div
+        id="confFaltamWrap"
+        style="padding: 0 14px 6px; display: flex; justify-content: center; flex-shrink: 0"
+      >
+        <button
+          id="btnConfFaltam"
+          onclick="confToggleFaltam()"
+          style="display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 7px 12px; border-radius: 999px; border: 1px solid #e2e8f0; background: #fff; color: #64748b; font-size: 0.74em; font-weight: 700; box-shadow: 0 1px 3px rgba(15,23,42,.06); cursor: pointer"
+        >
+          <span id="confFaltamIcon">📋</span>
+          <span id="confFaltamText">Todas</span>
+        </button>
+      </div>
+      <div
         style="
           flex: 1;
           overflow-y: auto;
@@ -3337,6 +3350,10 @@
       var confTipo = "capas";
       try {
         confTipo = localStorage.getItem("enc_conf_tipo") || "capas";
+      } catch (e) {}
+      var confMostrarSoFaltam = false;
+      try {
+        confMostrarSoFaltam = localStorage.getItem("enc_conf_faltam") === "1";
       } catch (e) {}
       var ultimosProblemasImportacaoEstoque = [];
       var undoStack = [];
@@ -10012,6 +10029,38 @@ function getOpItemGroups(g) {
         });
       }
 
+      function confAtualizarFaltamBtn(qtdFaltam) {
+        var btn = document.getElementById("btnConfFaltam"),
+          icon = document.getElementById("confFaltamIcon"),
+          txt = document.getElementById("confFaltamText");
+        if (!btn || !icon || !txt) return;
+
+        if (confMostrarSoFaltam) {
+          icon.textContent = "⏳";
+          txt.textContent =
+            "Faltam conferir" +
+            (typeof qtdFaltam === "number" ? " (" + qtdFaltam + ")" : "");
+          btn.style.background = "#fffbeb";
+          btn.style.borderColor = "#fcd34d";
+          btn.style.color = "#b45309";
+        } else {
+          icon.textContent = "📋";
+          txt.textContent = "Todas";
+          btn.style.background = "#fff";
+          btn.style.borderColor = "#e2e8f0";
+          btn.style.color = "#64748b";
+        }
+      }
+
+      function confToggleFaltam() {
+        confMostrarSoFaltam = !confMostrarSoFaltam;
+        try {
+          localStorage.setItem("enc_conf_faltam", confMostrarSoFaltam ? "1" : "0");
+        } catch (e) {}
+        confAtualizarFaltamBtn();
+        confRender();
+      }
+
       function confSelecionarTipo(tipo) {
         if (["metal", "capas", "oculto"].indexOf(tipo) === -1) tipo = "capas";
         confTipo = tipo;
@@ -10105,7 +10154,8 @@ function getOpItemGroups(g) {
           cCapas = 0,
           cMetal = 0,
           cOculto = 0,
-          cOkTipo = 0;
+          cOkTipo = 0,
+          cFaltamVis = 0;
         var mapaFinalizadosConf = criarMapaEncaixesFinalizados();
         for (var i = 0; i < estoque.length; i++) {
           var e = estoque[i],
@@ -10151,6 +10201,9 @@ function getOpItemGroups(g) {
             Math.abs(qtde - buscaKg) > 0.05
           )
             continue;
+          var isOkConf = info.status === "ok";
+          if (!isOkConf) cFaltamVis++;
+          if (confMostrarSoFaltam && isOkConf) continue;
           itens.push({
             item: itemCode,
             ver: ver,
@@ -10182,6 +10235,7 @@ function getOpItemGroups(g) {
         var elOculto = document.getElementById("confCOculto");
         if (elOculto) elOculto.textContent = cOculto;
         confAtualizarTipoBtns();
+        confAtualizarFaltamBtn(cFaltamVis);
         var totalVis =
           tipoSelecionado === "metal"
             ? cMetal
@@ -10194,7 +10248,8 @@ function getOpItemGroups(g) {
           totalVis +
           " bobinas | " +
           cOkTipo +
-          " encontradas";
+          " encontradas" +
+          (confMostrarSoFaltam ? " | faltam " + cFaltamVis : "");
         if (itens.length === 0) {
           body.innerHTML =
             '<div style="text-align:center;padding:40px;color:#aaa;"><div style="font-size:2.5em;margin-bottom:8px;">📭</div><p>Nenhuma bobina neste filtro</p></div>';
@@ -14612,5 +14667,5 @@ async function shareFotos() {
         </div>
       </div>
     </div>
-  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a17074c91905da79',t:'MTc4MzM2MDI3Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1a84f5f5929c1b6',t:'MTc4Mzk0NTk0Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a17074c91905da79',t:'MTc4MzM2MDI3Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1a860621eab7e1d',t:'MTc4Mzk0NjYzOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
