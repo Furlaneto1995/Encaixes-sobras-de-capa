@@ -5182,6 +5182,28 @@ var estObservacoes = {};
         });
       }
 
+      function textoWhatsappSeguro(txt) {
+        return String(txt || "")
+          .replace(/📋/g, "CONFERENCIA")
+          .replace(/📦/g, "RELATORIO")
+          .replace(/📅/g, "Data:")
+          .replace(/📷/g, "Foto:")
+          .replace(/🔷/g, "OP")
+          .replace(/🔑/g, "Chave:")
+          .replace(/✅/g, "[OK]")
+          .replace(/⬜/g, "[ ]")
+          .replace(/❌/g, "[NAO]")
+          .replace(/➕/g, "[ADICIONAL]")
+          .replace(/✂️|✂/g, "[DIVIDIDA]")
+          .replace(/📌/g, " End: ")
+          .replace(/💬/g, " Obs: ")
+          .replace(/📊/g, "Total:")
+          .replace(/👁️‍🗨️|👁️|👁/g, "Oculta")
+          .replace(/→/g, "->")
+          .replace(/[═─]/g, "-")
+          .replace(/[^\u0009\u000A\u000D\u0020-\u007E\u00C0-\u00FF]/g, "");
+      }
+
       function gerarUidBobina() {
         return (
           "bob" +
@@ -5478,30 +5500,34 @@ var estObservacoes = {};
         return null;
       }
 
+      function getEnderecoBobinaAtual(item, ver, qtde, uid) {
+        var atual = getConfStatusAtual(item, ver, qtde, uid);
+        if (atual && atual.endereco) return atual.endereco;
+        var hist = uid ? confHistorico[uid] || null : null;
+        if (hist && hist.endereco) return hist.endereco;
+        return "";
+      }
+
       function getObsBobinaAtual(item, ver, qtde, uid) {
         var atual = getConfStatusAtual(item, ver, qtde, uid);
         if (atual && atual.observacao) return atual.observacao;
+        var hist = uid ? confHistorico[uid] || null : null;
+        if (hist && hist.observacao) return hist.observacao;
         if (uid && estObservacoes[uid]) return estObservacoes[uid];
         return "";
       }
 
       function getEnderecoMini(bob) {
         var uid = getUidBobina(bob);
+        var endereco = getEnderecoBobinaAtual(bob.item, bob.ver, bob.qtde, uid);
+        if (!endereco) return "";
         var atual = getConfStatusAtual(bob.item, bob.ver, bob.qtde, uid);
-        if (atual && atual.endereco) {
-          return (
-            '<div style="font-size:0.58em;color:#10b981;margin-top:2px;">📌 ' +
-            htmlSafe(atual.endereco) +
-            "</div>"
-          );
-        }
-
-        // Histórico só por UID. Nunca por item/versão/peso, para evitar herança.
-        var hist = uid ? confHistorico[uid] || null : null;
-        if (!hist || !hist.endereco) return "";
+        var cor = atual && atual.endereco ? "#10b981" : "#2563eb";
         return (
-          '<div style="font-size:0.58em;color:#2563eb;margin-top:2px;">📌 ' +
-          htmlSafe(hist.endereco) +
+          '<div style="font-size:0.58em;color:' +
+          cor +
+          ';margin-top:2px;">📌 ' +
+          htmlSafe(endereco) +
           "</div>"
         );
       }
@@ -8849,7 +8875,7 @@ function getOpItemGroups(g) {
           }
           var uidEstoque = getUidEstoque(e);
           var confAtual = getConfStatusAtual(ic, ver, qtde, uidEstoque);
-          var enderecoConf = confAtual && confAtual.endereco ? confAtual.endereco : "";
+          var enderecoConf = getEnderecoBobinaAtual(ic, ver, qtde, uidEstoque);
           var obsAtual = getObsBobinaAtual(ic, ver, qtde, uidEstoque);
 
           if (!estFiltros[categoria]) continue;
@@ -10625,16 +10651,6 @@ function getOpItemGroups(g) {
         )
           return;
 
-        var janelaWppConf = null;
-        try {
-          janelaWppConf = window.open("", "_blank");
-          if (janelaWppConf) {
-            janelaWppConf.document.write(
-              "<div style='font-family:sans-serif;padding:24px'>Preparando WhatsApp...</div>",
-            );
-          }
-        } catch (e) {}
-
         var lo = document.getElementById("lo"),
           lt = document.getElementById("lt");
         lo.classList.add("active");
@@ -10680,6 +10696,24 @@ function getOpItemGroups(g) {
           for (var r = listaRemover.length - 1; r >= 0; r--) {
             estoque.splice(listaRemover[r], 1);
           }
+
+          // Atualiza o histórico local imediatamente, sem esperar nova sincronização.
+          for (var h = 0; h < listaTodas.length; h++) {
+            var rh = listaTodas[h];
+            if (rh.uid && rh.status === "ENCONTRADA") {
+              confHistorico[rh.uid] = {
+                endereco: rh.endereco || "",
+                observacao: rh.observacao || "",
+                data: dataStr,
+                status: rh.status,
+                adicional: !!rh.adicional,
+                item: rh.item || "",
+                versao: rh.versao || "",
+                qtde: String(rh.qtde || ""),
+              };
+            }
+          }
+          confHistoricoCarregado = true;
 
           var relatorio =
             "📋 CONFERÊNCIA - " +
@@ -10779,12 +10813,12 @@ function getOpItemGroups(g) {
             4000,
           );
 
+          var relatorioWpp = textoWhatsappSeguro(relatorio);
           var compartilhouNativo = false;
           if (navigator.share) {
             try {
-              await navigator.share({ title: "Conferência", text: relatorio });
+              await navigator.share({ title: "Conferência", text: relatorioWpp });
               compartilhouNativo = true;
-              if (janelaWppConf && !janelaWppConf.closed) janelaWppConf.close();
             } catch (e) {
               if (e.name === "AbortError") compartilhouNativo = true;
             }
@@ -10795,14 +10829,8 @@ function getOpItemGroups(g) {
             return;
           }
 
-          var urlWpp = "https://wa.me/?text=" + encodeURIComponent(relatorio);
-          var janela = null;
-          if (janelaWppConf && !janelaWppConf.closed) {
-            janelaWppConf.location.href = urlWpp;
-            janela = janelaWppConf;
-          } else {
-            janela = window.open(urlWpp, "_blank");
-          }
+          var urlWpp = "https://wa.me/?text=" + encodeURIComponent(relatorioWpp);
+          var janela = window.open(urlWpp, "_blank");
           if (
             !janela ||
             janela.closed ||
@@ -10827,7 +10855,6 @@ function getOpItemGroups(g) {
           confRender();
           atualizarInfo();
         } catch (err) {
-          if (janelaWppConf && !janelaWppConf.closed) janelaWppConf.close();
           lo.classList.remove("active");
           toast("Erro: " + err.message, "error");
         }
@@ -11445,17 +11472,18 @@ function getOpItemGroups(g) {
         texto += gerarTextoDivisoesConferencia(regsShare);
         if (cad > 0) texto += secAd + "\n";
         if (cnok > 0) texto += secNok + "\n";
+        var textoWpp = textoWhatsappSeguro(texto);
         if (navigator.share) {
           navigator
-            .share({ title: "Conferência", text: texto })
+            .share({ title: "Conferência", text: textoWpp })
             .catch(function () {});
           return;
         }
         try {
-          navigator.clipboard.writeText(texto);
+          navigator.clipboard.writeText(textoWpp);
           toast("Copiado!", "success");
         } catch (e) {
-          prompt("Copie:", texto);
+          prompt("Copie:", textoWpp);
         }
       }
 
@@ -11541,18 +11569,27 @@ function getOpItemGroups(g) {
         return new File([blob], nomeArquivo, { type: "image/jpeg" });
       }
 
+async function baixarArquivosRelatorio() {
+  var arquivos = window._arquivosRelatorio || [];
+  if (!arquivos.length) {
+    toast("Nenhuma foto preparada", "warning");
+    return;
+  }
+  for (var f2 = 0; f2 < arquivos.length; f2++) {
+    var url = URL.createObjectURL(arquivos[f2]);
+    var link = document.createElement("a");
+    link.href = url;
+    link.download = arquivos[f2].name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    await new Promise(function (res) { setTimeout(res, 250); });
+  }
+}
+
 async function shareFotos() {
   xM("fm");
-
-  var janelaWpp = null;
-  try {
-    janelaWpp = window.open("", "_blank");
-    if (janelaWpp) {
-      janelaWpp.document.write(
-        "<div style='font-family:sans-serif;padding:24px'>Preparando WhatsApp...</div>",
-      );
-    }
-  } catch (e) {}
 
   var lo = document.getElementById("lo"),
     lt = document.getElementById("lt");
@@ -11623,6 +11660,7 @@ async function shareFotos() {
     }
 
     textoRelatorio += gerarTextoExcluidasEncaixe();
+    var textoRelatorioWpp = textoWhatsappSeguro(textoRelatorio);
 
     var canvas = document.createElement("canvas"),
       largura = 800,
@@ -11761,74 +11799,54 @@ async function shareFotos() {
     lo.classList.remove("active");
 
     if (arquivos.length === 0) {
-      if (janelaWpp && !janelaWpp.closed) janelaWpp.close();
       toast("Nenhuma foto", "warning");
       return;
     }
 
-    if (
-      navigator.share &&
-      navigator.canShare &&
-      navigator.canShare({ files: arquivos })
-    ) {
+    window._arquivosRelatorio = arquivos;
+
+    if (navigator.share) {
       try {
         await navigator.share({
           files: arquivos,
           title: "📦 Encaixes " + new Date().toLocaleDateString("pt-BR"),
-          text: textoRelatorio,
+          text: textoRelatorioWpp,
         });
-        if (janelaWpp && !janelaWpp.closed) janelaWpp.close();
         return;
       } catch (e) {
-        if (e.name === "AbortError") {
-          if (janelaWpp && !janelaWpp.closed) janelaWpp.close();
+        if (e.name === "AbortError") return;
+        console.warn("Compartilhamento com fotos falhou, tentando texto:", e);
+        try {
+          await navigator.share({
+            title: "📦 Encaixes " + new Date().toLocaleDateString("pt-BR"),
+            text: textoRelatorioWpp,
+          });
           return;
+        } catch (e2) {
+          if (e2.name === "AbortError") return;
+          console.warn("Web Share texto falhou, usando fallback WhatsApp:", e2);
         }
       }
     }
 
-    lt.textContent = "Baixando...";
-    lo.classList.add("active");
-
-    for (var f2 = 0; f2 < arquivos.length; f2++) {
-      var url = URL.createObjectURL(arquivos[f2]);
-      var link = document.createElement("a");
-      link.href = url;
-      link.download = arquivos[f2].name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      await new Promise(function (res) {
-        setTimeout(res, 300);
-      });
-    }
-
-    lo.classList.remove("active");
-
-    var urlWpp = "https://wa.me/?text=" + encodeURIComponent(textoRelatorio);
-    if (janelaWpp && !janelaWpp.closed) {
-      janelaWpp.location.href = urlWpp;
-    } else {
-      var jw = window.open(urlWpp, "_blank");
-      if (!jw || jw.closed || typeof jw.closed === "undefined") {
-        criarModal(
-          "wppRelatorioModal",
-          '<div style="text-align:center;">' +
-            '<div style="font-size:2em;margin-bottom:8px;">📤</div>' +
-            '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:8px;">Abrir WhatsApp</h3>' +
-            '<p style="font-size:0.75em;color:#888;margin-bottom:12px;">As fotos foram baixadas. Clique abaixo para abrir o WhatsApp com o relatório.</p>' +
-            '<a href="' +
-            urlWpp +
-            '" target="_blank" style="display:block;padding:13px;border-radius:10px;background:#25D366;color:#fff;font-size:0.9em;font-weight:600;text-decoration:none;">💬 WhatsApp</a>' +
-            '<button onclick="fecharModal(\'wppRelatorioModal\')" style="margin-top:8px;padding:12px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.85em;cursor:pointer;width:100%;">Fechar</button>' +
-            "</div>",
-        );
-      }
+    var urlWpp = "https://wa.me/?text=" + encodeURIComponent(textoRelatorioWpp);
+    var jw = window.open(urlWpp, "_blank");
+    if (!jw || jw.closed || typeof jw.closed === "undefined") {
+      criarModal(
+        "wppRelatorioModal",
+        '<div style="text-align:center;">' +
+          '<div style="font-size:2em;margin-bottom:8px;">📤</div>' +
+          '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:8px;">Compartilhar relatório</h3>' +
+          '<p style="font-size:0.75em;color:#888;margin-bottom:12px;">Não foi possível abrir o compartilhamento direto com fotos neste navegador.</p>' +
+          '<a href="' +
+          urlWpp +
+          '" target="_blank" style="display:block;padding:13px;border-radius:10px;background:#25D366;color:#fff;font-size:0.9em;font-weight:600;text-decoration:none;">💬 Abrir WhatsApp com texto</a>' +
+          '<button onclick="baixarArquivosRelatorio()" style="margin-top:8px;padding:12px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-size:0.85em;cursor:pointer;width:100%;">📥 Baixar fotos manualmente</button>' +
+          '<button onclick="fecharModal(\'wppRelatorioModal\')" style="margin-top:8px;padding:12px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.85em;cursor:pointer;width:100%;">Fechar</button>' +
+          "</div>",
+      );
     }
   } catch (err) {
-    if (janelaWpp && !janelaWpp.closed) janelaWpp.close();
     lo.classList.remove("active");
     toast("Erro: " + err.message, "error");
   }
@@ -11865,19 +11883,20 @@ async function shareFotos() {
           texto += "  📊 " + pt.toFixed(1) + "kg\n───────────────\n\n";
         }
         texto += gerarTextoExcluidasEncaixe();
+        var textoWppRel = textoWhatsappSeguro(texto);
         if (navigator.share) {
           try {
-            await navigator.share({ title: "Relatório", text: texto });
+            await navigator.share({ title: "Relatório", text: textoWppRel });
             return;
           } catch (e) {
             if (e.name === "AbortError") return;
           }
         }
         try {
-          await navigator.clipboard.writeText(texto);
+          await navigator.clipboard.writeText(textoWppRel);
           toast("Copiado!", "success");
         } catch (e) {
-          prompt("Copie:", texto);
+          prompt("Copie:", textoWppRel);
         }
       }
 
@@ -14593,5 +14612,5 @@ async function shareFotos() {
         </div>
       </div>
     </div>
-  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a17074c91905da79',t:'MTc4MzM2MDI3Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1977bb17b78ffa8',t:'MTc4Mzc2OTUwMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a17074c91905da79',t:'MTc4MzM2MDI3Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1a84f5f5929c1b6',t:'MTc4Mzk0NTk0Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
