@@ -3194,6 +3194,49 @@
           return !!base[chaveBobina(item, qtde)];
         };
 
+        window.atualizarNovasPorDataFinalizacao = function(dias){
+          dias = dias === undefined ? 3 : parseInt(dias, 10);
+          if (isNaN(dias) || dias < 0) dias = 3;
+
+          var novasPorData = {};
+          var hoje = new Date();
+          hoje.setHours(0,0,0,0);
+
+          for (var i = 0; i < estoque.length; i++) {
+            var e = estoque[i];
+            var item = getItemEstoque(e);
+            if (!item) continue;
+            var qtde = parseFloat(e["QTDE_ESTOQUE"]) || 0;
+            var ver = String(e["VERSAO"] || "").trim();
+            var dataTxt = "";
+            try { dataTxt = getDataFinalizacaoOP(e); } catch (err) { dataTxt = ""; }
+            if (!dataTxt) continue;
+            var dt = parseDataBR(dataTxt);
+            if (!dt || isNaN(dt.getTime())) continue;
+            dt.setHours(0,0,0,0);
+            var diff = Math.floor((hoje.getTime() - dt.getTime()) / 86400000);
+            if (diff >= 0 && diff <= dias) {
+              var reg = {
+                item: item,
+                qtde: qtde,
+                ver: ver,
+                data: dataTxt,
+                dias: diff,
+                origem: "coluna M"
+              };
+              novasPorData[chaveBobina(item, qtde)] = reg;
+              novasPorData[item + '|' + ver + '|' + qtde] = reg;
+            }
+          }
+
+          bobinasNovas = novasPorData;
+          window.bobinasNovas = bobinasNovas;
+          salvarNovas();
+          try{ localStorage.setItem('enc_novas', JSON.stringify(bobinasNovas)); }catch(e){}
+          console.log('[NEW] coluna M <= ' + dias + ' dias:', Object.keys(bobinasNovas).length);
+          return bobinasNovas;
+        };
+
         window.atualizarNovasDaNuvem = function(novasObj){
           bobinasNovas = novasObj;
           window.bobinasNovas = novasObj;
@@ -3223,36 +3266,46 @@
         // compararEstoques = diff real
         window.compararEstoques = function(anterior, atual){
           var antMap={}, atuMap={};
-          for(var i=0;i<anterior.length;i++){
-            var a=anterior[i], ic=getItemEstoque(a);
-            if(!ic || /-4$/.test(ic)) continue;
-            var qtde=parseFloat(a["QTDE_ESTOQUE"])||0;
-            var ver=String(a["VERSAO"]||'').trim();
-            antMap[ic+'|'+ver+'|'+qtde] = {item:ic,ver:ver,qtde:qtde,material:a["MATERIAL"]||''};
+          function addBob(map, e){
+            var ic=getItemEstoque(e);
+            if(!ic) return;
+            var qtde=parseFloat(e["QTDE_ESTOQUE"])||0;
+            var ver=String(e["VERSAO"]||'').trim();
+            var k=ic+'|'+ver+'|'+qtde;
+            if(!map[k]) map[k]=[];
+            map[k].push({
+              item:ic,
+              ver:ver,
+              qtde:qtde,
+              material:e["MATERIAL"]||'',
+              metal:/-4$/.test(ic)
+            });
           }
-          for(var j=0;j<atual.length;j++){
-            var e=atual[j], ic2=getItemEstoque(e);
-            if(!ic2 || /-4$/.test(ic2)) continue;
-            var qtde2=parseFloat(e["QTDE_ESTOQUE"])||0;
-            var ver2=String(e["VERSAO"]||'').trim();
-            atuMap[ic2+'|'+ver2+'|'+qtde2] = {item:ic2,ver:ver2,qtde:qtde2,material:e["MATERIAL"]||''};
-          }
+          for(var i=0;i<anterior.length;i++) addBob(antMap, anterior[i]);
+          for(var j=0;j<atual.length;j++) addBob(atuMap, atual[j]);
+
           var novas=[], sumiram=[], pesoAntes=0,pesoAgora=0,bobAntes=0,bobAgora=0;
-          for(var ka in atuMap){ bobAgora++; pesoAgora+=atuMap[ka].qtde; if(!antMap[ka]) novas.push(atuMap[ka]); }
-          for(var kb in antMap){ bobAntes++; pesoAntes+=antMap[kb].qtde; if(!atuMap[kb]) sumiram.push(antMap[kb]); }
-
-          // NEW = só as novas
-          bobinasNovas = {};
-          var dataImport = new Date().toISOString().slice(0,10);
-          for(var n=0;n<novas.length;n++){
-            var nn=novas[n];
-            bobinasNovas[chaveBobina(nn.item,nn.qtde)] = {item:nn.item,qtde:nn.qtde,ver:nn.ver,data:dataImport};
-            bobinasNovas[nn.item+'|'+nn.ver+'|'+nn.qtde] = bobinasNovas[chaveBobina(nn.item,nn.qtde)];
+          for(var ka in atuMap){
+            var arrA=atuMap[ka]||[], arrAnt=antMap[ka]||[];
+            bobAgora += arrA.length;
+            for(var pa=0; pa<arrA.length; pa++) pesoAgora += arrA[pa].qtde;
+            if(arrA.length > arrAnt.length){
+              for(var na=arrAnt.length; na<arrA.length; na++) novas.push(arrA[na]);
+            }
           }
-          salvarNovas();
-          try{ localStorage.setItem('enc_novas', JSON.stringify(bobinasNovas)); }catch(e){}
+          for(var kb in antMap){
+            var arrB=antMap[kb]||[], arrAt=atuMap[kb]||[];
+            bobAntes += arrB.length;
+            for(var pb=0; pb<arrB.length; pb++) pesoAntes += arrB[pb].qtde;
+            if(arrB.length > arrAt.length){
+              for(var nb=arrAt.length; nb<arrB.length; nb++) sumiram.push(arrB[nb]);
+            }
+          }
 
-          if(novas.length===0 && sumiram.length===0){ toast('Estoque idêntico ao anterior','info'); return; }
+          // NEW agora é baseado na coluna M: data finalização OP nos últimos 3 dias.
+          window.atualizarNovasPorDataFinalizacao(3);
+
+          if(novas.length===0 && sumiram.length===0){ toast('Estoque idêntico ao anterior | NEW por coluna M atualizado','info'); return; }
 
           var diffBob=bobAgora-bobAntes, diffPeso=pesoAgora-pesoAntes;
           var html='<h3 style="font-size:1em;color:#1a1a2e;margin-bottom:12px;">📊 Comparativo de Estoque</h3>';
@@ -4972,6 +5025,7 @@ var estObservacoes = {};
               var estoqueAnterior = estoque.length > 0 ? estoque.slice() : [];
               estoque = parseCSV(ev.target.result);
               await prepararEstoqueAposImportacao(estoqueAnterior);
+              window.atualizarNovasPorDataFinalizacao(3);
               infoEstoque();
               if (estoqueAnterior.length > 0)
                 compararEstoques(estoqueAnterior, estoque);
@@ -5012,6 +5066,7 @@ var estObservacoes = {};
                 }),
               );
               await prepararEstoqueAposImportacao(estoqueAnterior);
+              window.atualizarNovasPorDataFinalizacao(3);
               infoEstoque();
               if (estoqueAnterior.length > 0)
                 compararEstoques(estoqueAnterior, estoque);
@@ -15036,5 +15091,5 @@ async function shareFotos() {
         </div>
       </div>
     </div>
-  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a17074c91905da79',t:'MTc4MzM2MDI3Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1b0696e98318039',t:'MTc4NDAzMDg5Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a17074c91905da79',t:'MTc4MzM2MDI3Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1b07cae981cca4a',t:'MTc4NDAzMTY4NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
