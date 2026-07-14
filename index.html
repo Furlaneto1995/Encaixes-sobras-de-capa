@@ -3792,12 +3792,26 @@ var estObservacoes = {};
         if (t.indexOf(" ") > -1) t = t.split(" ")[0];
         var p = t.split(/[\/\-]/);
         if (p.length === 3) {
-          var d = parseInt(p[0], 10),
-            m = parseInt(p[1], 10) - 1,
+          var d, m, a;
+          // Aceita tanto DD/MM/AAAA quanto AAAA-MM-DD.
+          if (String(p[0]).length === 4) {
+            a = parseInt(p[0], 10);
+            m = parseInt(p[1], 10) - 1;
+            d = parseInt(p[2], 10);
+          } else {
+            d = parseInt(p[0], 10);
+            m = parseInt(p[1], 10) - 1;
             a = parseInt(p[2], 10);
+          }
           if (a < 100) a += 2000;
           var dt = new Date(a, m, d);
-          if (!isNaN(dt.getTime())) return dt;
+          if (
+            !isNaN(dt.getTime()) &&
+            dt.getFullYear() === a &&
+            dt.getMonth() === m &&
+            dt.getDate() === d
+          )
+            return dt;
         }
         var serial = parseFloat(v);
         if (!isNaN(serial) && serial > 30000) {
@@ -3879,6 +3893,7 @@ var estObservacoes = {};
           obj.__A = row[0] !== undefined ? String(row[0]).trim() : "";
           obj.__I = row[8] !== undefined ? String(row[8]).trim() : "";
           obj.__J = row[9] !== undefined ? String(row[9]).trim() : "";
+          obj.__M = row[12] !== undefined ? String(row[12]).trim() : "";
           obj.__P = row[15] !== undefined ? String(row[15]).trim() : "";
           r.push(obj);
         }
@@ -4953,9 +4968,10 @@ var estObservacoes = {};
           if (!f) return;
           var r = new FileReader();
           if (f.name.endsWith(".csv")) {
-            r.onload = function (ev) {
+            r.onload = async function (ev) {
               var estoqueAnterior = estoque.length > 0 ? estoque.slice() : [];
               estoque = parseCSV(ev.target.result);
+              await prepararEstoqueAposImportacao(estoqueAnterior);
               infoEstoque();
               if (estoqueAnterior.length > 0)
                 compararEstoques(estoqueAnterior, estoque);
@@ -4985,7 +5001,7 @@ var estObservacoes = {};
             };
             r.readAsText(f, "UTF-8");
           } else {
-            r.onload = function (ev) {
+            r.onload = async function (ev) {
               var estoqueAnterior = estoque.length > 0 ? estoque.slice() : [];
               var wb = XLSX.read(new Uint8Array(ev.target.result), {
                 type: "array",
@@ -4995,6 +5011,7 @@ var estObservacoes = {};
                   header: 1,
                 }),
               );
+              await prepararEstoqueAposImportacao(estoqueAnterior);
               infoEstoque();
               if (estoqueAnterior.length > 0)
                 compararEstoques(estoqueAnterior, estoque);
@@ -5229,8 +5246,253 @@ var estObservacoes = {};
         );
       }
 
+      function hashTextoCurto(txt) {
+        txt = String(txt || "");
+        var h1 = 0x811c9dc5;
+        for (var i = 0; i < txt.length; i++) {
+          h1 ^= txt.charCodeAt(i);
+          h1 += (h1 << 1) + (h1 << 4) + (h1 << 7) + (h1 << 8) + (h1 << 24);
+        }
+        return (h1 >>> 0).toString(36);
+      }
+
+      function normalizarDataFinalizacaoValor(v) {
+        var direto = String(v || "").trim();
+        if (!direto) return "";
+        var dt = parseDataBR(direto);
+        if (dt && !isNaN(dt.getTime())) {
+          return (
+            dt.getFullYear() +
+            "-" +
+            String(dt.getMonth() + 1).padStart(2, "0") +
+            "-" +
+            String(dt.getDate()).padStart(2, "0")
+          );
+        }
+        return direto.toUpperCase().replace(/\s+/g, "");
+      }
+
+      function getDataFinalizacaoOPDireta(e) {
+        if (!e) return "";
+        var direto =
+          e["DATA_FINALIZACAO_OP"] ||
+          e["DATA FINALIZACAO OP"] ||
+          e["DATA FINALIZAÇÃO OP"] ||
+          e["DATA_FINALIZAÇÃO_OP"] ||
+          e["DATA FINALIZACAO"] ||
+          e["DATA_FINALIZACAO"] ||
+          e.__M ||
+          "";
+        if (!direto) {
+          for (var k in e) {
+            var nk = normalizarTexto(k).replace(/[^A-Z0-9]/g, "");
+            if (
+              nk.indexOf("DATA") > -1 &&
+              nk.indexOf("FINALIZACAO") > -1
+            ) {
+              direto = e[k];
+              break;
+            }
+          }
+        }
+        return normalizarDataFinalizacaoValor(direto);
+      }
+
+      function getDataFinalizacaoOP(e) {
+        var direta = getDataFinalizacaoOPDireta(e);
+        if (direta) return direta;
+        try {
+          return getDataManualBobinaLocal(e) || "";
+        } catch (e0) {}
+        return "";
+      }
+
+      function getChaveIdentidadeBobina(e) {
+        if (!e) return "";
+        var item = getItemEstoque(e);
+        var ver = String(e["VERSAO"] || "").trim();
+        var qtde = parseFloat(String(e["QTDE_ESTOQUE"] || "").replace(",", ".")) || 0;
+        var dataFim = getDataFinalizacaoOP(e);
+        if (!item || !ver || !qtde || !dataFim) return "";
+        return item + "|" + ver + "|" + qtde + "|" + dataFim;
+      }
+
+      function getIdBobinaEstavel(e) {
+        var chave = getChaveIdentidadeBobina(e);
+        return chave ? "bid_" + hashTextoCurto(chave) : "";
+      }
+
+      function chaveDataManualBobina(e) {
+        if (!e) return "";
+        var item = getItemEstoque(e);
+        var ver = String(e["VERSAO"] || "").trim();
+        var qtde = parseFloat(String(e["QTDE_ESTOQUE"] || "").replace(",", ".")) || 0;
+        if (!item || !ver || !qtde) return "";
+        return item + "|" + ver + "|" + qtde;
+      }
+
+      function getDatasManuaisBobinasLocal() {
+        try {
+          return JSON.parse(localStorage.getItem("enc_datas_bobina") || "{}");
+        } catch (e) {
+          return {};
+        }
+      }
+
+      function getDataManualBobinaLocal(e) {
+        var chave = chaveDataManualBobina(e);
+        if (!chave) return "";
+        var mapa = getDatasManuaisBobinasLocal();
+        return mapa[chave] || "";
+      }
+
+      function aplicarDataFinalizacaoManual(e, data) {
+        if (!e || !data) return;
+        e["DATA_FINALIZACAO_OP"] = data;
+        e["DATA FINALIZACAO OP"] = data;
+        e["DATA FINALIZAÇÃO OP"] = data;
+        e.__M = data;
+      }
+
+      async function salvarDataManualBobina(e, data) {
+        var chave = chaveDataManualBobina(e);
+        if (!chave || !data) return;
+        var mapa = getDatasManuaisBobinasLocal();
+        mapa[chave] = data;
+        localStorage.setItem("enc_datas_bobina", JSON.stringify(mapa));
+        aplicarDataFinalizacaoManual(e, data);
+        try {
+          var docId = "dmb_" + hashTextoCurto(chave);
+          await db.collection("datas_manuais_bobinas").doc(docId).set({
+            chave: chave,
+            item: getItemEstoque(e),
+            versao: e["VERSAO"] || "",
+            qtde: String(parseFloat(e["QTDE_ESTOQUE"]) || 0),
+            data: data,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+          });
+        } catch (err) {
+          console.error("Erro ao salvar data manual da bobina na nuvem:", err);
+        }
+      }
+
+      async function carregarDatasManuaisBobinasNuvem() {
+        var mapa = getDatasManuaisBobinasLocal();
+        try {
+          var snap = await db.collection("datas_manuais_bobinas").get();
+          snap.forEach(function (doc) {
+            var d = doc.data();
+            if (d.chave && d.data) mapa[d.chave] = d.data;
+          });
+          localStorage.setItem("enc_datas_bobina", JSON.stringify(mapa));
+        } catch (e) {
+          console.error("Erro ao carregar datas manuais de bobinas:", e);
+        }
+        return mapa;
+      }
+
+      function pedirDataBobinaModal(e, idx, total) {
+        return new Promise(function (resolve) {
+          var item = getItemEstoque(e),
+            ver = e["VERSAO"] || "",
+            qtde = parseFloat(e["QTDE_ESTOQUE"]) || 0;
+          var hoje = new Date().toISOString().slice(0, 10);
+          criarModal(
+            "dataBobinaImportModal",
+            '<div style="text-align:center;margin-bottom:12px;">' +
+              '<div style="font-size:2em;margin-bottom:4px;">📅</div>' +
+              '<h3 style="font-size:0.98em;color:#1a1a2e;margin:0;">Data finalização OP ausente</h3>' +
+              '<p style="font-size:0.72em;color:#888;margin-top:6px;">Bobina ' +
+              (idx + 1) +
+              " de " +
+              total +
+              "</p></div>" +
+              '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px;margin-bottom:12px;font-size:0.78em;color:#334155;line-height:1.5;">' +
+              '<div><strong>Item:</strong> ' +
+              htmlSafe(item) +
+              "</div>" +
+              '<div><strong>Versão:</strong> ' +
+              htmlSafe(ver) +
+              "</div>" +
+              '<div><strong>Peso:</strong> ' +
+              qtde.toFixed(0) +
+              "kg</div>" +
+              (e["MATERIAL"]
+                ? '<div><strong>Material:</strong> ' + htmlSafe(e["MATERIAL"]) + "</div>"
+                : "") +
+              "</div>" +
+              '<label style="font-size:0.7em;color:#888;display:block;margin-bottom:4px;">Informe a data da coluna M:</label>' +
+              '<input type="date" id="dataBobinaImportInput" value="' +
+              hoje +
+              '" style="width:100%;padding:12px;border-radius:10px;border:1px solid #e0e0e0;background:#fff;color:#1a1a2e;font-size:0.95em;box-sizing:border-box;">' +
+              '<div style="display:flex;gap:8px;margin-top:14px;">' +
+              '<button id="btnDataBobinaPular" style="padding:12px 14px;border:none;border-radius:10px;background:#e0e0e0;color:#64748b;font-size:0.85em;font-weight:600;cursor:pointer;">Pular</button>' +
+              '<button id="btnDataBobinaSalvar" style="flex:1;padding:12px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-size:0.88em;font-weight:700;cursor:pointer;">💾 Salvar data</button>' +
+              "</div>",
+            { maxWidth: "380px", z: 2600 },
+          );
+          document.getElementById("btnDataBobinaPular").onclick = function () {
+            fecharModal("dataBobinaImportModal");
+            resolve("");
+          };
+          document.getElementById("btnDataBobinaSalvar").onclick = function () {
+            var val = document.getElementById("dataBobinaImportInput").value;
+            if (!val) {
+              toast("Selecione uma data", "error");
+              return;
+            }
+            fecharModal("dataBobinaImportModal");
+            resolve(val);
+          };
+          setTimeout(function () {
+            var inp = document.getElementById("dataBobinaImportInput");
+            if (inp) inp.focus();
+          }, 100);
+        });
+      }
+
+      async function verificarDatasFaltantesEstoque() {
+        if (!estoque || estoque.length === 0) return;
+        var mapa = await carregarDatasManuaisBobinasNuvem();
+        var faltantes = [];
+        for (var i = 0; i < estoque.length; i++) {
+          var e = estoque[i];
+          if (!e) continue;
+          if (getDataFinalizacaoOPDireta(e)) continue;
+          var chave = chaveDataManualBobina(e);
+          if (chave && mapa[chave]) {
+            aplicarDataFinalizacaoManual(e, mapa[chave]);
+          } else if (chave) {
+            faltantes.push(e);
+          }
+        }
+        for (var f = 0; f < faltantes.length; f++) {
+          var data = await pedirDataBobinaModal(faltantes[f], f, faltantes.length);
+          if (data) await salvarDataManualBobina(faltantes[f], data);
+        }
+        if (faltantes.length > 0) {
+          try {
+            localStorage.setItem("enc_estoque", JSON.stringify(estoque));
+          } catch (e) {}
+        }
+      }
+
+      async function prepararEstoqueAposImportacao(estoqueAnterior) {
+        await verificarDatasFaltantesEstoque();
+        transferirIdentidadeEstoqueAnterior(estoqueAnterior || [], estoque);
+        garantirUidEstoque();
+      }
+
       function getUidEstoque(e) {
         if (!e) return "";
+        var idEstavel = getIdBobinaEstavel(e);
+        if (idEstavel) {
+          if (e.__UID && e.__UID !== idEstavel) e.__UID_ANTIGO = e.__UID;
+          e.__UID = idEstavel;
+          e.__BID = idEstavel;
+          e.__BID_KEY = getChaveIdentidadeBobina(e);
+          return e.__UID;
+        }
         if (!e.__UID) e.__UID = gerarUidBobina();
         return e.__UID;
       }
@@ -5397,6 +5659,110 @@ var estObservacoes = {};
             localStorage.setItem("enc_estoque", JSON.stringify(estoque));
           } catch (e) {}
           salvarEstoqueUidsNuvemDebounced();
+        }
+      }
+
+      function migrarInfoUidBobina(uidAntigo, uidNovo, e) {
+        if (!uidAntigo || !uidNovo || uidAntigo === uidNovo) return;
+        try {
+          if (confHistorico[uidAntigo] && !confHistorico[uidNovo]) {
+            confHistorico[uidNovo] = JSON.parse(JSON.stringify(confHistorico[uidAntigo]));
+          }
+          if (estObservacoes[uidAntigo] && !estObservacoes[uidNovo]) {
+            estObservacoes[uidNovo] = estObservacoes[uidAntigo];
+            localStorage.setItem("enc_obs", JSON.stringify(estObservacoes));
+            salvarObsNuvem();
+          }
+          var item = getItemEstoque(e),
+            ver = e["VERSAO"] || "",
+            qtde = parseFloat(e["QTDE_ESTOQUE"]) || 0;
+          var novaKey = makeConfKey(item, ver, qtde, uidNovo);
+          for (var k in confStatus) {
+            var info = confStatus[k];
+            if (!info) continue;
+            if (info.uid === uidAntigo || k.indexOf(uidAntigo) > -1) {
+              var novoInfo = JSON.parse(JSON.stringify(info));
+              novoInfo.uid = uidNovo;
+              novoInfo.item = item;
+              novoInfo.versao = ver;
+              novoInfo.qtde = String(qtde);
+              confStatus[novaKey] = novoInfo;
+              delete confStatus[k];
+            }
+          }
+        } catch (e2) {
+          console.error("Erro ao migrar UID:", e2);
+        }
+      }
+
+      function transferirIdentidadeEstoqueAnterior(anterior, atual) {
+        // Identidade principal: item + versão + peso + data finalização OP (coluna M).
+        // Se essa chave existir, o ID é estável por vários dias e vem igual em qualquer importação.
+        // Se não existir, usa o método antigo de reaproveitar UID apenas do estoque anterior.
+        try {
+          anterior = anterior || [];
+          atual = atual || [];
+          var filas = {};
+          for (var i = 0; i < anterior.length; i++) {
+            var a = anterior[i];
+            if (!a) continue;
+            getUidEstoque(a);
+            var k = chaveBobinaEstoque(
+              getItemEstoque(a),
+              a["VERSAO"] || "",
+              a["QTDE_ESTOQUE"] || "",
+            );
+            if (!filas[k]) filas[k] = [];
+            filas[k].push(a);
+          }
+
+          var mantidas = 0,
+            novas = 0,
+            estaveis = 0;
+          for (var j = 0; j < atual.length; j++) {
+            var e = atual[j];
+            if (!e) continue;
+            var idEstavel = getIdBobinaEstavel(e);
+            var ka = chaveBobinaEstoque(
+              getItemEstoque(e),
+              e["VERSAO"] || "",
+              e["QTDE_ESTOQUE"] || "",
+            );
+            var antigo = filas[ka] && filas[ka].length ? filas[ka].shift() : null;
+
+            if (idEstavel) {
+              if (antigo && antigo.__UID && antigo.__UID !== idEstavel) {
+                migrarInfoUidBobina(antigo.__UID, idEstavel, e);
+              }
+              e.__UID = idEstavel;
+              e.__BID = idEstavel;
+              e.__BID_KEY = getChaveIdentidadeBobina(e);
+              estaveis++;
+            } else if (antigo && antigo.__UID) {
+              e.__UID = antigo.__UID;
+              if (antigo.__SPLIT_GROUP) e.__SPLIT_GROUP = antigo.__SPLIT_GROUP;
+              if (antigo.__SPLIT_INDEX) e.__SPLIT_INDEX = antigo.__SPLIT_INDEX;
+              if (antigo.__SPLIT_TOTAL) e.__SPLIT_TOTAL = antigo.__SPLIT_TOTAL;
+              if (antigo.__SPLIT_ORIG_UID) e.__SPLIT_ORIG_UID = antigo.__SPLIT_ORIG_UID;
+              if (antigo.__SPLIT_ORIG_PESO) e.__SPLIT_ORIG_PESO = antigo.__SPLIT_ORIG_PESO;
+              mantidas++;
+            } else {
+              e.__UID = gerarUidBobina();
+              novas++;
+            }
+          }
+          console.log(
+            "UID estoque: " +
+              estaveis +
+              " por coluna M | " +
+              mantidas +
+              " mantidas | " +
+              novas +
+              " novas",
+          );
+        } catch (e) {
+          console.error("Erro ao transferir UID do estoque:", e);
+          garantirUidEstoque();
         }
       }
 
@@ -10669,6 +11035,9 @@ function getOpItemGroups(g) {
             descricao: desc,
             qtde: qtde,
             uid: uidEstoque,
+            bobinaId: uidEstoque,
+            identidade: getChaveIdentidadeBobina(estoque[i]),
+            dataFinalizacaoOP: getDataFinalizacaoOP(estoque[i]),
             confKey: key,
             tipo: confTipoRegistro(ic),
             endereco: info.endereco || "",
@@ -10735,6 +11104,9 @@ function getOpItemGroups(g) {
               descricao: reg.descricao,
               divisao: reg.divisao || "",
               uid: reg.uid || "",
+              bobinaId: reg.bobinaId || reg.uid || "",
+              identidade: reg.identidade || "",
+              dataFinalizacaoOP: reg.dataFinalizacaoOP || "",
               splitGroup: reg.splitGroup || "",
               splitIndex: reg.splitIndex || 0,
               splitTotal: reg.splitTotal || 0,
@@ -14664,5 +15036,5 @@ async function shareFotos() {
         </div>
       </div>
     </div>
-  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a17074c91905da79',t:'MTc4MzM2MDI3Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1a86d880f925731',t:'MTc4Mzk0NzE3OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a17074c91905da79',t:'MTc4MzM2MDI3Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1b0696e98318039',t:'MTc4NDAzMDg5Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
