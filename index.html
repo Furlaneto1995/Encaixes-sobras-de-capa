@@ -3720,23 +3720,24 @@ var estObservacoes = {};
           var r = bobinasExcluidasEncaixe[i];
           var kg = parseFloat(r.qtde) || 0;
           total += kg;
+          var encEx = String(r.encaixe||"-").trim().replace(/^OP\s*/i, "");
           texto +=
-            "  ❌ OP " +
-            (r.encaixe || "-") +
+            "  [NAO] OP " +
+            encEx +
             " | " +
             (r.item || "") +
             " v" +
             (r.versao || "") +
-            " → " +
+            " -> " +
             kg.toFixed(0) +
             "kg";
           if (r.largura || r.espessura)
             texto += " | " + (r.largura || "-") + "cm x " + (r.espessura || "-") + "mu";
           if (r.pigmento) texto += " | Pig " + r.pigmento;
-          if (r.manual) texto += " [MANUAL]";
+          // FIX: removido [MANUAL] conforme solicitado para relatório limpo
           texto += "\n";
         }
-        texto += "  📊 Total excluído: " + total.toFixed(0) + "kg\n\n";
+        texto += "  Total excluído: " + total.toFixed(0) + "kg\n\n";
         return texto;
       }
 
@@ -12256,41 +12257,38 @@ async function shareFotos() {
     lt.textContent = "Gerando relatório...";
 
     var textoRelatorio =
-      "📦 RELATÓRIO DE ENCAIXES\n📅 " +
+      "RELATÓRIO DE ENCAIXES\nData: " +
       new Date().toLocaleString("pt-BR") +
-      "\n📷 " +
+      "\nFoto: " +
       B.length +
       " bobinas | " +
       G.length +
-      " OPs\n═══════════════════\n\n";
+      " OPs\n-------------------\n\n";
 
     for (var o = 0; o < G.length; o++) {
       var g2 = G[o];
       var pt = 0;
-
-      textoRelatorio += "🔷 OP " + g2.enc + "\n";
+      // FIX: evita "OP OP" - g2.enc já pode conter "OP"
+      var encLimpo = String(g2.enc||"").trim().replace(/^OP\s*/i, "");
+      textoRelatorio += "OP " + encLimpo + "\n";
 
       for (var b2 = 0; b2 < g2.bs.length; b2++) {
         var bob2 = B[g2.bs[b2]];
         pt += parseFloat(bob2.qtde) || 0;
 
+        // FIX: removido [OK] e [MANUAL] conforme solicitado
         textoRelatorio +=
           "  " +
-          (bob2.ok ? "✅" : "⬜") +
-          " " +
           bob2.item +
           " v" +
           bob2.ver +
-          " → " +
+          " -> " +
           bob2.qtde +
-          "kg";
-
-        if (bob2.manual) textoRelatorio += " [MANUAL]";
-        textoRelatorio += "\n";
+          "kg\n";
       }
 
       textoRelatorio +=
-        "  📊 Total: " + pt.toFixed(0) + "kg\n───────────────────\n\n";
+        "  Total: " + pt.toFixed(0) + "kg\n-------------------\n\n";
     }
 
     textoRelatorio += gerarTextoExcluidasEncaixe();
@@ -12385,7 +12383,8 @@ async function shareFotos() {
         ctx.fillRect(0, y, largura, linhaAltura);
         ctx.fillStyle = "#2563eb";
         ctx.font = "bold 14px Arial";
-        ctx.fillText("OP " + lin.enc, 20, y + 18);
+        var encCanvasLimpo = String(lin.enc||"").trim().replace(/^OP\s*/i, "");
+        ctx.fillText("OP " + encCanvasLimpo, 20, y + 18);
         y += linhaAltura;
         continue;
       }
@@ -12489,32 +12488,29 @@ async function shareFotos() {
       async function shareTexto() {
         xM("fm");
         var texto =
-          "📦 RELATÓRIO\n📅 " +
+          "RELATORIO\nData: " +
           new Date().toLocaleString("pt-BR") +
-          "\n📷 " +
+          "\nFoto: " +
           B.length +
-          " bobinas\n═══════════════\n\n";
+          " bobinas\n-------------------\n\n";
         for (var o = 0; o < G.length; o++) {
           var g = G[o];
-          texto += "🔷 OP " + g.enc + "\n🔑 " + g.chave + "\n";
+          var encLimpo2 = String(g.enc||"").trim().replace(/^OP\s*/i, "");
+          texto += "OP " + encLimpo2 + "\n";
           var pt = 0;
           for (var b = 0; b < g.bs.length; b++) {
             var bob = B[g.bs[b]];
             pt += parseFloat(bob.qtde) || 0;
             texto +=
               "  " +
-              (bob.ok ? "✅" : "⬜") +
-              " " +
               bob.item +
-              "/v" +
+              " v" +
               bob.ver +
-              " → " +
+              " -> " +
               bob.qtde +
-              "kg" +
-              (bob.manual ? " [+]" : "") +
-              "\n";
+              "kg\n";
           }
-          texto += "  📊 " + pt.toFixed(1) + "kg\n───────────────\n\n";
+          texto += "  Total: " + pt.toFixed(0) + "kg\n-------------------\n\n";
         }
         texto += gerarTextoExcluidasEncaixe();
         var textoWppRel = textoWhatsappSeguro(texto);
@@ -15246,5 +15242,5 @@ async function shareFotos() {
         </div>
       </div>
     </div>
-  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a17074c91905da79',t:'MTc4MzM2MDI3Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1b07cae981cca4a',t:'MTc4NDAzMTY4NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a17074c91905da79',t:'MTc4MzM2MDI3Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1b07cae981cca4a',t:'MTc4NDAzMTY4NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1c14e3a2bf58e32',t:'MTc4NDIwODA0MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
