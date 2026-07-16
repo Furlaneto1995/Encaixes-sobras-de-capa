@@ -3533,8 +3533,137 @@ var estObservacoes = {};
         }
       }
 
+      function salvarExcluidasEncaixe() {
+        try {
+          localStorage.setItem(
+            "enc_excluidas_encaixe",
+            JSON.stringify(bobinasExcluidasEncaixe || []),
+          );
+        } catch (e) {}
+      }
+
+      function carregarExcluidasEncaixe() {
+        try {
+          var s = localStorage.getItem("enc_excluidas_encaixe");
+          if (s) bobinasExcluidasEncaixe = JSON.parse(s) || [];
+        } catch (e) {
+          bobinasExcluidasEncaixe = [];
+        }
+        // Auto-limpeza de fantasmas ao carregar (caso B já exista)
+        try {
+          setTimeout(function(){ limparExcluidasFantasmas(false); }, 500);
+        } catch(e2){}
+      }
+
+      function existeBobinaNoEncaixeAtual(r) {
+        if (!r) return false;
+        try {
+          if (!window.B || !B.length) return false;
+          var rUid = (r.uid || "").trim();
+          var rItem = String(r.item||"").trim();
+          var rVer = String(r.versao||"").trim();
+          var rEnc = String(r.encaixe||"").trim();
+          var rQtde = parseFloat(r.qtde)||0;
+          for (var i=0;i<B.length;i++){
+            var b = B[i];
+            if (!b) continue;
+            var bUid = (getUidBobina(b)||"").trim();
+            if (rUid && bUid && rUid===bUid) return true;
+            // fallback por item+versao+qtde+OP (tolerância 0.6kg)
+            var bQtde = parseFloat(b.qtde)||0;
+            if (rItem && rItem===String(b.item||"").trim() && rVer===String(b.ver||"").trim() && Math.abs(rQtde-bQtde)<0.6){
+              if (!rEnc || rEnc===String(b.enc||"").trim()) return true;
+            }
+          }
+        } catch(e){}
+        return false;
+      }
+
+      function limparExcluidasFantasmas(mostrarToast) {
+        if (!bobinasExcluidasEncaixe || !bobinasExcluidasEncaixe.length) return 0;
+        var antes = bobinasExcluidasEncaixe.length;
+        // Remove duplicatas de UID e remove as que já existem em B
+        var vistosUid = {};
+        var novo = [];
+        for (var i=0;i<bobinasExcluidasEncaixe.length;i++){
+          var r = bobinasExcluidasEncaixe[i];
+          if (!r) continue;
+          if (existeBobinaNoEncaixeAtual(r)) continue; // fantasma: existe no encaixe, não é excluída
+          var uidKey = (r.uid||"") + "|" + (r.item||"") + "|" + (r.versao||"") + "|" + (r.qtde||"") + "|" + (r.encaixe||"");
+          if (vistosUid[uidKey]) continue;
+          vistosUid[uidKey]=true;
+          novo.push(r);
+        }
+        var removidos = antes - novo.length;
+        if (removidos>0){
+          bobinasExcluidasEncaixe = novo;
+          salvarExcluidasEncaixe();
+          if (mostrarToast) toast(removidos+" bobina(s) removida(s) da lista de excluídas (já existem no encaixe)", "success", 3500);
+          console.log("limparExcluidasFantasmas: removidos", removidos);
+        }
+        return removidos;
+      }
+
+      function removerExcluidaPorBobina(bob, autoSalvar) {
+        if (!bob || !bobinasExcluidasEncaixe || !bobinasExcluidasEncaixe.length) return 0;
+        var uid = (getUidBobina(bob)||"").trim();
+        var item = String(bob.item||"").trim();
+        var ver = String(bob.ver||"").trim();
+        var enc = String(bob.enc||"").trim();
+        var qtde = parseFloat(bob.qtde)||0;
+        var antes = bobinasExcluidasEncaixe.length;
+        bobinasExcluidasEncaixe = bobinasExcluidasEncaixe.filter(function(r){
+          if (!r) return false;
+          var rUid = (r.uid||"").trim();
+          if (uid && rUid && rUid===uid) return false; // remove
+          var rQtde = parseFloat(r.qtde)||0;
+          if (item && String(r.item||"").trim()===item && String(r.versao||"").trim()===ver && Math.abs(rQtde-qtde)<0.6){
+            if (!r.encaixe || String(r.encaixe||"").trim()===enc || !enc) return false;
+          }
+          return true;
+        });
+        var diff = antes - bobinasExcluidasEncaixe.length;
+        if (diff>0 && autoSalvar!==false) salvarExcluidasEncaixe();
+        return diff;
+      }
+
+      function removerExcluidaPorChave(item, versao, qtde, encaixe, uid) {
+        if (!bobinasExcluidasEncaixe || !bobinasExcluidasEncaixe.length) return 0;
+        var antes = bobinasExcluidasEncaixe.length;
+        var q = parseFloat(qtde)||0;
+        bobinasExcluidasEncaixe = bobinasExcluidasEncaixe.filter(function(r){
+          if (uid && (r.uid||"").trim() && (r.uid||"").trim()===String(uid).trim()) return false;
+          var rq = parseFloat(r.qtde)||0;
+          if (String(r.item||"").trim()===String(item||"").trim() && String(r.versao||"").trim()===String(versao||"").trim() && Math.abs(rq-q)<0.6){
+            if (encaixe && r.encaixe && String(r.encaixe).trim()!==String(encaixe).trim()) return true;
+            return false;
+          }
+          return true;
+        });
+        var diff = antes - bobinasExcluidasEncaixe.length;
+        if (diff>0) salvarExcluidasEncaixe();
+        return diff;
+      }
+
       function registrarExclusaoEncaixe(bob, motivo) {
         if (!bob) return null;
+        // NÃO registrar se bobina tem foto/ok (está encontrada, não pode ser "zerar do sistema")
+        if (bob.ok || bob.foto || bob.fotoEtiqueta) {
+          console.warn("Tentativa de registrar exclusão de bobina com foto/OK bloqueada:", bob);
+          // ainda tenta limpar qualquer registro fantasma antigo dela
+          removerExcluidaPorBobina(bob, true);
+          return null;
+        }
+        // evita duplicar a mesma bobina já excluída
+        var uidCheck = (getUidBobina(bob)||"").trim();
+        if (uidCheck) {
+          for (var d=0; d<bobinasExcluidasEncaixe.length; d++){
+            if ((bobinasExcluidasEncaixe[d].uid||"").trim()===uidCheck) {
+              console.log("Exclusão já registrada para UID", uidCheck);
+              return bobinasExcluidasEncaixe[d];
+            }
+          }
+        }
         var reg = {
           id: "exc_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
           data: new Date().toLocaleString("pt-BR"),
@@ -3578,6 +3707,9 @@ var estObservacoes = {};
       }
 
       function gerarTextoExcluidasEncaixe() {
+        if (!bobinasExcluidasEncaixe || bobinasExcluidasEncaixe.length === 0) return "";
+        // Sempre limpa fantasmas antes de gerar texto (silencioso)
+        limparExcluidasFantasmas(false);
         if (!bobinasExcluidasEncaixe || bobinasExcluidasEncaixe.length === 0) return "";
         var texto =
           "❌ BOBINAS EXCLUÍDAS DO ENCAIXE — ZERAR DO SISTEMA (" +
@@ -6281,7 +6413,8 @@ function getOpItemGroups(g) {
         for (var i = 0; i < g.bs.length; i++) {
           var bob = B[g.bs[i]];
           bobinas.push(JSON.parse(JSON.stringify(bob)));
-          exclusoes.push(registrarExclusaoEncaixe(bob, "OP excluída do encaixe"));
+          var regOp = registrarExclusaoEncaixe(bob, "OP excluída do encaixe");
+          if (regOp) exclusoes.push(regOp);
           var qtdeNum = parseFloat(bob.qtde) || 0;
           var uidBob = getUidBobina(bob);
           for (var k = 0; k < estoque.length; k++) {
@@ -6558,6 +6691,9 @@ function getOpItemGroups(g) {
             camEtapa = 1;
             xCam();
             salvarFotoBobinaLocal(b);
+            // FIX: Se esta bobina estava marcada como excluída por engano, remove da lista
+            try { removerExcluidaPorBobina(b, true); } catch(eFotoEx){}
+            try { limparExcluidasFantasmas(false); } catch(eFotoEx2){}
             save();
             if (focoAtual >= 0) {
               // Verifica se OP atual ficou completa
@@ -8417,6 +8553,17 @@ function getOpItemGroups(g) {
         var bob = B[bi];
         if (!bob.uid) bob.uid = gerarUidBobina();
         var pesoOriginal = bob.qtde;
+        var uidOriginal = getUidBobina(bob);
+        var itemOriginal = bob.item;
+        var verOriginal = bob.ver;
+        var encOriginal = bob.enc;
+
+        // FIX: Remove qualquer registro de exclusão do original (ex: 330kg) antes de dividir
+        // para não gerar fantasma e não levar o original para "ZERAR DO SISTEMA"
+        try {
+          removerExcluidaPorBobina(bob, true);
+          removerExcluidaPorChave(itemOriginal, verOriginal, pesoOriginal, encOriginal, uidOriginal);
+        } catch(e2){}
 
         // Primeira bobina: atualiza a existente
         apagarFotoBobinaLocal(bob);
@@ -8431,7 +8578,8 @@ function getOpItemGroups(g) {
         for (var j = 0; j < estoque.length; j++) {
           var ic = getItemEstoque(estoque[j]);
           var eq = parseFloat(estoque[j]["QTDE_ESTOQUE"]) || 0;
-          if (ic === bob.item && Math.abs(eq - qtdeNum) < 0.5) {
+          var uidEst = estoque[j].__UID || "";
+          if ((uidOriginal && uidEst === uidOriginal) || (!uidOriginal && ic === bob.item && Math.abs(eq - qtdeNum) < 0.5)) {
             estoque[j]["QTDE_ESTOQUE"] = pesos[0];
             break;
           }
@@ -8466,7 +8614,14 @@ function getOpItemGroups(g) {
             __A: bob.item,
             __I: "",
           });
+          // FIX: Garante que as novas bobinas divididas NUNCA entrem na lista de excluídas automaticamente
+          try {
+            removerExcluidaPorChave(bob.item, bob.ver, pesos[k], bob.enc, novoUidDiv);
+          } catch(e3){}
         }
+
+        // Limpeza final de fantasmas + garante que novas bobinas não estejam na lista de excluídas
+        try { limparExcluidasFantasmas(false); } catch(e4){}
 
         fecharModal("splitBobModal");
         grp();
