@@ -3411,6 +3411,8 @@
       var ultimosProblemasImportacaoEstoque = [];
       var undoStack = [];
       var bobinasExcluidasEncaixe = [];
+      var splitsConferenciaPersistentes = [];
+      var splitsConferenciaTimer = null;
       var fotoRotacao = 0;
       var camEtapa = 1; // 1=etiqueta, 2=bobina
       var fotoEtiqueta = null;
@@ -3531,25 +3533,6 @@ var estObservacoes = {};
         } catch (e) {
           bobinasExcluidasEncaixe = [];
         }
-      }
-
-      function salvarExcluidasEncaixe() {
-        try {
-          localStorage.setItem(
-            "enc_excluidas_encaixe",
-            JSON.stringify(bobinasExcluidasEncaixe || []),
-          );
-        } catch (e) {}
-      }
-
-      function carregarExcluidasEncaixe() {
-        try {
-          var s = localStorage.getItem("enc_excluidas_encaixe");
-          if (s) bobinasExcluidasEncaixe = JSON.parse(s) || [];
-        } catch (e) {
-          bobinasExcluidasEncaixe = [];
-        }
-        // Auto-limpeza de fantasmas ao carregar (caso B já exista)
         try {
           setTimeout(function(){ limparExcluidasFantasmas(false); }, 500);
         } catch(e2){}
@@ -3569,7 +3552,6 @@ var estObservacoes = {};
             if (!b) continue;
             var bUid = (getUidBobina(b)||"").trim();
             if (rUid && bUid && rUid===bUid) return true;
-            // fallback por item+versao+qtde+OP (tolerância 0.6kg)
             var bQtde = parseFloat(b.qtde)||0;
             if (rItem && rItem===String(b.item||"").trim() && rVer===String(b.ver||"").trim() && Math.abs(rQtde-bQtde)<0.6){
               if (!rEnc || rEnc===String(b.enc||"").trim()) return true;
@@ -3582,13 +3564,12 @@ var estObservacoes = {};
       function limparExcluidasFantasmas(mostrarToast) {
         if (!bobinasExcluidasEncaixe || !bobinasExcluidasEncaixe.length) return 0;
         var antes = bobinasExcluidasEncaixe.length;
-        // Remove duplicatas de UID e remove as que já existem em B
         var vistosUid = {};
         var novo = [];
         for (var i=0;i<bobinasExcluidasEncaixe.length;i++){
           var r = bobinasExcluidasEncaixe[i];
           if (!r) continue;
-          if (existeBobinaNoEncaixeAtual(r)) continue; // fantasma: existe no encaixe, não é excluída
+          if (existeBobinaNoEncaixeAtual(r)) continue;
           var uidKey = (r.uid||"") + "|" + (r.item||"") + "|" + (r.versao||"") + "|" + (r.qtde||"") + "|" + (r.encaixe||"");
           if (vistosUid[uidKey]) continue;
           vistosUid[uidKey]=true;
@@ -3599,7 +3580,6 @@ var estObservacoes = {};
           bobinasExcluidasEncaixe = novo;
           salvarExcluidasEncaixe();
           if (mostrarToast) toast(removidos+" bobina(s) removida(s) da lista de excluídas (já existem no encaixe)", "success", 3500);
-          console.log("limparExcluidasFantasmas: removidos", removidos);
         }
         return removidos;
       }
@@ -3615,7 +3595,7 @@ var estObservacoes = {};
         bobinasExcluidasEncaixe = bobinasExcluidasEncaixe.filter(function(r){
           if (!r) return false;
           var rUid = (r.uid||"").trim();
-          if (uid && rUid && rUid===uid) return false; // remove
+          if (uid && rUid && rUid===uid) return false;
           var rQtde = parseFloat(r.qtde)||0;
           if (item && String(r.item||"").trim()===item && String(r.versao||"").trim()===ver && Math.abs(rQtde-qtde)<0.6){
             if (!r.encaixe || String(r.encaixe||"").trim()===enc || !enc) return false;
@@ -3647,19 +3627,14 @@ var estObservacoes = {};
 
       function registrarExclusaoEncaixe(bob, motivo) {
         if (!bob) return null;
-        // NÃO registrar se bobina tem foto/ok (está encontrada, não pode ser "zerar do sistema")
         if (bob.ok || bob.foto || bob.fotoEtiqueta) {
-          console.warn("Tentativa de registrar exclusão de bobina com foto/OK bloqueada:", bob);
-          // ainda tenta limpar qualquer registro fantasma antigo dela
           removerExcluidaPorBobina(bob, true);
           return null;
         }
-        // evita duplicar a mesma bobina já excluída
         var uidCheck = (getUidBobina(bob)||"").trim();
         if (uidCheck) {
           for (var d=0; d<bobinasExcluidasEncaixe.length; d++){
             if ((bobinasExcluidasEncaixe[d].uid||"").trim()===uidCheck) {
-              console.log("Exclusão já registrada para UID", uidCheck);
               return bobinasExcluidasEncaixe[d];
             }
           }
@@ -3708,13 +3683,12 @@ var estObservacoes = {};
 
       function gerarTextoExcluidasEncaixe() {
         if (!bobinasExcluidasEncaixe || bobinasExcluidasEncaixe.length === 0) return "";
-        // Sempre limpa fantasmas antes de gerar texto (silencioso)
         limparExcluidasFantasmas(false);
         if (!bobinasExcluidasEncaixe || bobinasExcluidasEncaixe.length === 0) return "";
         var texto =
-          "❌ BOBINAS EXCLUÍDAS DO ENCAIXE — ZERAR DO SISTEMA (" +
+          "BOBINAS EXCLUÍDAS DO ENCAIXE - ZERAR DO SISTEMA (" +
           bobinasExcluidasEncaixe.length +
-          ")\n───────────────────\n";
+          ")\n-------------------\n";
         var total = 0;
         for (var i = 0; i < bobinasExcluidasEncaixe.length; i++) {
           var r = bobinasExcluidasEncaixe[i];
@@ -3734,12 +3708,181 @@ var estObservacoes = {};
           if (r.largura || r.espessura)
             texto += " | " + (r.largura || "-") + "cm x " + (r.espessura || "-") + "mu";
           if (r.pigmento) texto += " | Pig " + r.pigmento;
-          // FIX: removido [MANUAL] conforme solicitado para relatório limpo
           texto += "\n";
         }
         texto += "  Total excluído: " + total.toFixed(0) + "kg\n\n";
         return texto;
       }
+
+
+
+      // ================================================================
+      //            SPLITS PERSISTENTES - CONFERENCIA
+      // ================================================================
+      function salvarSplitsConferencia() {
+        try {
+          localStorage.setItem("enc_splits_conferencia", JSON.stringify(splitsConferenciaPersistentes || []));
+        } catch(e){}
+        if (splitsConferenciaTimer) clearTimeout(splitsConferenciaTimer);
+        splitsConferenciaTimer = setTimeout(function(){
+          try {
+            if (typeof db !== "undefined" && db) {
+              db.collection("config").doc("splits_conferencia").set({
+                dados: JSON.stringify(splitsConferenciaPersistentes || []),
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                count: (splitsConferenciaPersistentes||[]).length
+              });
+            }
+          } catch(e2){}
+        }, 1200);
+      }
+
+      function carregarSplitsConferencia() {
+        try {
+          var s = localStorage.getItem("enc_splits_conferencia");
+          if (s) splitsConferenciaPersistentes = JSON.parse(s) || [];
+        } catch(e){
+          splitsConferenciaPersistentes = [];
+        }
+      }
+
+      function registrarSplitConferenciaPersistente(eOriginal, pesos, splitGroup) {
+        if (!eOriginal || !pesos || pesos.length < 2) return null;
+        try {
+          var item = getItemEstoque(eOriginal);
+          var ver = String(eOriginal["VERSAO"]||"").trim();
+          var pesoOriginal = parseFloat(eOriginal["QTDE_ESTOQUE"])||0;
+          var idEstavel = getIdBobinaEstavel(eOriginal) || "";
+          var chaveIdent = getChaveIdentidadeBobina(eOriginal) || "";
+          var chaveSimples = chaveBobinaEstoque(item, ver, pesoOriginal);
+          splitsConferenciaPersistentes = (splitsConferenciaPersistentes||[]).filter(function(r){
+            if (!r) return false;
+            if (idEstavel && r.origIdEstavel && r.origIdEstavel===idEstavel) return false;
+            if (chaveIdent && r.origChaveIdent && r.origChaveIdent===chaveIdent) return false;
+            if (r.origChaveSimples && r.origChaveSimples===chaveSimples && String(r.item||"").trim()===String(item||"").trim()) return false;
+            return true;
+          });
+          var reg = {
+            id: "splitc_"+Date.now().toString(36)+Math.random().toString(36).slice(2,7),
+            timestamp: Date.now(),
+            data: new Date().toLocaleString("pt-BR"),
+            origIdEstavel: idEstavel,
+            origChaveIdent: chaveIdent,
+            origChaveSimples: chaveSimples,
+            origUid: getUidEstoque(eOriginal) || "",
+            item: item,
+            versao: ver,
+            pesoOriginal: pesoOriginal,
+            dataFim: getDataFinalizacaoOP(eOriginal) || "",
+            pesos: pesos.slice(),
+            splitGroup: splitGroup || "split_"+Date.now().toString(36)
+          };
+          splitsConferenciaPersistentes.push(reg);
+          salvarSplitsConferencia();
+          console.log("Split persistente registrado:", reg);
+          return reg;
+        } catch(err){
+          console.error("Erro registrarSplitConferenciaPersistente:", err);
+          return null;
+        }
+      }
+
+      function removerSplitPersistentePorChave(origChaveSimples, origIdEstavel, origChaveIdent) {
+        if (!splitsConferenciaPersistentes || !splitsConferenciaPersistentes.length) return 0;
+        var antes = splitsConferenciaPersistentes.length;
+        splitsConferenciaPersistentes = splitsConferenciaPersistentes.filter(function(r){
+          if (origIdEstavel && r.origIdEstavel && r.origIdEstavel===origIdEstavel) return false;
+          if (origChaveIdent && r.origChaveIdent && r.origChaveIdent===origChaveIdent) return false;
+          if (origChaveSimples && r.origChaveSimples===origChaveSimples) return false;
+          return true;
+        });
+        var diff = antes - splitsConferenciaPersistentes.length;
+        if (diff>0) salvarSplitsConferencia();
+        return diff;
+      }
+
+      function aplicarSplitsPersistentesNoEstoque(estoqueArr) {
+        if (!estoqueArr || !estoqueArr.length) return 0;
+        if (!splitsConferenciaPersistentes || !splitsConferenciaPersistentes.length) return 0;
+        var aplicados = 0;
+        for (var i = estoqueArr.length -1; i >=0; i--) {
+          var e = estoqueArr[i];
+          if (!e) continue;
+          if (e.__SPLIT_GROUP && e.__SPLIT_TOTAL) continue;
+          var idEst = getIdBobinaEstavel(e) || "";
+          var chaveIdent = getChaveIdentidadeBobina(e) || "";
+          var chaveSimples = chaveBobinaEstoque(getItemEstoque(e), e["VERSAO"]||"", e["QTDE_ESTOQUE"]||"");
+          var pesoE = parseFloat(e["QTDE_ESTOQUE"] )||0;
+          var match = null;
+          for (var s=0; s<splitsConferenciaPersistentes.length; s++) {
+            var sp = splitsConferenciaPersistentes[s];
+            if (!sp) continue;
+            if (idEst && sp.origIdEstavel && sp.origIdEstavel===idEst) { match = sp; break; }
+            if (chaveIdent && sp.origChaveIdent && sp.origChaveIdent===chaveIdent) { match = sp; break; }
+            if (sp.origChaveSimples && sp.origChaveSimples===chaveSimples) { match = sp; break; }
+            if (String(sp.item||"").trim()===String(getItemEstoque(e)||"").trim() && String(sp.versao||"").trim()===String(e["VERSAO"]||"").trim() && Math.abs((parseFloat(sp.pesoOriginal)||0)-pesoE)<0.6) {
+              if (!sp.dataFim || sp.dataFim=== (getDataFinalizacaoOP(e)||"")) { match = sp; break; }
+            }
+          }
+          if (!match) continue;
+          var soma = 0;
+          for (var ps=0; ps<match.pesos.length; ps++) soma+= parseFloat(match.pesos[ps])||0;
+          if (Math.abs(soma - pesoE) > 0.6) {
+            console.warn("Persist split soma não bate:", match, "peso atual", pesoE);
+            continue;
+          }
+          var base = JSON.parse(JSON.stringify(e));
+          var novas = [];
+          for (var pIdx=0; pIdx<match.pesos.length; pIdx++) {
+            var nova = JSON.parse(JSON.stringify(base));
+            var novoUid = gerarUidBobina();
+            nova["QTDE_ESTOQUE"] = String(match.pesos[pIdx]);
+            nova.__UID = novoUid;
+            nova.__SPLIT_GROUP = match.splitGroup;
+            nova.__SPLIT_INDEX = pIdx+1;
+            nova.__SPLIT_TOTAL = match.pesos.length;
+            nova.__SPLIT_ORIG_UID = match.origUid || idEst;
+            nova.__SPLIT_ORIG_PESO = String(match.pesoOriginal);
+            nova.__SPLIT_PERSISTENTE = true;
+            novas.push(nova);
+          }
+          estoqueArr.splice.apply(estoqueArr, [i, 1].concat(novas));
+          aplicados++;
+        }
+        if (aplicados>0) {
+          console.log("Splits persistentes aplicados:", aplicados);
+          try {
+            localStorage.setItem("enc_estoque", JSON.stringify(estoque));
+          } catch(e){}
+        }
+        return aplicados;
+      }
+
+      async function carregarSplitsConferenciaNuvem() {
+        try {
+          if (typeof db === "undefined" || !db) return;
+          var doc = await db.collection("config").doc("splits_conferencia").get();
+          if (doc && doc.exists) {
+            var dados = doc.data();
+            if (dados && dados.dados) {
+              var arr = JSON.parse(dados.dados);
+              if (Array.isArray(arr) && arr.length>0) {
+                if (arr.length >= (splitsConferenciaPersistentes||[]).length) {
+                  splitsConferenciaPersistentes = arr;
+                  localStorage.setItem("enc_splits_conferencia", JSON.stringify(arr));
+                  console.log("Splits conferencia carregados da nuvem:", arr.length);
+                }
+              }
+            }
+          }
+        } catch(e){
+          console.error("Erro carregarSplitsConferenciaNuvem", e);
+        }
+      }
+      setTimeout(function(){ try{ carregarSplitsConferenciaNuvem(); }catch(e){} }, 2000);
+
+      try { carregarSplitsConferencia(); } catch(eInitSplit){}
+
 
       function executarUndo() {
         if (undoStack.length === 0) {
@@ -5668,6 +5811,13 @@ var estObservacoes = {};
       async function prepararEstoqueAposImportacao(estoqueAnterior) {
         await verificarDatasFaltantesEstoque();
         transferirIdentidadeEstoqueAnterior(estoqueAnterior || [], estoque);
+        try {
+          carregarSplitsConferencia();
+          var qtdAplicados = aplicarSplitsPersistentesNoEstoque(estoque);
+          if (qtdAplicados>0) {
+            toast(qtdAplicados + " divisão(ões) da conferência reaplicada(s) automaticamente", "info", 4000);
+          }
+        } catch(eApplySplit){}
         garantirUidEstoque();
       }
 
@@ -8559,14 +8709,11 @@ function getOpItemGroups(g) {
         var verOriginal = bob.ver;
         var encOriginal = bob.enc;
 
-        // FIX: Remove qualquer registro de exclusão do original (ex: 330kg) antes de dividir
-        // para não gerar fantasma e não levar o original para "ZERAR DO SISTEMA"
         try {
           removerExcluidaPorBobina(bob, true);
           removerExcluidaPorChave(itemOriginal, verOriginal, pesoOriginal, encOriginal, uidOriginal);
         } catch(e2){}
 
-        // Primeira bobina: atualiza a existente
         apagarFotoBobinaLocal(bob);
         bob.qtde = pesos[0];
         bob.ok = false;
@@ -8574,7 +8721,6 @@ function getOpItemGroups(g) {
         bob.fotoEtiqueta = null;
         bob.fotoNm = "";
 
-        // Atualiza no estoque
         var qtdeNum = parseFloat(pesoOriginal) || 0;
         for (var j = 0; j < estoque.length; j++) {
           var ic = getItemEstoque(estoque[j]);
@@ -8586,7 +8732,6 @@ function getOpItemGroups(g) {
           }
         }
 
-        // Demais bobinas: cria novas
         for (var k = 1; k < pesos.length; k++) {
           var novoUidDiv = gerarUidBobina();
           B.push({
@@ -8615,13 +8760,11 @@ function getOpItemGroups(g) {
             __A: bob.item,
             __I: "",
           });
-          // FIX: Garante que as novas bobinas divididas NUNCA entrem na lista de excluídas automaticamente
           try {
             removerExcluidaPorChave(bob.item, bob.ver, pesos[k], bob.enc, novoUidDiv);
           } catch(e3){}
         }
 
-        // Limpeza final de fantasmas + garante que novas bobinas não estejam na lista de excluídas
         try { limparExcluidasFantasmas(false); } catch(e4){}
 
         fecharModal("splitBobModal");
@@ -8645,7 +8788,7 @@ function getOpItemGroups(g) {
         );
       }
 
-      function addPesoRow() {
+      function addPesoRow()      function addPesoRow() {
         var pc = document.getElementById("pesosContainer"),
           n = pc.querySelectorAll(".peso-row").length + 1;
         var row = document.createElement("div");
@@ -11797,6 +11940,10 @@ function getOpItemGroups(g) {
           JSON.stringify(window.confDivisoes),
         );
 
+        try {
+          registrarSplitConferenciaPersistente(e, pesos, splitGroup);
+        } catch(ePersistConf){ console.error(ePersistConf); }
+
         salvarConferenciaNuvem(true);
         save();
         salvarEstoqueNuvemAgora();
@@ -14842,6 +14989,7 @@ async function shareFotos() {
       }
       try {
         carregarExcluidasEncaixe();
+        try { carregarSplitsConferencia(); } catch(e){}
       } catch (e) {
         console.error("Erro carregarExcluidasEncaixe:", e);
       }
@@ -15242,5 +15390,5 @@ async function shareFotos() {
         </div>
       </div>
     </div>
-  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a17074c91905da79',t:'MTc4MzM2MDI3Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1b07cae981cca4a',t:'MTc4NDAzMTY4NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1c14e3a2bf58e32',t:'MTc4NDIwODA0MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a17074c91905da79',t:'MTc4MzM2MDI3Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1b07cae981cca4a',t:'MTc4NDAzMTY4NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1c14e3a2bf58e32',t:'MTc4NDIwODA0MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1c2c52549aa0152',t:'MTc4NDIyMzM5Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
