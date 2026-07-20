@@ -5246,16 +5246,43 @@ var estObservacoes = {};
           }
         } catch (e) {}
 
+        // Limpa também enc_datas_bobina de itens que não existem mais
+        try {
+          var mapaBobina = JSON.parse(localStorage.getItem("enc_datas_bobina") || "{}");
+          var alterouBobina = false;
+          for (var k in mapaBobina) {
+            // Chaves podem ser "ITEM|VER|QTDE" ou "ITEM|VER"
+            var itemDoK = k.split("|")[0];
+            if (itemDoK && !itensAtuais[itemDoK]) {
+              delete mapaBobina[k];
+              alterouBobina = true;
+            }
+          }
+          if (alterouBobina) {
+            localStorage.setItem("enc_datas_bobina", JSON.stringify(mapaBobina));
+          }
+        } catch (e) {}
+
         try {
           var snapDatas = await db.collection("datas_manuais").get();
           if (!snapDatas.empty) {
             var batch = db.batch();
             var deletouNuvem = false;
             snapDatas.forEach(function (doc) {
-              var id = doc.id;
-              if (!itensAtuais[id]) {
-                batch.delete(doc.ref);
-                deletouNuvem = true;
+              var d = doc.data();
+              // Documentos do tipo "bobina" usam campo "item" para identificar
+              if (d.tipo === "bobina") {
+                if (d.item && !itensAtuais[d.item]) {
+                  batch.delete(doc.ref);
+                  deletouNuvem = true;
+                }
+              } else {
+                // Documentos do sistema Idade usam o doc ID como código do item
+                var id = doc.id;
+                if (!itensAtuais[id]) {
+                  batch.delete(doc.ref);
+                  deletouNuvem = true;
+                }
               }
             });
             if (deletouNuvem) {
@@ -5724,14 +5751,27 @@ var estObservacoes = {};
         // seja encontrada mesmo se o peso mudar na próxima importação
         if (chaveSimples) mapa[chaveSimples] = data;
         localStorage.setItem("enc_datas_bobina", JSON.stringify(mapa));
+        // Salva também no mapa de idade (enc_datas) para integração entre os sistemas
+        var itemCod = getItemEstoque(e);
+        if (itemCod) {
+          try {
+            var mapaIdade = JSON.parse(localStorage.getItem("enc_datas") || "{}");
+            mapaIdade[itemCod] = data;
+            localStorage.setItem("enc_datas", JSON.stringify(mapaIdade));
+          } catch (ex) {}
+        }
         aplicarDataFinalizacaoManual(e, data);
         console.log("[DATAS DEBUG] Salvo: chave=" + chave + " chaveSimples=" + chaveSimples + " data=" + data);
         try {
-          var docId = "dmb_" + hashTextoCurto(chave);
-          await db.collection("datas_manuais_bobinas").doc(docId).set({
+          // Usa a coleção datas_manuais (que já tem permissão no Firebase)
+          // em vez de datas_manuais_bobinas (que dá erro de permissão)
+          // Prefixo "bob_" no doc ID para não conflitar com os docs do sistema Idade
+          var docId = "bob_" + chave.replace(/\|/g, "_");
+          await db.collection("datas_manuais").doc(docId).set({
+            tipo: "bobina",
             chave: chave,
             chaveSimples: chaveSimples || "",
-            item: getItemEstoque(e),
+            item: itemCod || "",
             versao: e["VERSAO"] || "",
             qtde: String(parseFloat(e["QTDE_ESTOQUE"]) || 0),
             data: data,
@@ -5739,32 +5779,36 @@ var estObservacoes = {};
           });
           // Salva também o documento com a chave simplificada
           if (chaveSimples) {
-            var docIdSimples = "dms_" + hashTextoCurto(chaveSimples);
-            await db.collection("datas_manuais_bobinas").doc(docIdSimples).set({
+            var docIdSimples = "bob_" + chaveSimples.replace(/\|/g, "_");
+            await db.collection("datas_manuais").doc(docIdSimples).set({
+              tipo: "bobina",
               chave: chaveSimples,
               chaveSimples: chaveSimples,
-              item: getItemEstoque(e),
+              item: itemCod || "",
               versao: e["VERSAO"] || "",
               data: data,
               timestamp: firebase.firestore.FieldValue.serverTimestamp(),
             });
           }
         } catch (err) {
-          console.error("Erro ao salvar data manual da bobina na nuvem:", err);
+          console.error("[DATAS DEBUG] Erro ao salvar data manual da bobina na nuvem:", err.message);
         }
       }
 
       async function carregarDatasManuaisBobinasNuvem() {
         var mapa = getDatasManuaisBobinasLocal();
         try {
-          var snap = await db.collection("datas_manuais_bobinas").get();
+          var snap = await db.collection("datas_manuais").get();
           snap.forEach(function (doc) {
             var d = doc.data();
-            if (d.chave && d.data) mapa[d.chave] = d.data;
+            // Só importa documentos do tipo "bobina" (que têm o campo chave)
+            if (d.tipo === "bobina" && d.chave && d.data) {
+              mapa[d.chave] = d.data;
+            }
           });
           localStorage.setItem("enc_datas_bobina", JSON.stringify(mapa));
         } catch (e) {
-          console.error("Erro ao carregar datas manuais de bobinas:", e);
+          console.error("[DATAS DEBUG] Erro ao carregar datas manuais de bobinas da nuvem:", e.message);
         }
         return mapa;
       }
@@ -5833,15 +5877,37 @@ var estObservacoes = {};
         if (!estoque || estoque.length === 0) return;
         var mapa = await carregarDatasManuaisBobinasNuvem();
 
+        // Carrega também o mapa do sistema "Idade das Bobinas" (enc_datas)
+        // como fonte adicional de datas manuais. O usuário pode ter inserido
+        // datas pela funcionalidade de Idade, e essas precisam ser encontradas
+        // aqui também para não pedir a data novamente.
+        var mapaIdade = {};
+        try {
+          mapaIdade = JSON.parse(localStorage.getItem("enc_datas") || "{}");
+        } catch (ex) {}
+        // Tenta carregar do Firebase também (coleção datas_manuais)
+        try {
+          var snapIdade = await db.collection("datas_manuais").get();
+          snapIdade.forEach(function (doc) {
+            var d = doc.data();
+            if (d.item && d.data && !mapaIdade[d.item]) {
+              mapaIdade[d.item] = d.data;
+            }
+          });
+        } catch (ex) {
+          console.error("[DATAS DEBUG] Erro ao carregar datas_manuais (idade):", ex.message);
+        }
+
         // LOG: diagnóstico de datas manuais
         var mapaChaves = Object.keys(mapa);
-        console.log("[DATAS DEBUG] Mapa carregado com " + mapaChaves.length + " chave(s)");
-        if (mapaChaves.length > 0) {
-          console.log("[DATAS DEBUG] Chaves no mapa:", mapaChaves.slice(0, 10).join(", ") + (mapaChaves.length > 10 ? "..." : ""));
+        var idadeChaves = Object.keys(mapaIdade);
+        console.log("[DATAS DEBUG] Mapa bobina: " + mapaChaves.length + " chave(s) | Mapa idade: " + idadeChaves.length + " chave(s)");
+        if (idadeChaves.length > 0) {
+          console.log("[DATAS DEBUG] Chaves idade:", idadeChaves.slice(0, 15).join(", ") + (idadeChaves.length > 15 ? "..." : ""));
         }
 
         var faltantes = [];
-        var debugResumo = { comDataDireta: 0, encontradaNoMapa: 0, encontradaFallback: 0, chaveVazia: 0, faltantes: 0 };
+        var debugResumo = { comDataDireta: 0, encontradaNoMapa: 0, encontradaFallback: 0, encontradaIdade: 0, chaveVazia: 0, faltantes: 0 };
 
         for (var i = 0; i < estoque.length; i++) {
           var e = estoque[i];
@@ -5859,46 +5925,54 @@ var estObservacoes = {};
           if (chave && mapa[chave]) {
             dataEncontrada = mapa[chave];
             metodoEncontro = "exata";
-          } else {
+          } else if (chaveSimples && mapa[chaveSimples]) {
             // 2. Fallback: busca pela chave simplificada (item + versão, sem peso)
-            if (chaveSimples && mapa[chaveSimples]) {
-              dataEncontrada = mapa[chaveSimples];
-              metodoEncontro = "simples";
-            } else if (chaveSimples) {
-              // 3. Fallback: busca por qualquer chave que comece com item|versao|
-              var prefixo = chaveSimples + "|";
-              for (var k in mapa) {
-                if (k.indexOf(prefixo) === 0 && mapa[k]) {
-                  dataEncontrada = mapa[k];
-                  metodoEncontro = "prefixo";
-                  break;
-                }
+            dataEncontrada = mapa[chaveSimples];
+            metodoEncontro = "simples";
+          } else if (chaveSimples) {
+            // 3. Fallback: busca por qualquer chave que comece com item|versao|
+            var prefixo = chaveSimples + "|";
+            for (var k in mapa) {
+              if (k.indexOf(prefixo) === 0 && mapa[k]) {
+                dataEncontrada = mapa[k];
+                metodoEncontro = "prefixo";
+                break;
               }
+            }
+          }
+
+          // 4. Fallback: busca no mapa do "Idade das Bobinas" (enc_datas)
+          //    Chave é apenas o código do item
+          if (!dataEncontrada) {
+            var itemCod = getItemEstoque(e);
+            if (itemCod && mapaIdade[itemCod]) {
+              dataEncontrada = mapaIdade[itemCod];
+              metodoEncontro = "idade";
+              console.log("[DATAS DEBUG] Encontrado via Idade: item=" + itemCod + " data=" + dataEncontrada);
             }
           }
 
           if (dataEncontrada) {
             aplicarDataFinalizacaoManual(e, dataEncontrada);
-            // Atualiza o mapa com a chave completa atual (peso atual) para futuras buscas
+            // Atualiza o mapa de bobinas com a data encontrada para futuras buscas
             if (chave) {
               mapa[chave] = dataEncontrada;
               if (chaveSimples) mapa[chaveSimples] = dataEncontrada;
             }
             if (metodoEncontro === "exata") debugResumo.encontradaNoMapa++;
+            else if (metodoEncontro === "idade") debugResumo.encontradaIdade++;
             else debugResumo.encontradaFallback++;
           } else if (chave) {
             faltantes.push(e);
             debugResumo.faltantes++;
-            // LOG detalhado para as bobinas que não encontraram data
             console.log("[DATAS DEBUG] Faltante: item=" + getItemEstoque(e) + " ver=" + String(e["VERSAO"] || "").trim() + " qtde=" + String(e["QTDE_ESTOQUE"] || "") + " chave=" + chave + " chaveSimples=" + chaveSimples);
           } else {
             debugResumo.chaveVazia++;
-            // LOG para bobinas com chave vazia (item/ver/qtde faltando)
             console.log("[DATAS DEBUG] Chave vazia: item=" + getItemEstoque(e) + " ver=" + String(e["VERSAO"] || "").trim() + " qtde=" + String(e["QTDE_ESTOQUE"] || ""));
           }
         }
 
-        console.log("[DATAS DEBUG] Resumo: comDataDireta=" + debugResumo.comDataDireta + " encontradaExata=" + debugResumo.encontradaNoMapa + " encontradaFallback=" + debugResumo.encontradaFallback + " chaveVazia=" + debugResumo.chaveVazia + " faltantes=" + debugResumo.faltantes);
+        console.log("[DATAS DEBUG] Resumo: comDataDireta=" + debugResumo.comDataDireta + " encontradaExata=" + debugResumo.encontradaNoMapa + " encontradaFallback=" + debugResumo.encontradaFallback + " encontradaIdade=" + debugResumo.encontradaIdade + " chaveVazia=" + debugResumo.chaveVazia + " faltantes=" + debugResumo.faltantes);
 
         // Salva o mapa atualizado no localStorage
         try {
@@ -15497,5 +15571,5 @@ async function shareFotos() {
         </div>
       </div>
     </div>
-  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1e251a2ff95d8ee',t:'MTc4NDU1NDIwOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1e2a220dafcd986',t:'MTc4NDU1NzUwNg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
