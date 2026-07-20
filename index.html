@@ -5600,7 +5600,10 @@ var estObservacoes = {};
             String(dt.getDate()).padStart(2, "0")
           );
         }
-        return direto.toUpperCase().replace(/\s+/g, "");
+        // Se o valor não é uma data válida, retorna vazio
+        // em vez de retornar o texto original (que seria truthy e impediria
+        // a busca por data manual)
+        return "";
       }
 
       function getDataFinalizacaoOPDireta(e) {
@@ -5626,7 +5629,12 @@ var estObservacoes = {};
             }
           }
         }
-        return normalizarDataFinalizacaoValor(direto);
+        var resultado = normalizarDataFinalizacaoValor(direto);
+        // LOG: se retornou algo que NÃO parece uma data (não tem formato YYYY-MM-DD)
+        if (resultado && !/^\d{4}-\d{2}-\d{2}$/.test(resultado)) {
+          console.log("[DATAS DEBUG] Data direta inválida para item=" + getItemEstoque(e) + " valor=__M='" + String(e.__M || "").substring(0, 30) + "' resultado='" + resultado + "'");
+        }
+        return resultado;
       }
 
       function getDataFinalizacaoOP(e) {
@@ -5717,6 +5725,7 @@ var estObservacoes = {};
         if (chaveSimples) mapa[chaveSimples] = data;
         localStorage.setItem("enc_datas_bobina", JSON.stringify(mapa));
         aplicarDataFinalizacaoManual(e, data);
+        console.log("[DATAS DEBUG] Salvo: chave=" + chave + " chaveSimples=" + chaveSimples + " data=" + data);
         try {
           var docId = "dmb_" + hashTextoCurto(chave);
           await db.collection("datas_manuais_bobinas").doc(docId).set({
@@ -5823,44 +5832,74 @@ var estObservacoes = {};
       async function verificarDatasFaltantesEstoque() {
         if (!estoque || estoque.length === 0) return;
         var mapa = await carregarDatasManuaisBobinasNuvem();
+
+        // LOG: diagnóstico de datas manuais
+        var mapaChaves = Object.keys(mapa);
+        console.log("[DATAS DEBUG] Mapa carregado com " + mapaChaves.length + " chave(s)");
+        if (mapaChaves.length > 0) {
+          console.log("[DATAS DEBUG] Chaves no mapa:", mapaChaves.slice(0, 10).join(", ") + (mapaChaves.length > 10 ? "..." : ""));
+        }
+
         var faltantes = [];
+        var debugResumo = { comDataDireta: 0, encontradaNoMapa: 0, encontradaFallback: 0, chaveVazia: 0, faltantes: 0 };
+
         for (var i = 0; i < estoque.length; i++) {
           var e = estoque[i];
           if (!e) continue;
-          if (getDataFinalizacaoOPDireta(e)) continue;
+          if (getDataFinalizacaoOPDireta(e)) {
+            debugResumo.comDataDireta++;
+            continue;
+          }
           var chave = chaveDataManualBobina(e);
+          var chaveSimples = chaveDataManualBobinaSimples(e);
           var dataEncontrada = "";
+          var metodoEncontro = "";
+
           // 1. Busca exata pela chave completa (item + versão + peso)
           if (chave && mapa[chave]) {
             dataEncontrada = mapa[chave];
+            metodoEncontro = "exata";
           } else {
             // 2. Fallback: busca pela chave simplificada (item + versão, sem peso)
-            var chaveSimples = chaveDataManualBobinaSimples(e);
             if (chaveSimples && mapa[chaveSimples]) {
               dataEncontrada = mapa[chaveSimples];
+              metodoEncontro = "simples";
             } else if (chaveSimples) {
               // 3. Fallback: busca por qualquer chave que comece com item|versao|
               var prefixo = chaveSimples + "|";
               for (var k in mapa) {
                 if (k.indexOf(prefixo) === 0 && mapa[k]) {
                   dataEncontrada = mapa[k];
+                  metodoEncontro = "prefixo";
                   break;
                 }
               }
             }
           }
+
           if (dataEncontrada) {
             aplicarDataFinalizacaoManual(e, dataEncontrada);
             // Atualiza o mapa com a chave completa atual (peso atual) para futuras buscas
             if (chave) {
               mapa[chave] = dataEncontrada;
-              var cs = chaveDataManualBobinaSimples(e);
-              if (cs) mapa[cs] = dataEncontrada;
+              if (chaveSimples) mapa[chaveSimples] = dataEncontrada;
             }
+            if (metodoEncontro === "exata") debugResumo.encontradaNoMapa++;
+            else debugResumo.encontradaFallback++;
           } else if (chave) {
             faltantes.push(e);
+            debugResumo.faltantes++;
+            // LOG detalhado para as bobinas que não encontraram data
+            console.log("[DATAS DEBUG] Faltante: item=" + getItemEstoque(e) + " ver=" + String(e["VERSAO"] || "").trim() + " qtde=" + String(e["QTDE_ESTOQUE"] || "") + " chave=" + chave + " chaveSimples=" + chaveSimples);
+          } else {
+            debugResumo.chaveVazia++;
+            // LOG para bobinas com chave vazia (item/ver/qtde faltando)
+            console.log("[DATAS DEBUG] Chave vazia: item=" + getItemEstoque(e) + " ver=" + String(e["VERSAO"] || "").trim() + " qtde=" + String(e["QTDE_ESTOQUE"] || ""));
           }
         }
+
+        console.log("[DATAS DEBUG] Resumo: comDataDireta=" + debugResumo.comDataDireta + " encontradaExata=" + debugResumo.encontradaNoMapa + " encontradaFallback=" + debugResumo.encontradaFallback + " chaveVazia=" + debugResumo.chaveVazia + " faltantes=" + debugResumo.faltantes);
+
         // Salva o mapa atualizado no localStorage
         try {
           localStorage.setItem("enc_datas_bobina", JSON.stringify(mapa));
@@ -15458,5 +15497,5 @@ async function shareFotos() {
         </div>
       </div>
     </div>
-  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1e1de9cbc08a010',t:'MTc4NDU0OTQ5OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1e251a2ff95d8ee',t:'MTc4NDU1NDIwOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
