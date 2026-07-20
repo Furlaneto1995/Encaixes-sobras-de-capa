@@ -5662,6 +5662,14 @@ var estObservacoes = {};
         return item + "|" + ver + "|" + qtde;
       }
 
+      function chaveDataManualBobinaSimples(e) {
+        if (!e) return "";
+        var item = getItemEstoque(e);
+        var ver = String(e["VERSAO"] || "").trim();
+        if (!item || !ver) return "";
+        return item + "|" + ver;
+      }
+
       function getDatasManuaisBobinasLocal() {
         try {
           return JSON.parse(localStorage.getItem("enc_datas_bobina") || "{}");
@@ -5674,7 +5682,20 @@ var estObservacoes = {};
         var chave = chaveDataManualBobina(e);
         if (!chave) return "";
         var mapa = getDatasManuaisBobinasLocal();
-        return mapa[chave] || "";
+        // 1. Busca exata (item + versão + peso)
+        if (mapa[chave]) return mapa[chave];
+        // 2. Fallback: busca pela chave simplificada (item + versão, sem peso)
+        // Isso permite encontrar datas salvas quando o peso da bobina mudou
+        var chaveSimples = chaveDataManualBobinaSimples(e);
+        if (chaveSimples && mapa[chaveSimples]) return mapa[chaveSimples];
+        // 3. Fallback: busca por qualquer chave que comece com item|versao|
+        var prefixo = chaveDataManualBobinaSimples(e) + "|";
+        if (prefixo.length > 1) {
+          for (var k in mapa) {
+            if (k.indexOf(prefixo) === 0 && mapa[k]) return mapa[k];
+          }
+        }
+        return "";
       }
 
       function aplicarDataFinalizacaoManual(e, data) {
@@ -5688,20 +5709,37 @@ var estObservacoes = {};
       async function salvarDataManualBobina(e, data) {
         var chave = chaveDataManualBobina(e);
         if (!chave || !data) return;
+        var chaveSimples = chaveDataManualBobinaSimples(e);
         var mapa = getDatasManuaisBobinasLocal();
         mapa[chave] = data;
+        // Salva também com a chave simplificada (sem peso) para que a data
+        // seja encontrada mesmo se o peso mudar na próxima importação
+        if (chaveSimples) mapa[chaveSimples] = data;
         localStorage.setItem("enc_datas_bobina", JSON.stringify(mapa));
         aplicarDataFinalizacaoManual(e, data);
         try {
           var docId = "dmb_" + hashTextoCurto(chave);
           await db.collection("datas_manuais_bobinas").doc(docId).set({
             chave: chave,
+            chaveSimples: chaveSimples || "",
             item: getItemEstoque(e),
             versao: e["VERSAO"] || "",
             qtde: String(parseFloat(e["QTDE_ESTOQUE"]) || 0),
             data: data,
             timestamp: firebase.firestore.FieldValue.serverTimestamp(),
           });
+          // Salva também o documento com a chave simplificada
+          if (chaveSimples) {
+            var docIdSimples = "dms_" + hashTextoCurto(chaveSimples);
+            await db.collection("datas_manuais_bobinas").doc(docIdSimples).set({
+              chave: chaveSimples,
+              chaveSimples: chaveSimples,
+              item: getItemEstoque(e),
+              versao: e["VERSAO"] || "",
+              data: data,
+              timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+          }
         } catch (err) {
           console.error("Erro ao salvar data manual da bobina na nuvem:", err);
         }
@@ -5791,12 +5829,42 @@ var estObservacoes = {};
           if (!e) continue;
           if (getDataFinalizacaoOPDireta(e)) continue;
           var chave = chaveDataManualBobina(e);
+          var dataEncontrada = "";
+          // 1. Busca exata pela chave completa (item + versão + peso)
           if (chave && mapa[chave]) {
-            aplicarDataFinalizacaoManual(e, mapa[chave]);
+            dataEncontrada = mapa[chave];
+          } else {
+            // 2. Fallback: busca pela chave simplificada (item + versão, sem peso)
+            var chaveSimples = chaveDataManualBobinaSimples(e);
+            if (chaveSimples && mapa[chaveSimples]) {
+              dataEncontrada = mapa[chaveSimples];
+            } else if (chaveSimples) {
+              // 3. Fallback: busca por qualquer chave que comece com item|versao|
+              var prefixo = chaveSimples + "|";
+              for (var k in mapa) {
+                if (k.indexOf(prefixo) === 0 && mapa[k]) {
+                  dataEncontrada = mapa[k];
+                  break;
+                }
+              }
+            }
+          }
+          if (dataEncontrada) {
+            aplicarDataFinalizacaoManual(e, dataEncontrada);
+            // Atualiza o mapa com a chave completa atual (peso atual) para futuras buscas
+            if (chave) {
+              mapa[chave] = dataEncontrada;
+              var cs = chaveDataManualBobinaSimples(e);
+              if (cs) mapa[cs] = dataEncontrada;
+            }
           } else if (chave) {
             faltantes.push(e);
           }
         }
+        // Salva o mapa atualizado no localStorage
+        try {
+          localStorage.setItem("enc_datas_bobina", JSON.stringify(mapa));
+        } catch (ex) {}
         for (var f = 0; f < faltantes.length; f++) {
           var data = await pedirDataBobinaModal(faltantes[f], f, faltantes.length);
           if (data) await salvarDataManualBobina(faltantes[f], data);
@@ -15390,5 +15458,5 @@ async function shareFotos() {
         </div>
       </div>
     </div>
-  </body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1e1de9cbc08a010',t:'MTc4NDU0OTQ5OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
