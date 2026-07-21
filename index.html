@@ -2964,6 +2964,12 @@
           <span id="confFaltamText">Todas</span>
         </button>
       </div>
+      <!-- Scanner de código de barras -->
+      <div style="padding:0 14px 6px;display:flex;gap:6px;flex-shrink:0;align-items:center;">
+        <button onclick="confEstAbrirScan()" style="padding:8px 12px;border:none;border-radius:8px;background:#2563eb;color:#fff;font-size:0.78em;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;">📷 Scanner</button>
+        <button id="confEstBtnColetor" onclick="confEstToggleColetor()" style="padding:8px 12px;border:none;border-radius:8px;background:#6b7280;color:#fff;font-size:0.78em;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;">📡 Coletor</button>
+        <input id="confEstColetorInput" type="text" placeholder="Código de barras..." style="display:none;flex:1;padding:8px 10px;border-radius:8px;border:2px solid #10b981;background:#f0fdf4;color:#1a1a2e;font-size:0.85em;font-weight:600;" onkeydown="confEstColetorProcessar(event)">
+      </div>
       <div
         style="
           flex: 1;
@@ -3457,6 +3463,10 @@
       var confStatus = {};
       var confHistorico = {};
       var confOcultos = {};
+      var confEstCodBarras = {}; // mapa: codigo_barras -> key da conferência
+      var confEstScanAtivo = false;
+      var confEstScanLeitor = null;
+      var confEstCodBarrasAlvo = null;
       var toleranciaFilme = -1;
       var toleranciaSaco = -1;
       var ultimoEndereco = "";
@@ -4127,6 +4137,10 @@ var estObservacoes = {};
         try {
           var obs = localStorage.getItem("enc_obs");
           if (obs) estObservacoes = JSON.parse(obs);
+        } catch (e) {}
+        try {
+          var cbc = localStorage.getItem("enc_conf_est_cod");
+          if (cbc) confEstCodBarras = JSON.parse(cbc);
         } catch (e) {}
         
         try {
@@ -11486,7 +11500,11 @@ function getOpItemGroups(g) {
             html += '<div style="color:#555;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + reg.item + '/v' + reg.versao + ' — ' + reg.qtde + ' kg</div>';
             html += '<div style="font-size:0.85em;margin-top:1px;" id="vincCod_' + reg.docId + '">' + codDisplay + '</div>';
             html += '</div>';
-            html += '<button onclick="vincCodScanBobina(\'' + reg.docId + '\')" style="width:30px;height:30px;border:none;border-radius:6px;background:' + (reg.codigo_barras ? '#f3e8ff;color:#8b5cf6;' : '#2563eb;color:#fff;') + 'font-size:0.9em;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">📷</button>';
+            if (reg.codigo_barras) {
+              html += '<button onclick="vincCodEditarCodigo(\'' + reg.docId + '\')" style="width:28px;height:28px;border:none;border-radius:6px;background:#fef3c7;color:#d97706;font-size:0.85em;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="Editar código">✏️</button>';
+              html += '<button onclick="vincCodApagarCodigo(\'' + reg.docId + '\')" style="width:28px;height:28px;border:none;border-radius:6px;background:#fee2e2;color:#ef4444;font-size:0.85em;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="Apagar código">🗑️</button>';
+            }
+            html += '<button onclick="vincCodScanBobina(\'' + reg.docId + '\')" style="width:30px;height:30px;border:none;border-radius:6px;background:' + (reg.codigo_barras ? '#f3e8ff;color:#8b5cf6;' : '#2563eb;color:#fff;') + 'font-size:0.9em;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="Escanear código">📷</button>';
             html += '</div>';
           }
 
@@ -11494,6 +11512,58 @@ function getOpItemGroups(g) {
         }
 
         body.innerHTML = html;
+      }
+
+      function vincCodEditarCodigo(docId) {
+        // Encontrar código atual
+        var codAtual = "";
+        for (var i = 0; i < vincCodOPs.length; i++) {
+          for (var j = 0; j < vincCodOPs[i].regs.length; j++) {
+            if (vincCodOPs[i].regs[j].docId === docId) {
+              codAtual = vincCodOPs[i].regs[j].codigo_barras || "";
+              break;
+            }
+          }
+        }
+        var novo = prompt("Editar código de barras:", codAtual);
+        if (novo === null) return; // cancelou
+        novo = novo.trim();
+        if (!novo) {
+          // Se apagou tudo, perguntar se quer remover
+          if (confirm("Código vazio. Remover o código?")) {
+            vincCodApagarCodigo(docId);
+          }
+          return;
+        }
+        if (novo.indexOf("-10-") !== 0) {
+          toast("Código inválido — precisa começar com -10-", "error", 2500);
+          return;
+        }
+        vincCodSalvarCodigo(docId, novo);
+      }
+
+      async function vincCodApagarCodigo(docId) {
+        if (!confirm("Apagar código de barras?")) return;
+        try {
+          await db.collection("encaixes").doc(docId).update({
+            codigo_barras: ""
+          });
+          if (navigator.vibrate) navigator.vibrate([50]);
+          toast("Código apagado", "info", 1500);
+
+          // Atualizar local
+          for (var i = 0; i < vincCodOPs.length; i++) {
+            for (var j = 0; j < vincCodOPs[i].regs.length; j++) {
+              if (vincCodOPs[i].regs[j].docId === docId) {
+                vincCodOPs[i].regs[j].codigo_barras = "";
+                break;
+              }
+            }
+          }
+          vincCodFiltrar();
+        } catch (err) {
+          toast("Erro ao apagar: " + err.message, "error");
+        }
       }
 
       function vincCodScanBobina(docId) {
@@ -12042,6 +12112,19 @@ function getOpItemGroups(g) {
             html +=
               '<div style="font-size:0.55em;padding:2px 4px;border-radius:6px;background:#fef3c7;color:#f59e0b;font-weight:600;">ENC</div>';
           html += "</div>";
+
+          // Botão scan código de barras
+          var codBarrasConf = "";
+          for (var cbKey in confEstCodBarras) {
+            if (confEstCodBarras[cbKey] === it.key) { codBarrasConf = cbKey; break; }
+          }
+          if (codBarrasConf) {
+            html += '<span style="font-size:0.5em;color:#10b981;font-weight:600;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0;" title="' + codBarrasConf + '">🏷️' + codBarrasConf + '</span>';
+          }
+          html +=
+            "<button onclick=\"event.stopPropagation();confEstScanBobina('" +
+            it.key +
+            '\')" style="width:20px;height:20px;border-radius:4px;border:1px solid #e0e0e0;background:' + (codBarrasConf ? '#f3e8ff;color:#8b5cf6;' : '#fff;color:#2563eb;') + 'cursor:pointer;font-size:0.55em;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="Escanear código">📷</button>';
 
           // Botão editar peso
           html +=
@@ -12594,6 +12677,208 @@ function getOpItemGroups(g) {
           lo.classList.remove("active");
           toast("Erro: " + err.message, "error");
         }
+      }
+
+      // ================================================================
+      //                    SCANNER CÓDIGO DE BARRAS - CONFERÊNCIA
+      // ================================================================
+      var confEstColetorOn = false;
+
+      function confEstToggleColetor() {
+        confEstColetorOn = !confEstColetorOn;
+        var btn = document.getElementById("confEstBtnColetor");
+        var inp = document.getElementById("confEstColetorInput");
+        if (btn) {
+          btn.style.background = confEstColetorOn ? "#10b981" : "#6b7280";
+          btn.textContent = confEstColetorOn ? "📡 ON" : "📡 Coletor";
+        }
+        if (inp) {
+          inp.style.display = confEstColetorOn ? "block" : "none";
+          if (confEstColetorOn) inp.focus();
+        }
+      }
+
+      function confEstColetorProcessar(e) {
+        if (e.key === "Enter") {
+          var inp = document.getElementById("confEstColetorInput");
+          if (!inp || !inp.value.trim()) return;
+          var codigo = inp.value.trim();
+          inp.value = "";
+          confEstProcessarCodigo(codigo);
+          inp.focus();
+        }
+      }
+
+      function confEstScanBobina(key) {
+        if (confEstColetorOn) {
+          // Modo coletor: setar alvo e focar input
+          confEstCodBarrasAlvo = key;
+          var inp = document.getElementById("confEstColetorInput");
+          if (inp) {
+            inp.placeholder = "📷 Aguardando coletor...";
+            inp.focus();
+          }
+          toast("Aponte o coletor para a etiqueta", "info", 1500);
+          return;
+        }
+        // Modo câmera
+        confEstCodBarrasAlvo = key;
+        confEstAbrirScan();
+      }
+
+      function confEstAbrirScan() {
+        if (typeof Html5Qrcode === "undefined") {
+          toast("Leitor de código não disponível", "error");
+          return;
+        }
+        var existente = document.getElementById("confEstScanModal");
+        if (existente) existente.remove();
+
+        confEstScanAtivo = true;
+
+        var modal = document.createElement("div");
+        modal.id = "confEstScanModal";
+        modal.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:5000;display:flex;flex-direction:column;";
+
+        var qrBoxSize = Math.min(280, Math.floor(Math.min(window.innerWidth, window.innerHeight) * 0.7));
+
+        modal.innerHTML =
+          '<div style="background:#fff;padding:10px 14px;border-bottom:1px solid #e0e0e0;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;">' +
+          '<div><div style="font-size:0.95em;font-weight:700;color:#2563eb;">📷 Escanear Etiqueta</div><div id="confEstScanStatus" style="font-size:0.7em;color:#888;">Aponte para o código de barras</div></div>' +
+          '<button onclick="confEstPararScan()" style="width:36px;height:36px;border:none;border-radius:8px;background:#fee2e2;color:#ef4444;font-size:1em;cursor:pointer;">✖</button>' +
+          '</div>' +
+          '<div id="confEstScanReader" style="flex:1;min-height:0;"></div>' +
+          '<div style="background:#111;padding:8px 14px;flex-shrink:0;display:flex;gap:8px;align-items:center;">' +
+          '<input id="confEstScanManual" type="text" placeholder="Digitar código manualmente" style="flex:1;padding:10px;border-radius:8px;border:1px solid #444;background:#222;color:#fff;font-size:0.85em;" />' +
+          '<button onclick="confEstManualOK()" style="padding:10px 14px;border:none;border-radius:8px;background:#2563eb;color:#fff;font-size:0.85em;font-weight:600;cursor:pointer;">OK</button>' +
+          '</div>';
+
+        document.body.appendChild(modal);
+
+        window.confEstManualOK = function() {
+          var inp = document.getElementById("confEstScanManual");
+          if (inp && inp.value.trim()) {
+            confEstProcessarCodigo(inp.value.trim());
+            inp.value = "";
+          }
+        };
+
+        try {
+          confEstScanLeitor = new Html5Qrcode("confEstScanReader");
+          confEstScanLeitor.start(
+            { facingMode: "environment" },
+            {
+              fps: 15,
+              qrbox: { width: qrBoxSize, height: Math.round(qrBoxSize * 0.6) },
+              formatsToSupport: [0, 2, 3, 4, 5, 7, 8],
+            },
+            function(decodedText) {
+              if (confEstScanAtivo) {
+                confEstProcessarCodigo(decodedText);
+              }
+            },
+            function() {}
+          ).catch(function(err) {
+            toast("Erro ao abrir câmera: " + err, "error");
+            confEstPararScan();
+          });
+        } catch (err) {
+          toast("Erro ao iniciar scanner: " + err, "error");
+        }
+      }
+
+      function confEstPararScan() {
+        confEstScanAtivo = false;
+        try {
+          if (confEstScanLeitor) {
+            confEstScanLeitor.stop().then(function() {
+              confEstScanLeitor.clear();
+              confEstScanLeitor = null;
+            }).catch(function() { confEstScanLeitor = null; });
+          }
+        } catch (e) {}
+        var modal = document.getElementById("confEstScanModal");
+        if (modal) modal.remove();
+        confEstCodBarrasAlvo = null;
+      }
+
+      function confEstProcessarCodigo(codigo) {
+        var codigoLimpo = String(codigo || "").trim();
+        if (!codigoLimpo) return;
+
+        // Validar -10-
+        if (codigoLimpo.indexOf("-10-") !== 0) {
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+          toast("Código inválido — precisa começar com -10-", "error", 2500);
+          var statusEl = document.getElementById("confEstScanStatus");
+          if (statusEl) statusEl.textContent = "Inválido: " + codigoLimpo;
+          return;
+        }
+
+        // Desativar pra evitar duplicação
+        confEstScanAtivo = false;
+
+        // Verificar se já está mapeado
+        if (confEstCodBarras[codigoLimpo]) {
+          var keyExistente = confEstCodBarras[codigoLimpo];
+          // Se a bobina já está conferida com esse código
+          if (confStatus[keyExistente] && confStatus[keyExistente].status === "ok") {
+            if (navigator.vibrate) navigator.vibrate([50]);
+            toast("Código já conferido: " + codigoLimpo, "warning", 2000);
+            confEstScanAtivo = true;
+            return;
+          }
+        }
+
+        // Se tem alvo (bobina selecionada), vincular direto
+        if (confEstCodBarrasAlvo) {
+          var alvo = confEstCodBarrasAlvo;
+          confEstCodBarras[codigoLimpo] = alvo;
+
+          // Salvar no estoque local (localStorage)
+          try { localStorage.setItem("enc_conf_est_cod", JSON.stringify(confEstCodBarras)); } catch (e) {}
+
+          // Se a bobina ainda não está conferida, pedir endereço
+          if (!confStatus[alvo] || confStatus[alvo].status !== "ok") {
+            // Fechar scanner e pedir endereço
+            confEstPararScan();
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+            toast("✔ Código vinculado: " + codigoLimpo, "success", 1500);
+            confPedirEndereco(alvo);
+          } else {
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+            toast("✔ Código atualizado: " + codigoLimpo, "success", 1500);
+            confEstPararScan();
+          }
+          confEstCodBarrasAlvo = null;
+          confRender();
+          return;
+        }
+
+        // Sem alvo: buscar bobina pelo código
+        var keyEncontrada = confEstCodBarras[codigoLimpo];
+        if (keyEncontrada) {
+          // Bobina já mapeada — conferir ou pedir endereço
+          if (!confStatus[keyEncontrada] || confStatus[keyEncontrada].status !== "ok") {
+            confEstPararScan();
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+            toast("✔ Bobina encontrada: " + codigoLimpo, "success", 1500);
+            confPedirEndereco(keyEncontrada);
+          } else {
+            if (navigator.vibrate) navigator.vibrate([50]);
+            toast("Já conferida: " + codigoLimpo, "warning", 1500);
+            confEstScanAtivo = true;
+          }
+          confRender();
+          return;
+        }
+
+        // Código não mapeado — não sabemos qual bobina é
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+        toast("Código não vinculado — selecione a bobina primeiro", "warning", 3000);
+        var statusEl2 = document.getElementById("confEstScanStatus");
+        if (statusEl2) statusEl2.textContent = "Não encontrado: " + codigoLimpo + " — selecione bobina";
+        confEstScanAtivo = true;
       }
 
       function confDesmarcar(key) {
@@ -14664,6 +14949,7 @@ async function shareFotos() {
               qtde: d.qtde || "",
               manual: d.manual || "N",
               material: d.material || "",
+              codigo_barras: d.codigo_barras || "",
               timestamp: ts,
             });
           });
@@ -14891,7 +15177,7 @@ async function shareFotos() {
           toast("Busque primeiro", "warning");
           return;
         }
-        var csv = "DATA;ENCAIXE;ITEM;VERSAO;CHAVE;QTDE;MANUAL\n";
+        var csv = "DATA;ENCAIXE;ITEM;VERSAO;CHAVE;QTDE;MANUAL;CODIGO_BARRAS\n";
         for (var i = 0; i < hRegs.length; i++) {
           var r = hRegs[i];
           csv +=
@@ -14901,7 +15187,8 @@ async function shareFotos() {
             '"' + r.versao + '";' +
             '"' + r.chave + '";' +
             '"' + r.qtde + '";' +
-            '"' + r.manual + '"\n';
+            '"' + r.manual + '";' +
+            '"' + (r.codigo_barras || "") + '"\n';
         }
         var blob = new Blob(["\ufeff" + csv], {
           type: "text/csv;charset=utf-8;",
@@ -16375,5 +16662,5 @@ async function shareFotos() {
         </div>
       </div>
     </div>
-  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1edad8e3b0b28b5',t:'MTc4NDY3MzMxOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1edd6b68a2289d1',t:'MTc4NDY3NTAwMw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
