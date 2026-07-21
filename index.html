@@ -2891,20 +2891,6 @@
         </div>
       </div>
       <div
-        style="
-          padding: 6px 14px 4px;
-          flex-shrink: 0;
-          text-align: center;
-        "
-          flex-shrink: 0;
-          text-align: center;
-        "
-      >
-        <div style="font-size: 0.72em; color: #64748b; font-weight: 700">
-          Tipo de conferência
-        </div>
-      </div>
-      <div
         style="display: flex; gap: 4px; padding: 0 14px 8px; flex-wrap: wrap"
         id="confStats"
       >
@@ -6982,6 +6968,22 @@ function getOpItemGroups(g) {
         camEtapa = 1;
         fotoEtiqueta = null;
         fotoRotacao = 0;
+
+        // ✅ Verificar se a bobina já tem código de barras
+        var codBarrasAtual = "";
+        try {
+          var chaveEnc = (b.item || "") + "|" + (b.ver || "") + "|" + (b.qtde || "");
+          var docIdCod = chaveEnc.replace(/\|/g, "_");
+          var docCod = await db.collection("codigos_barras").doc(docIdCod).get();
+          if (docCod.exists && docCod.data().codigo_barras) {
+            codBarrasAtual = docCod.data().codigo_barras;
+          }
+        } catch (e) {}
+
+        var codAviso = codBarrasAtual
+          ? '<div style="margin-top:4px;font-size:0.8em;background:#dcfce7;color:#10b981;padding:3px 8px;border-radius:6px;display:inline-block;">🏷️ Código: ' + codBarrasAtual + '</div>'
+          : '<div style="margin-top:4px;font-size:0.8em;background:#fee2e2;color:#ef4444;padding:3px 8px;border-radius:6px;display:inline-block;">⚠️ Sem código de barras — vincule depois</div>';
+
         document.getElementById("ci").innerHTML =
           "OP <strong>" +
           b.enc +
@@ -6992,6 +6994,7 @@ function getOpItemGroups(g) {
           " | " +
           b.qtde +
           " kg" +
+          codAviso +
           '<div style="margin-top:4px;font-size:0.85em;background:#eff6ff;padding:3px 8px;border-radius:6px;display:inline-block;">📸 Passo 1 de 2: Etiqueta</div>';
         document.getElementById("cv").style.display = "block";
         document.getElementById("cp").style.display = "none";
@@ -9652,9 +9655,26 @@ function getOpItemGroups(g) {
             ds = agora.toLocaleString("pt-BR"),
             lote = agora.getTime().toString(),
             salvos = 0;
+
+          // ✅ Buscar códigos de barras das bobinas do estoque que foram encaixadas
+          var codBarrasMapa = {};
+          try {
+            var codSnap = await db.collection("codigos_barras").get();
+            codSnap.forEach(function(doc) {
+              var d = doc.data();
+              var chave = d.item + "|" + d.versao + "|" + d.qtde;
+              if (d.codigo_barras) codBarrasMapa[chave] = d.codigo_barras;
+            });
+          } catch (e) {}
+
           var batch = db.batch();
           for (var i = 0; i < B.length; i++) {
             var b = B[i];
+            // ✅ Buscar código de barras se a bobina já tinha no estoque
+            var codBarrasEnc = "";
+            var chaveEnc = (b.item || "") + "|" + (b.ver || "") + "|" + (b.qtde || "");
+            if (codBarrasMapa[chaveEnc]) codBarrasEnc = codBarrasMapa[chaveEnc];
+
             batch.set(db.collection("encaixes").doc(), {
               data: ds,
               timestamp: firebase.firestore.FieldValue.serverTimestamp(),
@@ -9672,6 +9692,7 @@ function getOpItemGroups(g) {
               uid: getUidBobina(b),
               manual: b.manual ? "S" : "N",
               material: b.material || "",
+              codigo_barras: codBarrasEnc,
             });
             salvos++;
             if (salvos % 400 === 0) {
@@ -11394,10 +11415,11 @@ function getOpItemGroups(g) {
 
       async function vincCodCarregarOPs() {
         var body = document.getElementById("vincCodBody");
-        body.innerHTML = '<div style="text-align:center;padding:40px;color:#8b5cf6;">⏳ Carregando OPs...</div>';
+        body.innerHTML = '<div style="text-align:center;padding:40px;color:#8b5cf6;">⏳ Carregando bobinas...</div>';
         document.getElementById("vincCodSub").textContent = "Carregando...";
 
         try {
+          // 1. Carregar encaixadas do Firebase
           var snap = await db.collection("encaixes")
             .orderBy("timestamp", "desc")
             .limit(3000)
@@ -11410,7 +11432,7 @@ function getOpItemGroups(g) {
             var op = String(d.encaixe || "").trim();
             if (!op) return;
             if (!opMap[op]) {
-              opMap[op] = { op: op, regs: [] };
+              opMap[op] = { op: op, regs: [], tipo: "encaixada" };
               opOrdem.push(op);
             }
             opMap[op].regs.push({
@@ -11421,15 +11443,71 @@ function getOpItemGroups(g) {
               encaixe: op,
               data: d.data || "",
               codigo_barras: d.codigo_barras || "",
+              tipo: "encaixada",
+              firebaseDoc: true,
             });
           });
+
+          // 2. Carregar códigos das não encaixadas do Firebase
+          var codSnap = await db.collection("codigos_barras").get();
+          var codMapaEstoque = {}; // chave -> codigo_barras
+          codSnap.forEach(function(doc) {
+            var d = doc.data();
+            var chave = d.item + "|" + d.versao + "|" + d.qtde;
+            if (d.codigo_barras) codMapaEstoque[chave] = d.codigo_barras;
+          });
+
+          // 3. Adicionar bobinas do estoque (não encaixadas)
+          var itensComEncaixe = {};
+          for (var bi = 0; bi < B.length; bi++) itensComEncaixe[getItemEstoque(B[bi])] = true;
+          var mapaFinalizados = criarMapaEncaixesFinalizados ? criarMapaEncaixesFinalizados() : {};
+
+          var opEstoque = "0_ESTOQUE";
+          opMap[opEstoque] = { op: "Estoque", regs: [], tipo: "estoque" };
+          opOrdem.unshift(opEstoque);
+
+          for (var ei = 0; ei < estoque.length; ei++) {
+            var e = estoque[ei];
+            var itemCode = getItemEstoque(e);
+            if (!itemCode) continue;
+            if (consumirEncaixeFinalizadoEstoque(e, mapaFinalizados).tem) continue;
+            var ver = String(e["VERSAO"] || "").trim();
+            var qtde = String(e["QTDE_ESTOQUE"] || "").trim();
+            var chaveEst = itemCode + "|" + ver + "|" + qtde;
+
+            opMap[opEstoque].regs.push({
+              docId: "est_" + ei + "_" + itemCode.replace(/[^a-zA-Z0-9]/g, "_"),
+              item: itemCode,
+              versao: ver,
+              qtde: qtde,
+              encaixe: "Estoque",
+              data: "",
+              codigo_barras: codMapaEstoque[chaveEst] || "",
+              tipo: "estoque",
+              estoqueIdx: ei,
+              firebaseDoc: false,
+            });
+          }
+
+          // Remover grupo de estoque se vazio
+          if (opMap[opEstoque].regs.length === 0) {
+            delete opMap[opEstoque];
+            opOrdem.shift();
+          }
 
           vincCodOPs = [];
           for (var i = 0; i < opOrdem.length; i++) {
             vincCodOPs.push(opMap[opOrdem[i]]);
           }
 
-          document.getElementById("vincCodSub").textContent = vincCodOPs.length + " OPs carregadas";
+          var totalEncaixadas = 0, totalEstoque = 0;
+          for (var k = 0; k < vincCodOPs.length; k++) {
+            for (var r = 0; r < vincCodOPs[k].regs.length; r++) {
+              if (vincCodOPs[k].regs[r].tipo === "estoque") totalEstoque++;
+              else totalEncaixadas++;
+            }
+          }
+          document.getElementById("vincCodSub").textContent = totalEncaixadas + " encaixadas + " + totalEstoque + " estoque";
           vincCodFiltrar();
         } catch (err) {
           body.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">❌ ' + err.message + '</div>';
@@ -11445,6 +11523,7 @@ function getOpItemGroups(g) {
         var filtradas = vincCodOPs;
         if (busca) {
           filtradas = vincCodOPs.filter(function(op) {
+            if (op.tipo === "estoque" && "estoque".indexOf(busca) > -1) return true;
             return op.op.indexOf(busca) > -1;
           });
         }
@@ -11476,11 +11555,14 @@ function getOpItemGroups(g) {
             else semCod++;
             pesoTotal += parseFloat(opData.regs[j].qtde) || 0;
           }
+          var isEstoque = opData.tipo === "estoque";
+          var headerBg = isEstoque ? "#fef3c7" : "#faf5ff";
+          var opColor = isEstoque ? "#d97706" : "#2563eb";
 
           html += '<div style="background:#fff;border-radius:10px;border:1px solid #e0e0e0;margin-bottom:8px;overflow:hidden;">';
           // Header
-          html += '<div style="display:flex;align-items:center;padding:8px 12px;gap:8px;background:#faf5ff;border-bottom:1px solid #f0f0f0;">';
-          html += '<div style="font-size:0.9em;font-weight:700;color:#2563eb;min-width:55px;">OP ' + opData.op + '</div>';
+          html += '<div style="display:flex;align-items:center;padding:8px 12px;gap:8px;background:' + headerBg + ';border-bottom:1px solid #f0f0f0;">';
+          html += '<div style="font-size:0.9em;font-weight:700;color:' + opColor + ';min-width:55px;">' + (isEstoque ? '📦 Estoque' : 'OP ' + opData.op) + '</div>';
           html += '<div style="flex:1;font-size:0.6em;color:#888;">' + opData.regs.length + ' bob · ' + pesoTotal.toFixed(0) + ' kg';
           if (temCod > 0) html += ' · <span style="color:#10b981;">✔' + temCod + '</span>';
           if (semCod > 0) html += ' · <span style="color:#ef4444;">✖' + semCod + '</span>';
@@ -11545,17 +11627,36 @@ function getOpItemGroups(g) {
       async function vincCodApagarCodigo(docId) {
         if (!confirm("Apagar código de barras?")) return;
         try {
-          await db.collection("encaixes").doc(docId).update({
-            codigo_barras: ""
-          });
+          // Encontrar o registro
+          var regEncontrado = null;
+          for (var i = 0; i < vincCodOPs.length; i++) {
+            for (var j = 0; j < vincCodOPs[i].regs.length; j++) {
+              if (vincCodOPs[i].regs[j].docId === docId) {
+                regEncontrado = vincCodOPs[i].regs[j];
+                break;
+              }
+            }
+            if (regEncontrado) break;
+          }
+
+          if (regEncontrado && regEncontrado.tipo === "estoque") {
+            var chave = regEncontrado.item + "|" + regEncontrado.versao + "|" + regEncontrado.qtde;
+            var docIdCod = chave.replace(/\|/g, "_");
+            await db.collection("codigos_barras").doc(docIdCod).delete();
+          } else if (regEncontrado && regEncontrado.firebaseDoc) {
+            await db.collection("encaixes").doc(docId).update({
+              codigo_barras: ""
+            });
+          }
+
           if (navigator.vibrate) navigator.vibrate([50]);
           toast("Código apagado", "info", 1500);
 
           // Atualizar local
-          for (var i = 0; i < vincCodOPs.length; i++) {
-            for (var j = 0; j < vincCodOPs[i].regs.length; j++) {
-              if (vincCodOPs[i].regs[j].docId === docId) {
-                vincCodOPs[i].regs[j].codigo_barras = "";
+          for (var i2 = 0; i2 < vincCodOPs.length; i2++) {
+            for (var j2 = 0; j2 < vincCodOPs[i2].regs.length; j2++) {
+              if (vincCodOPs[i2].regs[j2].docId === docId) {
+                vincCodOPs[i2].regs[j2].codigo_barras = "";
                 break;
               }
             }
@@ -11677,34 +11778,53 @@ function getOpItemGroups(g) {
 
       async function vincCodSalvarCodigo(docId, codigoLimpo) {
         try {
-          await db.collection("encaixes").doc(docId).update({
-            codigo_barras: codigoLimpo
-          });
+          // Encontrar o registro na lista local
+          var regEncontrado = null;
+          for (var i = 0; i < vincCodOPs.length; i++) {
+            for (var j = 0; j < vincCodOPs[i].regs.length; j++) {
+              if (vincCodOPs[i].regs[j].docId === docId) {
+                regEncontrado = vincCodOPs[i].regs[j];
+                break;
+              }
+            }
+            if (regEncontrado) break;
+          }
+
+          if (regEncontrado && regEncontrado.tipo === "estoque") {
+            // Não encaixada: salvar na coleção codigos_barras
+            var chave = regEncontrado.item + "|" + regEncontrado.versao + "|" + regEncontrado.qtde;
+            var docIdCod = chave.replace(/\|/g, "_");
+            await db.collection("codigos_barras").doc(docIdCod).set({
+              item: regEncontrado.item,
+              versao: regEncontrado.versao,
+              qtde: regEncontrado.qtde,
+              codigo_barras: codigoLimpo,
+              timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+          } else if (regEncontrado && regEncontrado.firebaseDoc) {
+            // Encaixada: salvar direto no registro do encaixe
+            await db.collection("encaixes").doc(docId).update({
+              codigo_barras: codigoLimpo
+            });
+          }
 
           if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
           toast("✔ Código salvo: " + codigoLimpo, "success", 1500);
 
           // Atualizar na lista local
-          for (var i = 0; i < vincCodOPs.length; i++) {
-            for (var j = 0; j < vincCodOPs[i].regs.length; j++) {
-              if (vincCodOPs[i].regs[j].docId === docId) {
-                vincCodOPs[i].regs[j].codigo_barras = codigoLimpo;
+          for (var i2 = 0; i2 < vincCodOPs.length; i2++) {
+            for (var j2 = 0; j2 < vincCodOPs[i2].regs.length; j2++) {
+              if (vincCodOPs[i2].regs[j2].docId === docId) {
+                vincCodOPs[i2].regs[j2].codigo_barras = codigoLimpo;
                 break;
               }
             }
-          }
-
-          // Atualizar UI do item
-          var el = document.getElementById("vincCod_" + docId);
-          if (el) {
-            el.innerHTML = '<span style="color:#10b981;font-weight:600;">✔ ' + codigoLimpo + '</span>';
           }
 
           // Fechar câmera automaticamente após leitura válida
           if (!vincCodModoColetor) {
             vincCodPararScan();
           } else {
-            // Modo coletor: limpar alvo e focar input de novo
             vincCodBobinaAlvo = null;
             var inp = document.getElementById("vincCodColetorInput");
             if (inp) {
@@ -11713,7 +11833,7 @@ function getOpItemGroups(g) {
             }
           }
 
-          // Atualizar stats
+          // Atualizar lista
           vincCodFiltrar();
 
         } catch (err) {
@@ -16662,5 +16782,5 @@ async function shareFotos() {
         </div>
       </div>
     </div>
-  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1edd6b68a2289d1',t:'MTc4NDY3NTAwMw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ee04fafdf864c4',t:'MTc4NDY3Njg5OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
