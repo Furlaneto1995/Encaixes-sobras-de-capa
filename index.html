@@ -3206,12 +3206,11 @@
         <button id="vincCodBtnColetor" onclick="vincCodToggleColetor()" style="padding:10px 14px;border:none;border-radius:8px;background:#6b7280;color:#fff;font-size:0.8em;font-weight:600;cursor:pointer;">📡 Coletor</button>
       </div>
       <div id="vincCodFiltros" style="padding:0 14px 8px;display:flex;gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
-        <button data-vf="all" onclick="vincCodSetFiltro('all')" style="padding:7px 10px;border:none;border-radius:999px;background:#2563eb;color:#fff;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">Todos</button>
-        <button data-vf="encaixadas" onclick="vincCodSetFiltro('encaixadas')" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:999px;background:#fff;color:#64748b;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">🔗 Encaixadas</button>
-        <button data-vf="semencaixe" onclick="vincCodSetFiltro('semencaixe')" style="padding:7px 10px;border:1px solid #bfdbfe;border-radius:999px;background:#fff;color:#2563eb;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">📦 Sem encaixe</button>
-        <button data-vf="fundos" onclick="vincCodSetFiltro('fundos')" style="padding:7px 10px;border:1px solid #fed7aa;border-radius:999px;background:#fff;color:#f97316;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">🟠 Fundos</button>
-        <button data-vf="metal" onclick="vincCodSetFiltro('metal')" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:999px;background:#fff;color:#64748b;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">⚪ Metal</button>
-        <button data-vf="ocultas" onclick="vincCodSetFiltro('ocultas')" style="padding:7px 10px;border:1px solid #ddd6fe;border-radius:999px;background:#fff;color:#8b5cf6;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">👁️ Ocultas</button>
+        <button data-vf="encaixadas" onclick="vincCodToggleFiltro('encaixadas')" style="padding:7px 10px;border:2px solid #2563eb;border-radius:999px;background:#eff6ff;color:#2563eb;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">🔗 Encaixadas</button>
+        <button data-vf="semencaixe" onclick="vincCodToggleFiltro('semencaixe')" style="padding:7px 10px;border:2px solid #2563eb;border-radius:999px;background:#eff6ff;color:#2563eb;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">📦 Sem encaixe</button>
+        <button data-vf="fundos" onclick="vincCodToggleFiltro('fundos')" style="padding:7px 10px;border:2px solid #f97316;border-radius:999px;background:#fff7ed;color:#f97316;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">🟠 Fundos</button>
+        <button data-vf="metal" onclick="vincCodToggleFiltro('metal')" style="padding:7px 10px;border:2px solid #64748b;border-radius:999px;background:#f1f5f9;color:#64748b;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">⚪ Metal</button>
+        <button data-vf="ocultas" onclick="vincCodToggleFiltro('ocultas')" style="padding:7px 10px;border:2px solid #8b5cf6;border-radius:999px;background:#f5f3ff;color:#8b5cf6;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">👁️ Ocultas</button>
       </div>
       <div id="vincCodColetorArea" style="padding:0 14px 8px;display:none;gap:6px;align-items:center;">
         <input id="vincCodColetorInput" type="text" placeholder="Selecionar bobina e escanear..." style="flex:1;padding:10px;border-radius:8px;border:2px solid #10b981;background:#f0fdf4;color:#1a1a2e;font-size:0.9em;font-weight:600;" onkeydown="vincCodColetorProcessar(event)">
@@ -11737,16 +11736,34 @@ function getOpItemGroups(g) {
       var vincCodAtivo = false;
       var vincCodBobinaAlvo = null;
       var vincCodModoColetor = false;
-      var vincCodFiltro = "all";
+      var vincCodFiltrosAtivos = {
+        encaixadas: true,
+        semencaixe: true,
+        fundos: true,
+        metal: true,
+        ocultas: true
+      };
 
-      function vincCodSetFiltro(filtro) {
-        vincCodFiltro = filtro || "all";
+      function vincCodToggleFiltro(filtro) {
+        if (!Object.prototype.hasOwnProperty.call(vincCodFiltrosAtivos, filtro)) return;
+        vincCodFiltrosAtivos[filtro] = !vincCodFiltrosAtivos[filtro];
+
+        var cores = {
+          encaixadas: ["#2563eb", "#eff6ff"],
+          semencaixe: ["#2563eb", "#eff6ff"],
+          fundos: ["#f97316", "#fff7ed"],
+          metal: ["#64748b", "#f1f5f9"],
+          ocultas: ["#8b5cf6", "#f5f3ff"]
+        };
         var botoes = document.querySelectorAll("#vincCodFiltros [data-vf]");
         botoes.forEach(function(btn) {
-          var ativo = btn.getAttribute("data-vf") === vincCodFiltro;
-          btn.style.background = ativo ? "#2563eb" : "#fff";
-          btn.style.color = ativo ? "#fff" : (btn.getAttribute("data-vf") === "capas" ? "#ef4444" : btn.getAttribute("data-vf") === "fundos" ? "#f97316" : btn.getAttribute("data-vf") === "ocultas" ? "#8b5cf6" : "#64748b");
-          btn.style.borderColor = ativo ? "#2563eb" : "";
+          var chave = btn.getAttribute("data-vf");
+          var ativo = !!vincCodFiltrosAtivos[chave];
+          var cor = cores[chave] || ["#64748b", "#fff"];
+          btn.style.background = ativo ? cor[1] : "#fff";
+          btn.style.color = ativo ? cor[0] : "#cbd5e1";
+          btn.style.borderColor = ativo ? cor[0] : "#e2e8f0";
+          btn.style.opacity = ativo ? "1" : "0.55";
         });
         vincCodFiltrar();
       }
@@ -11962,15 +11979,16 @@ function getOpItemGroups(g) {
           var grupoOriginal = vincCodOPs[fi];
           var regsFiltrados = grupoOriginal.regs.filter(function(reg) {
             var categoria = vincCodCategoriaRegistro(grupoOriginal, reg);
-            // Encaixadas: exclusivamente registros do histórico (não estoque).
-            if (vincCodFiltro === "encaixadas") return grupoOriginal.tipo !== "estoque";
-            // Sem encaixe: exclusivamente bobinas ainda presentes no estoque.
-            if (vincCodFiltro === "semencaixe") return grupoOriginal.tipo === "estoque";
-            // Metal, Fundo e Ocultas são filtros somente do estoque.
-            if (["metal", "fundos", "ocultas"].indexOf(vincCodFiltro) !== -1) {
-              return grupoOriginal.tipo === "estoque" && categoria === vincCodFiltro;
+            // Cada botão é independente, como os filtros do Estoque.
+            // Nenhum botão ativo = nenhuma bobina exibida.
+            if (grupoOriginal.tipo !== "estoque") {
+              return vincCodFiltrosAtivos.encaixadas === true;
             }
-            return true;
+            if (categoria === "metal") return vincCodFiltrosAtivos.metal === true;
+            if (categoria === "fundos") return vincCodFiltrosAtivos.fundos === true;
+            if (categoria === "ocultas") return vincCodFiltrosAtivos.ocultas === true;
+            // Capas/Bases sem encaixe ficam no grupo “Sem encaixe”.
+            return vincCodFiltrosAtivos.semencaixe === true;
           });
           if (regsFiltrados.length) {
             var copia = Object.assign({}, grupoOriginal);
@@ -17418,5 +17436,5 @@ async function shareFotos() {
           <p>Carregando fórmulas...</p>
         </div>
       </div>
-    </div><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ef39bdd9d04f4a',t:'MTc4NDY4OTU0NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    </div><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ef402e1c98326e',t:'MTc4NDY4OTgwOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
