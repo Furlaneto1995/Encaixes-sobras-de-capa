@@ -3251,11 +3251,11 @@
             <div style="font-size:1em;color:#8b5cf6;font-weight:700;" id="vincCodTotalOPs">0</div>
             <div style="font-size:0.55em;color:#888;">OPs</div>
           </div>
-          <div style="background:#fff;padding:6px 10px;border-radius:8px;text-align:center;border:1px solid #e0e0e0;flex:1;">
+          <div id="vincCodComCodCard" onclick="vincCodToggleFiltro('vinculadas')" style="background:#fff;padding:6px 10px;border-radius:8px;text-align:center;border:1px solid #10b981;flex:1;cursor:pointer;">
             <div style="font-size:1em;color:#10b981;font-weight:700;" id="vincCodComCod">0</div>
             <div style="font-size:0.55em;color:#888;">Com código</div>
           </div>
-          <div style="background:#fff;padding:6px 10px;border-radius:8px;text-align:center;border:1px solid #e0e0e0;flex:1;">
+          <div id="vincCodSemCodCard" onclick="vincCodToggleFiltro('semcodigo')" style="background:#fff;padding:6px 10px;border-radius:8px;text-align:center;border:1px solid #ef4444;flex:1;cursor:pointer;">
             <div style="font-size:1em;color:#ef4444;font-weight:700;" id="vincCodSemCod">0</div>
             <div style="font-size:0.55em;color:#888;">Sem código</div>
           </div>
@@ -11817,6 +11817,16 @@ function getOpItemGroups(g) {
           btn.style.borderColor = ativo ? cor[0] : "#e2e8f0";
           btn.style.opacity = ativo ? "1" : "0.55";
         });
+        var cardCom = document.getElementById("vincCodComCodCard");
+        var cardSem = document.getElementById("vincCodSemCodCard");
+        if (cardCom) {
+          cardCom.style.background = vincCodFiltrosAtivos.vinculadas ? "#dcfce7" : "#fff";
+          cardCom.style.opacity = vincCodFiltrosAtivos.vinculadas ? "1" : "0.55";
+        }
+        if (cardSem) {
+          cardSem.style.background = vincCodFiltrosAtivos.semcodigo ? "#fee2e2" : "#fff";
+          cardSem.style.opacity = vincCodFiltrosAtivos.semcodigo ? "1" : "0.55";
+        }
         vincCodFiltrar();
       }
 
@@ -12022,9 +12032,27 @@ function getOpItemGroups(g) {
             }
           }
 
+          // Estoque permanece antes; OPs históricas em ordem crescente.
+          var gruposEstoqueOrdem = opOrdem.filter(function(k) { return String(k).indexOf("0_ESTOQUE_") === 0; });
+          var opsHistoricoOrdem = opOrdem.filter(function(k) { return String(k).indexOf("0_ESTOQUE_") !== 0; });
+          opsHistoricoOrdem.sort(function(a, b) {
+            var na = parseFloat(a), nb = parseFloat(b);
+            if (!isNaN(na) && !isNaN(nb)) return na - nb;
+            return String(a).localeCompare(String(b), "pt-BR", { numeric: true });
+          });
+          opOrdem = gruposEstoqueOrdem.concat(opsHistoricoOrdem);
+
           vincCodOPs = [];
           for (var i = 0; i < opOrdem.length; i++) {
-            vincCodOPs.push(opMap[opOrdem[i]]);
+            var grupoOrdenado = opMap[opOrdem[i]];
+            grupoOrdenado.regs.sort(function(a, b) {
+              var itemCmp = String(a.item || "").localeCompare(String(b.item || ""), "pt-BR", { numeric: true });
+              if (itemCmp !== 0) return itemCmp;
+              var verCmp = String(a.versao || "").localeCompare(String(b.versao || ""), "pt-BR", { numeric: true });
+              if (verCmp !== 0) return verCmp;
+              return (parseFloat(a.qtde) || 0) - (parseFloat(b.qtde) || 0);
+            });
+            vincCodOPs.push(grupoOrdenado);
           }
 
           var totalEncaixadas = 0, totalEstoque = 0;
