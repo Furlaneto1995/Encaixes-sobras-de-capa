@@ -12235,6 +12235,52 @@ function getOpItemGroups(g) {
         );
       }
 
+      // Carrega os códigos vinculados em “Vincular Códigos” e associa cada um
+      // à chave única usada na conferência do estoque atual.
+      async function carregarCodigosEstoqueParaConferencia() {
+        try {
+          if (typeof db === "undefined" || !db) return;
+
+          var snap = await db.collection("datas_manuais").get();
+          var carregados = 0;
+
+          snap.forEach(function (doc) {
+            var d = doc.data() || {};
+            if (d.tipo !== "codigobarras" || !d.codigo_barras) return;
+
+            var itemDoc = String(d.item || "").trim();
+            var verDoc = String(d.versao || "").trim();
+            var pesoDoc = parseFloat(String(d.qtde || "").replace(",", ".")) || 0;
+            if (!itemDoc) return;
+
+            // Localiza a bobina correspondente no estoque importado.
+            for (var i = 0; i < estoque.length; i++) {
+              var e = estoque[i];
+              var itemEstoque = getItemEstoque(e);
+              var verEstoque = String(e["VERSAO"] || "").trim();
+              var pesoEstoque = parseFloat(String(e["QTDE_ESTOQUE"] || "").replace(",", ".")) || 0;
+
+              if (
+                itemEstoque === itemDoc &&
+                verEstoque === verDoc &&
+                Math.abs(pesoEstoque - pesoDoc) < 0.05
+              ) {
+                var uidEstoque = getUidEstoque(e);
+                var chave = makeConfKey(itemEstoque, verEstoque, pesoEstoque, uidEstoque);
+                confEstCodBarras[String(d.codigo_barras).trim()] = chave;
+                carregados++;
+                break;
+              }
+            }
+          });
+
+          localStorage.setItem("enc_conf_est_cod", JSON.stringify(confEstCodBarras));
+          console.log("Códigos de estoque preparados para conferência:", carregados);
+        } catch (e) {
+          console.error("Erro ao carregar códigos de barras do estoque:", e);
+        }
+      }
+
       async function abrirConfNaoEncaixadas() {
         if (estoque.length === 0) {
           toast("Importe o estoque primeiro!", "warning");
@@ -12243,6 +12289,9 @@ function getOpItemGroups(g) {
         document.getElementById("confModal").classList.add("active");
         confAtualizarTipoBtns();
         await carregarHistoricoConferencia();
+        // Permite que câmera/coletor localizem a bobina diretamente pelo
+        // código cadastrado no menu “Vincular Códigos”.
+        await carregarCodigosEstoqueParaConferencia();
         confRender();
       }
 
@@ -17192,5 +17241,5 @@ async function shareFotos() {
           <p>Carregando fórmulas...</p>
         </div>
       </div>
-    </div><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ef03a1bbad119d',t:'MTc4NDY4NzMyOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    </div><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ef0a55ece100d7',t:'MTc4NDY4NzYwNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
