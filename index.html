@@ -12052,6 +12052,15 @@ function getOpItemGroups(g) {
           for (var i = 0; i < opOrdem.length; i++) {
             var grupoOrdenado = opMap[opOrdem[i]];
             grupoOrdenado.regs.sort(function(a, b) {
+              // Ordena primeiro pelos quatro primeiros dígitos do item.
+              // Ex.: 1113929 (1113) vem antes de 173323 (1733).
+              var digA = (String(a.item || "").match(/\d/g) || []).join("").slice(0, 4);
+              var digB = (String(b.item || "").match(/\d/g) || []).join("").slice(0, 4);
+              var prefA = parseInt(digA || "9999", 10);
+              var prefB = parseInt(digB || "9999", 10);
+              if (prefA !== prefB) return prefA - prefB;
+
+              // Em caso de mesmo prefixo, mantém uma ordem determinística pelo item completo.
               var itemCmp = String(a.item || "").localeCompare(String(b.item || ""), "pt-BR", { numeric: true });
               if (itemCmp !== 0) return itemCmp;
               var verCmp = String(a.versao || "").localeCompare(String(b.versao || ""), "pt-BR", { numeric: true });
