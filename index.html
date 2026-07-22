@@ -3008,7 +3008,8 @@
                    style="width:100%;background:transparent;border:none;outline:none;color:#1a1a2e;font-size:0.9em;font-weight:600;" 
                    onkeydown="confEstColetorProcessar(event)" oninput="confEstColetorAutoProcessar(this)">
           </div>
-          <div id="confColetorStatus" style="font-size:0.75em;font-weight:700;color:#10b981;min-width:70px;text-align:right;"></div>
+          <button onclick="limparCampoColetor('confEstColetorInput')" title="Limpar leitura" style="width:34px;height:34px;flex-shrink:0;border:none;border-radius:8px;background:#fee2e2;color:#ef4444;font-size:.9em;font-weight:700;cursor:pointer;">✕</button>
+          <div id="confColetorStatus" style="font-size:0.75em;font-weight:700;color:#10b981;min-width:50px;text-align:right;"></div>
         </div>
       </div>
       <div
@@ -3238,9 +3239,11 @@
         <button data-vf="metal" onclick="vincCodToggleFiltro('metal')" style="padding:7px 10px;border:2px solid #64748b;border-radius:999px;background:#f1f5f9;color:#64748b;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">⚪ Metal</button>
         <button data-vf="ocultas" onclick="vincCodToggleFiltro('ocultas')" style="padding:7px 10px;border:2px solid #8b5cf6;border-radius:999px;background:#f5f3ff;color:#8b5cf6;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">👁️ Ocultas</button>
         <button data-vf="vinculadas" onclick="vincCodToggleFiltro('vinculadas')" style="padding:7px 10px;border:2px solid #10b981;border-radius:999px;background:#fff;color:#10b981;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">✅ Já lidas</button>
+        <button data-vf="semcodigo" onclick="vincCodToggleFiltro('semcodigo')" style="padding:7px 10px;border:2px solid #ef4444;border-radius:999px;background:#fff;color:#ef4444;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">❌ Sem código</button>
       </div>
       <div id="vincCodColetorArea" style="padding:0 14px 8px;display:none;gap:6px;align-items:center;">
-        <input id="vincCodColetorInput" type="text" inputmode="none" autocomplete="off" placeholder="Selecionar bobina e escanear..." style="flex:1;padding:10px;border-radius:8px;border:2px solid #10b981;background:#f0fdf4;color:#1a1a2e;font-size:0.9em;font-weight:600;" onkeydown="vincCodColetorProcessar(event)" oninput="vincCodColetorAutoProcessar(this)">
+        <input id="vincCodColetorInput" type="text" inputmode="none" autocomplete="off" placeholder="Selecionar bobina e escanear..." style="flex:1;min-width:0;padding:10px;border-radius:8px;border:2px solid #10b981;background:#f0fdf4;color:#1a1a2e;font-size:0.9em;font-weight:600;" onkeydown="vincCodColetorProcessar(event)" oninput="vincCodColetorAutoProcessar(this)">
+        <button onclick="limparCampoColetor('vincCodColetorInput')" title="Limpar leitura" style="width:38px;height:38px;flex-shrink:0;border:none;border-radius:9px;background:#fee2e2;color:#ef4444;font-size:1em;font-weight:700;cursor:pointer;">✕</button>
       </div>
       <div id="vincCodStats" style="padding:0 14px 8px;display:none;">
         <div style="display:flex;gap:6px;">
@@ -7152,6 +7155,12 @@ function getOpItemGroups(g) {
             codigo_barras: codigoLimpo,
             timestamp: firebase.firestore.FieldValue.serverTimestamp(),
           });
+          // Garante que o UID usado no vínculo também fique salvo localmente e na nuvem.
+          try {
+            save();
+            salvarEstoqueNuvemAgora();
+          } catch (ePersist) { console.error("Erro ao persistir UID do estoque:", ePersist); }
+
           if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
           toast("✔ Código salvo: " + codigoLimpo, "success", 1500);
         } catch (err) {
@@ -11781,7 +11790,8 @@ function getOpItemGroups(g) {
         fundos: true,
         metal: true,
         ocultas: true,
-        vinculadas: false
+        vinculadas: false,
+        semcodigo: false
       };
 
       function vincCodToggleFiltro(filtro) {
@@ -11794,7 +11804,8 @@ function getOpItemGroups(g) {
           fundos: ["#f97316", "#fff7ed"],
           metal: ["#64748b", "#f1f5f9"],
           ocultas: ["#8b5cf6", "#f5f3ff"],
-          vinculadas: ["#10b981", "#dcfce7"]
+          vinculadas: ["#10b981", "#dcfce7"],
+          semcodigo: ["#ef4444", "#fee2e2"]
         };
         var botoes = document.querySelectorAll("#vincCodFiltros [data-vf]");
         botoes.forEach(function(btn) {
@@ -11850,6 +11861,13 @@ function getOpItemGroups(g) {
           var inp = document.getElementById("vincCodColetorInput");
           if (inp) setTimeout(function() { inp.focus(); }, 100);
         }
+      }
+
+      function limparCampoColetor(id) {
+        var input = document.getElementById(id);
+        if (!input) return;
+        input.value = "";
+        input.focus({ preventScroll: true });
       }
 
       var vincCodColetorTimer = null;
@@ -11918,13 +11936,16 @@ function getOpItemGroups(g) {
           });
 
           // 2. Carregar códigos das não encaixadas do Firebase (datas_manuais com prefixo cb_)
-          var codMapaEstoque = {}; // chave -> codigo_barras
+          var codMapaEstoque = {}; // UID -> codigo_barras
+          var codMapaLegado = {}; // recuperação temporária: item|versão|peso -> código
           try {
             var codSnap = await db.collection("datas_manuais").get();
             codSnap.forEach(function(doc) {
               var d = doc.data();
               if (d.tipo === "codigobarras" && d.codigo_barras) {
                 if (d.uid) codMapaEstoque[String(d.uid)] = d.codigo_barras;
+                var chaveLegada = String(d.item || "") + "|" + String(d.versao || "") + "|" + String(d.qtde || "");
+                if (d.item && d.versao !== undefined && d.qtde !== undefined) codMapaLegado[chaveLegada] = d.codigo_barras;
               }
             });
           } catch (e) { console.error("Erro ao carregar códigos:", e); }
@@ -11982,7 +12003,7 @@ function getOpItemGroups(g) {
               qtde: qtde,
               encaixe: opMap[chaveGrupoEstoque].titulo,
               data: "",
-              codigo_barras: codMapaEstoque[uidEstoque] || "",
+              codigo_barras: codMapaEstoque[uidEstoque] || codMapaLegado[itemCode + "|" + ver + "|" + qtde] || "",
               uid: uidEstoque,
               tipo: "estoque",
               categoriaEstoque: categoriaEstoque,
@@ -12037,6 +12058,7 @@ function getOpItemGroups(g) {
             // “Já lidas” é um refinamento: quando ativo, mostra somente
             // bobinas que já possuem código de barras vinculado.
             if (vincCodFiltrosAtivos.vinculadas && !reg.codigo_barras) return false;
+            if (vincCodFiltrosAtivos.semcodigo && reg.codigo_barras) return false;
             // Cada botão de categoria é independente, como os filtros do Estoque.
             if (grupoOriginal.tipo !== "estoque") {
               return vincCodFiltrosAtivos.encaixadas === true;
@@ -17504,5 +17526,5 @@ async function shareFotos() {
           <p>Carregando fórmulas...</p>
         </div>
       </div>
-    </div><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1f3dab31f5ad986',t:'MTc4NDczODA4MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    </div></body>
 </html>
