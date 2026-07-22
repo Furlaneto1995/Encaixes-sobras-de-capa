@@ -2950,14 +2950,25 @@
           <span id="confFaltamText">Todas</span>
         </button>
       </div>
-      <!-- Alternar câmera / coletor + Iniciar -->
-      <div style="padding:0 14px 8px;display:flex;gap:8px;flex-shrink:0;align-items:center;">
-        <div style="display:flex;background:#f1f5f9;border-radius:999px;padding:2px;">
+      <!-- Alternar câmera / coletor + Iniciar (Não Encaixadas) -->
+      <div style="padding:0 14px 4px;display:flex;gap:8px;flex-shrink:0;align-items:center;">
+        <div style="display:flex;background:#f1f5f9;border-radius:999px;padding:2px;flex-shrink:0;" id="confToggleContainer">
           <button id="confModoCameraBtn" onclick="confSetModo('camera')" style="padding:6px 14px;border:none;border-radius:999px;background:#2563eb;color:#fff;font-size:0.78em;font-weight:700;cursor:pointer;">📷 Câmera</button>
           <button id="confModoColetorBtn" onclick="confSetModo('coletor')" style="padding:6px 14px;border:none;border-radius:999px;background:transparent;color:#64748b;font-size:0.78em;font-weight:700;cursor:pointer;">📡 Coletor</button>
         </div>
         <button onclick="confIniciarLeitura()" style="padding:8px 16px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.82em;font-weight:700;cursor:pointer;flex-shrink:0;">▶️ Iniciar</button>
-        <input id="confEstColetorInput" type="text" placeholder="Aguardando coletor..." style="display:none;flex:1;padding:8px 10px;border-radius:8px;border:2px solid #10b981;background:#f0fdf4;color:#1a1a2e;font-size:0.85em;font-weight:600;" onkeydown="confEstColetorProcessar(event)">
+      </div>
+
+      <!-- Campo do coletor (linha de baixo) -->
+      <div id="confColetorArea" style="display:none;padding:0 14px 8px;">
+        <div style="display:flex;gap:8px;align-items:center;background:#f0fdf4;border:2px solid #10b981;border-radius:12px;padding:6px 10px;">
+          <div style="flex:1;">
+            <input id="confEstColetorInput" type="text" placeholder="📡 Aguardando coletor..." 
+                   style="width:100%;background:transparent;border:none;outline:none;color:#1a1a2e;font-size:0.9em;font-weight:600;" 
+                   onkeydown="confEstColetorProcessar(event)">
+          </div>
+          <div id="confColetorStatus" style="font-size:0.75em;font-weight:700;color:#10b981;min-width:70px;text-align:right;"></div>
+        </div>
       </div>
       <div
         style="
@@ -11164,18 +11175,53 @@ function getOpItemGroups(g) {
         confEncModoLeitura = modo;
         var btnCam = document.getElementById("encModoCameraBtn");
         var btnCol = document.getElementById("encModoColetorBtn");
+        var coletorArea = document.getElementById("encColetorArea");
+
         if (btnCam) btnCam.style.background = (modo === "camera") ? "#2563eb" : "transparent";
         if (btnCam) btnCam.style.color = (modo === "camera") ? "#fff" : "#64748b";
         if (btnCol) btnCol.style.background = (modo === "coletor") ? "#10b981" : "transparent";
         if (btnCol) btnCol.style.color = (modo === "coletor") ? "#fff" : "#64748b";
+
+        if (coletorArea) {
+          coletorArea.style.display = (modo === "coletor") ? "block" : "none";
+        }
       }
 
       function confEncIniciarLeitura() {
         if (confEncModoLeitura === "coletor") {
-          toast("Modo coletor ativado — escaneie com o coletor", "info", 1400);
-          // O coletor pode ser usado manualmente via input ou scanner
+          var inp = document.getElementById("encColetorInput");
+          if (inp) inp.focus();
+          toast("Modo coletor ativado", "info", 1200);
         } else {
           abrirScanEnc();
+        }
+      }
+
+      function confEncColetorProcessar(e) {
+        if (e.key === "Enter") {
+          var inp = document.getElementById("encColetorInput");
+          if (!inp || !inp.value.trim()) return;
+          var codigo = inp.value.trim();
+          inp.value = "";
+          
+          // Mostra feedback visual temporário
+          var statusEl = document.getElementById("encColetorStatus");
+          if (statusEl) {
+            statusEl.innerHTML = '✅ ' + codigo;
+            statusEl.style.color = '#10b981';
+          }
+          
+          // Processa o código
+          registrarCodBarras(codigo);
+          
+          // Remove o feedback após 2 segundos
+          setTimeout(function() {
+            if (statusEl) {
+              statusEl.innerHTML = '';
+            }
+          }, 2000);
+          
+          inp.focus();
         }
       }
 
@@ -11271,13 +11317,25 @@ function getOpItemGroups(g) {
 
         // Toggle Câmera / Coletor + Iniciar (para Encaixadas)
         html +=
-          '<div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">' +
+          '<div style="display:flex;gap:8px;margin-bottom:4px;align-items:center;">' +
           '<div style="display:flex;background:#f1f5f9;border-radius:999px;padding:2px;flex-shrink:0;">' +
           '<button id="encModoCameraBtn" onclick="confEncSetModo(\'camera\')" style="padding:6px 12px;border:none;border-radius:999px;background:#2563eb;color:#fff;font-size:0.76em;font-weight:700;cursor:pointer;">📷 Câmera</button>' +
           '<button id="encModoColetorBtn" onclick="confEncSetModo(\'coletor\')" style="padding:6px 12px;border:none;border-radius:999px;background:transparent;color:#64748b;font-size:0.76em;font-weight:700;cursor:pointer;">📡 Coletor</button>' +
           '</div>' +
           '<button onclick="confEncIniciarLeitura()" style="padding:7px 14px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.8em;font-weight:700;cursor:pointer;flex-shrink:0;">▶️ Iniciar</button>' +
           '</div>' +
+
+          // Campo do coletor (linha de baixo)
+          '<div id="encColetorArea" style="display:none;margin-bottom:8px;">' +
+          '<div style="display:flex;gap:8px;align-items:center;background:#f0fdf4;border:2px solid #10b981;border-radius:12px;padding:6px 10px;margin:0 2px;">' +
+          '<div style="flex:1;">' +
+          '<input id="encColetorInput" type="text" placeholder="📡 Aguardando coletor..." ' +
+          'style="width:100%;background:transparent;border:none;outline:none;color:#1a1a2e;font-size:0.9em;font-weight:600;" ' +
+          'onkeydown="confEncColetorProcessar(event)">' +
+          '</div>' +
+          '<div id="encColetorStatus" style="font-size:0.75em;font-weight:700;color:#10b981;min-width:70px;text-align:right;"></div>' +
+          '</div></div>' +
+
           '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
           '<button onclick="compartilharCSVEncaixadas()" style="flex:1;padding:12px;border:none;border-radius:10px;background:#25d366;color:#fff;font-size:0.82em;font-weight:600;cursor:pointer;">💬 WhatsApp</button>' +
           '<button onclick="baixarCSVEncaixadas()" style="padding:12px 14px;border:none;border-radius:10px;background:#64748b;color:#fff;font-size:0.82em;font-weight:600;cursor:pointer;">💾</button>' +
@@ -11353,14 +11411,27 @@ function getOpItemGroups(g) {
         modal.id = "scanEncModal";
         modal.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:5000;display:flex;flex-direction:column;";
 
-        var qrBoxSize = Math.min(280, Math.floor(Math.min(window.innerWidth, window.innerHeight) * 0.7));
+        // Caixa estreita estilo leitor de código de barras
+        var qrBoxWidth = Math.min(320, Math.floor(window.innerWidth * 0.85));
+        var qrBoxHeight = Math.min(90, Math.floor(qrBoxWidth * 0.28));
 
         modal.innerHTML =
-          '<div style="background:#fff;padding:10px 14px;border-bottom:1px solid #e0e0e0;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;">' +
-          '<div><div style="font-size:0.95em;font-weight:700;color:#2563eb;">📷 Escanear Etiqueta</div><div id="scanEncStatus" style="font-size:0.7em;color:#888;">Aponte para o código de barras</div></div>' +
+          '<div style="background:#111;padding:10px 16px;border-bottom:1px solid #222;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;">' +
+          '<div><div style="font-size:0.95em;font-weight:700;color:#fff;">📷 Leitor de Código</div><div id="scanEncStatus" style="font-size:0.7em;color:#888;">Aponte para o código de barras</div></div>' +
           '<button onclick="pararScanEnc()" style="width:36px;height:36px;border:none;border-radius:8px;background:#fee2e2;color:#ef4444;font-size:1em;cursor:pointer;">✖</button>' +
           '</div>' +
-          '<div id="scanEncReader" style="flex:1;min-height:0;"></div>' +
+          
+          // Área da câmera com moldura estilo scanner
+          '<div style="flex:1;display:flex;align-items:center;justify-content:center;background:#000;padding:20px;">' +
+            '<div style="position:relative;width:' + qrBoxWidth + 'px;height:' + qrBoxHeight + 'px;border:3px solid #fff;border-radius:4px;box-shadow:0 0 0 8px rgba(255,255,255,0.1);overflow:hidden;">' +
+              '<div id="scanEncReader" style="width:100%;height:100%;"></div>' +
+              // Linha vermelha estilo scanner
+              '<div style="position:absolute;top:50%;left:0;width:100%;height:3px;background:linear-gradient(to right, transparent, #ef4444, transparent);animation:scannerLine 1.2s linear infinite;z-index:10;"></div>' +
+            '</div>' +
+          '</div>' +
+          
+          '<style>@keyframes scannerLine { 0%{top:15%} 50%{top:85%} 100%{top:15%} }</style>' +
+          
           '<div style="background:#111;padding:8px 14px;flex-shrink:0;display:flex;gap:8px;align-items:center;">' +
           '<input id="scanEncManual" type="text" placeholder="Digitar código manualmente" style="flex:1;padding:10px;border-radius:8px;border:1px solid #444;background:#222;color:#fff;font-size:0.85em;" />' +
           '<button onclick="processarScanEncManual()" style="padding:10px 14px;border:none;border-radius:8px;background:#2563eb;color:#fff;font-size:0.85em;font-weight:600;cursor:pointer;">OK</button>' +
@@ -11382,7 +11453,7 @@ function getOpItemGroups(g) {
             { facingMode: "environment" },
             {
               fps: 15,
-              qrbox: { width: qrBoxSize, height: Math.round(qrBoxSize * 0.6) },
+              qrbox: { width: qrBoxWidth - 20, height: qrBoxHeight - 20 },
               formatsToSupport: [0, 2, 3, 4, 5, 7, 8],
             },
             function (decodedText) {
@@ -13056,24 +13127,33 @@ function getOpItemGroups(g) {
         confModoLeitura = modo;
         var btnCam = document.getElementById("confModoCameraBtn");
         var btnCol = document.getElementById("confModoColetorBtn");
-        var inp = document.getElementById("confEstColetorInput");
+        var coletorArea = document.getElementById("confColetorArea");
+        var toggleContainer = document.getElementById("confToggleContainer");
 
         if (btnCam) btnCam.style.background = (modo === "camera") ? "#2563eb" : "transparent";
         if (btnCam) btnCam.style.color = (modo === "camera") ? "#fff" : "#64748b";
         if (btnCol) btnCol.style.background = (modo === "coletor") ? "#10b981" : "transparent";
         if (btnCol) btnCol.style.color = (modo === "coletor") ? "#fff" : "#64748b";
 
-        if (inp) {
-          inp.style.display = (modo === "coletor") ? "block" : "none";
-          if (modo === "coletor") inp.focus();
+        // Quando coletor é selecionado, esconde o toggle inteiro (botão câmera some)
+        if (toggleContainer) {
+          toggleContainer.style.display = (modo === "coletor") ? "none" : "flex";
+        }
+
+        if (coletorArea) {
+          coletorArea.style.display = (modo === "coletor") ? "block" : "none";
+        }
+        
+        if (modo === "coletor") {
+          var inp = document.getElementById("confEstColetorInput");
+          if (inp) inp.focus();
         }
       }
 
       function confIniciarLeitura() {
-        var inp = document.getElementById("confEstColetorInput");
         if (confModoLeitura === "coletor") {
+          var inp = document.getElementById("confEstColetorInput");
           if (inp) {
-            inp.style.display = "block";
             inp.focus();
             inp.placeholder = "📡 Aguardando coletor...";
           }
@@ -13090,7 +13170,23 @@ function getOpItemGroups(g) {
           if (!inp || !inp.value.trim()) return;
           var codigo = inp.value.trim();
           inp.value = "";
+          
+          // Mostra feedback visual temporário
+          var statusEl = document.getElementById("confColetorStatus");
+          if (statusEl) {
+            statusEl.innerHTML = '✅ ' + codigo;
+            statusEl.style.color = '#10b981';
+          }
+          
           confEstProcessarCodigo(codigo);
+          
+          // Remove o feedback após 2 segundos
+          setTimeout(function() {
+            if (statusEl) {
+              statusEl.innerHTML = '';
+            }
+          }, 2000);
+          
           inp.focus();
         }
       }
@@ -13098,11 +13194,12 @@ function getOpItemGroups(g) {
       function confEstScanBobina(key) {
         confEstCodBarrasAlvo = key;
         if (confModoLeitura === "coletor") {
+          // Força modo coletor
+          confSetModo('coletor');
           var inp = document.getElementById("confEstColetorInput");
           if (inp) {
-            inp.style.display = "block";
-            inp.placeholder = "📡 Aguardando coletor...";
             inp.focus();
+            inp.placeholder = "📡 Aguardando coletor...";
           }
           toast("Aponte o coletor para a etiqueta", "info", 1500);
           return;
@@ -13125,14 +13222,27 @@ function getOpItemGroups(g) {
         modal.id = "confEstScanModal";
         modal.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:5000;display:flex;flex-direction:column;";
 
-        var qrBoxSize = Math.min(280, Math.floor(Math.min(window.innerWidth, window.innerHeight) * 0.7));
+        // Caixa estreita estilo leitor de código de barras
+        var qrBoxWidth = Math.min(320, Math.floor(window.innerWidth * 0.85));
+        var qrBoxHeight = Math.min(90, Math.floor(qrBoxWidth * 0.28));
 
         modal.innerHTML =
-          '<div style="background:#fff;padding:10px 14px;border-bottom:1px solid #e0e0e0;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;">' +
-          '<div><div style="font-size:0.95em;font-weight:700;color:#2563eb;">📷 Escanear Etiqueta</div><div id="confEstScanStatus" style="font-size:0.7em;color:#888;">Aponte para o código de barras</div></div>' +
+          '<div style="background:#111;padding:10px 16px;border-bottom:1px solid #222;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;">' +
+          '<div><div style="font-size:0.95em;font-weight:700;color:#fff;">📷 Leitor de Código</div><div id="confEstScanStatus" style="font-size:0.7em;color:#888;">Aponte para o código de barras</div></div>' +
           '<button onclick="confEstPararScan()" style="width:36px;height:36px;border:none;border-radius:8px;background:#fee2e2;color:#ef4444;font-size:1em;cursor:pointer;">✖</button>' +
           '</div>' +
-          '<div id="confEstScanReader" style="flex:1;min-height:0;"></div>' +
+          
+          // Área da câmera com moldura estilo scanner
+          '<div style="flex:1;display:flex;align-items:center;justify-content:center;background:#000;padding:20px;">' +
+            '<div style="position:relative;width:' + qrBoxWidth + 'px;height:' + qrBoxHeight + 'px;border:3px solid #fff;border-radius:4px;box-shadow:0 0 0 8px rgba(255,255,255,0.1);overflow:hidden;">' +
+              '<div id="confEstScanReader" style="width:100%;height:100%;"></div>' +
+              // Linha vermelha estilo scanner
+              '<div style="position:absolute;top:50%;left:0;width:100%;height:3px;background:linear-gradient(to right, transparent, #ef4444, transparent);animation:scannerLine 1.2s linear infinite;z-index:10;"></div>' +
+            '</div>' +
+          '</div>' +
+          
+          '<style>@keyframes scannerLine { 0%{top:15%} 50%{top:85%} 100%{top:15%} }</style>' +
+          
           '<div style="background:#111;padding:8px 14px;flex-shrink:0;display:flex;gap:8px;align-items:center;">' +
           '<input id="confEstScanManual" type="text" placeholder="Digitar código manualmente" style="flex:1;padding:10px;border-radius:8px;border:1px solid #444;background:#222;color:#fff;font-size:0.85em;" />' +
           '<button onclick="confEstManualOK()" style="padding:10px 14px;border:none;border-radius:8px;background:#2563eb;color:#fff;font-size:0.85em;font-weight:600;cursor:pointer;">OK</button>' +
@@ -13154,7 +13264,7 @@ function getOpItemGroups(g) {
             { facingMode: "environment" },
             {
               fps: 15,
-              qrbox: { width: qrBoxSize, height: Math.round(qrBoxSize * 0.6) },
+              qrbox: { width: qrBoxWidth - 20, height: qrBoxHeight - 20 },
               formatsToSupport: [0, 2, 3, 4, 5, 7, 8],
             },
             function(decodedText) {
@@ -17047,5 +17157,5 @@ async function shareFotos() {
         </div>
       </div>
     </div>
-  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ee22e6bd94630c',t:'MTc4NDY3ODEyNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ee6d849c41f5ce',t:'MTc4NDY4MTE4MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ee22e6bd94630c',t:'MTc4NDY3ODEyNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ee84c7cfce8762',t:'MTc4NDY4MjEzMw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
