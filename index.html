@@ -2997,6 +2997,7 @@
           <button id="confModoCameraBtn" onclick="confSetModo('camera')" style="padding:6px 14px;border:none;border-radius:999px;background:#2563eb;color:#fff;font-size:0.78em;font-weight:700;cursor:pointer;">📷 Câmera</button>
           <button id="confModoColetorBtn" onclick="confSetModo('coletor')" style="padding:6px 14px;border:none;border-radius:999px;background:transparent;color:#64748b;font-size:0.78em;font-weight:700;cursor:pointer;">📡 Coletor</button>
         </div>
+        <button id="btnConfEnderecoBip" onclick="confToggleEnderecoAoBip()" title="Ao bipar, pedir endereço" style="padding:8px 10px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:0.78em;font-weight:700;cursor:pointer;flex-shrink:0;">📌 End.</button>
         <button onclick="confIniciarLeitura()" style="padding:8px 16px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.82em;font-weight:700;cursor:pointer;flex-shrink:0;">▶️ Iniciar</button>
       </div>
 
@@ -6176,14 +6177,8 @@ var estObservacoes = {};
 
       function getUidEstoque(e) {
         if (!e) return "";
-        var idEstavel = getIdBobinaEstavel(e);
-        if (idEstavel) {
-          if (e.__UID && e.__UID !== idEstavel) e.__UID_ANTIGO = e.__UID;
-          e.__UID = idEstavel;
-          e.__BID = idEstavel;
-          e.__BID_KEY = getChaveIdentidadeBobina(e);
-          return e.__UID;
-        }
+        // UID é físico e exclusivo por bobina. Nunca pode ser calculado apenas
+        // por item/versão/peso/data, pois duas bobinas idênticas precisam de UIDs distintos.
         if (!e.__UID) e.__UID = gerarUidBobina();
         return e.__UID;
       }
@@ -6339,11 +6334,15 @@ var estObservacoes = {};
 
       function garantirUidEstoque() {
         var alterou = false;
+        var usados = {};
         for (var i = 0; i < estoque.length; i++) {
-          if (estoque[i] && !estoque[i].__UID) {
+          if (!estoque[i]) continue;
+          // Corrige também UIDs duplicados gerados pelas versões anteriores.
+          if (!estoque[i].__UID || usados[estoque[i].__UID]) {
             estoque[i].__UID = gerarUidBobina();
             alterou = true;
           }
+          usados[estoque[i].__UID] = true;
         }
         if (alterou) {
           try {
@@ -6413,7 +6412,6 @@ var estObservacoes = {};
           for (var j = 0; j < atual.length; j++) {
             var e = atual[j];
             if (!e) continue;
-            var idEstavel = getIdBobinaEstavel(e);
             var ka = chaveBobinaEstoque(
               getItemEstoque(e),
               e["VERSAO"] || "",
@@ -6421,15 +6419,7 @@ var estObservacoes = {};
             );
             var antigo = filas[ka] && filas[ka].length ? filas[ka].shift() : null;
 
-            if (idEstavel) {
-              if (antigo && antigo.__UID && antigo.__UID !== idEstavel) {
-                migrarInfoUidBobina(antigo.__UID, idEstavel, e);
-              }
-              e.__UID = idEstavel;
-              e.__BID = idEstavel;
-              e.__BID_KEY = getChaveIdentidadeBobina(e);
-              estaveis++;
-            } else if (antigo && antigo.__UID) {
+            if (antigo && antigo.__UID) {
               e.__UID = antigo.__UID;
               if (antigo.__SPLIT_GROUP) e.__SPLIT_GROUP = antigo.__SPLIT_GROUP;
               if (antigo.__SPLIT_INDEX) e.__SPLIT_INDEX = antigo.__SPLIT_INDEX;
@@ -6594,7 +6584,7 @@ var estObservacoes = {};
       function getEnderecoMini(bob) {
         var uid = getUidBobina(bob);
         var endereco = getEnderecoBobinaAtual(bob.item, bob.ver, bob.qtde, uid);
-        if (!endereco) return "";
+        if (!endereco || /^ENCAIXE\s+OP/i.test(String(endereco))) return "";
         var atual = getConfStatusAtual(bob.item, bob.ver, bob.qtde, uid);
         var cor = atual && atual.endereco ? "#10b981" : "#2563eb";
         return (
@@ -13561,6 +13551,29 @@ function getOpItemGroups(g) {
       //                    SCANNER CÓDIGO DE BARRAS - CONFERÊNCIA
       // ================================================================
       var confModoLeitura = "camera"; // "camera" ou "coletor"
+      var confPedirEnderecoAoBip = true;
+
+      function confToggleEnderecoAoBip() {
+        confPedirEnderecoAoBip = !confPedirEnderecoAoBip;
+        var btn = document.getElementById("btnConfEnderecoBip");
+        if (btn) {
+          btn.textContent = confPedirEnderecoAoBip ? "📌 End." : "⚡ Direto";
+          btn.style.background = confPedirEnderecoAoBip ? "#f59e0b" : "#10b981";
+          btn.title = confPedirEnderecoAoBip ? "Ao bipar, pedir endereço" : "Ao bipar, confirmar direto";
+        }
+      }
+
+      function confTratarBobinaLida(key) {
+        if (confPedirEnderecoAoBip) { confPedirEndereco(key); return; }
+        var partes = String(key || "").split("_");
+        var uid = getUidFromConfKey(key);
+        confStatus[key] = { status: "ok", endereco: "", observacao: "", uid: uid, item: partes[0] || "", versao: partes[1] || "", qtde: partes[2] || "" };
+        salvarConferenciaNuvem(true);
+        confRender();
+        var inp = document.getElementById("confEstColetorInput");
+        if (inp) inp.focus({ preventScroll: true });
+        toast((partes[0] || "Bobina") + " confirmada", "success", 1200);
+      }
 
       function confSetModo(modo) {
         confModoLeitura = modo;
@@ -13781,7 +13794,7 @@ function getOpItemGroups(g) {
             confEstPararScan();
             if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
             toast("✔ Código vinculado: " + codigoLimpo, "success", 1500);
-            confPedirEndereco(alvo);
+            confTratarBobinaLida(alvo);
           } else {
             if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
             toast("✔ Código atualizado: " + codigoLimpo, "success", 1500);
@@ -13800,7 +13813,7 @@ function getOpItemGroups(g) {
             confEstPararScan();
             if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
             toast("✔ Bobina encontrada: " + codigoLimpo, "success", 1500);
-            confPedirEndereco(keyEncontrada);
+            confTratarBobinaLida(keyEncontrada);
           } else {
             if (navigator.vibrate) navigator.vibrate([50]);
             toast("Já conferida: " + codigoLimpo, "warning", 1500);
@@ -17621,5 +17634,5 @@ async function shareFotos() {
           <p>Carregando fórmulas...</p>
         </div>
       </div>
-    </div><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1f400d50fc3c547',t:'MTc4NDczOTY0Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    </div><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1f498029de3f221',t:'MTc4NDc0NTgzNQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
