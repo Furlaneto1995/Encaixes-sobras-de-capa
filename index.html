@@ -3217,7 +3217,7 @@
       </div>
       <div id="vincCodStats" style="padding:0 14px 8px;display:none;">
         <div style="display:flex;gap:6px;">
-          <div style="background:#fff;padding:6px 10px;border-radius:8px;text-align:center;border:1px solid #e0e0e0;flex:1;">
+          <div id="vincCodOpsCard" style="background:#fff;padding:6px 10px;border-radius:8px;text-align:center;border:1px solid #e0e0e0;flex:1;">
             <div style="font-size:1em;color:#8b5cf6;font-weight:700;" id="vincCodTotalOPs">0</div>
             <div style="font-size:0.55em;color:#888;">OPs</div>
           </div>
@@ -12014,7 +12014,14 @@ function getOpItemGroups(g) {
           }
         }
         statsEl.style.display = filtradas.length > 0 ? "block" : "none";
-        document.getElementById("vincCodTotalOPs").textContent = filtradas.length;
+        // “OPs” só é relevante para registros do histórico de encaixadas.
+        var totalOpsHistorico = 0;
+        for (var fo = 0; fo < filtradas.length; fo++) {
+          if (filtradas[fo].tipo !== "estoque") totalOpsHistorico++;
+        }
+        var opsCard = document.getElementById("vincCodOpsCard");
+        if (opsCard) opsCard.style.display = totalOpsHistorico > 0 ? "block" : "none";
+        document.getElementById("vincCodTotalOPs").textContent = totalOpsHistorico;
         document.getElementById("vincCodComCod").textContent = totalComCod;
         document.getElementById("vincCodSemCod").textContent = totalSemCod;
 
@@ -17436,5 +17443,5 @@ async function shareFotos() {
           <p>Carregando fórmulas...</p>
         </div>
       </div>
-    </div><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ef402e1c98326e',t:'MTc4NDY4OTgwOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    </div><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ef4623be47a09c',t:'MTc4NDY5MDA1Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
