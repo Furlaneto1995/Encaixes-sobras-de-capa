@@ -3453,8 +3453,8 @@
       var confEstScanAtivo = false;
       var confEstScanLeitor = null;
       var confEstCodBarrasAlvo = null;
-      var toleranciaFilme = -1;
-      var toleranciaSaco = -1;
+      var toleranciaFilme = 0;
+      var toleranciaSaco = 0;
       var ultimoEndereco = "";
       var estFiltros = { enc: true, sem: true, metal: true, oculto: true };
       var confFiltros = {
@@ -4595,9 +4595,9 @@ var estObservacoes = {};
 
           var tol;
           if (ap === "saco" || ap === "saco picotado" || ap === "folha") {
-            tol = toleranciaSaco >= 0 ? toleranciaSaco : 2;
+            tol = toleranciaSaco >= 0 ? toleranciaSaco : 0;
           } else if (ap === "filme" || ap === "filme picotado") {
-            tol = toleranciaFilme >= 0 ? toleranciaFilme : 10;
+            tol = toleranciaFilme >= 0 ? toleranciaFilme : 0;
           } else {
             tol = 0;
           }
@@ -6962,19 +6962,141 @@ function getOpItemGroups(g) {
       // ================================================================
       //                    CÂMERA
       // ================================================================
-      async function openCam(bi) {
+      // ✅ Scanner de código de barras antes de tirar foto
+      var openCamScanLeitor = null;
+      var openCamScanAtivo = false;
+
+      async function openCamCodigoBarras(bi) {
+        var b = B[bi];
+        if (typeof Html5Qrcode === "undefined") {
+          toast("Leitor não disponível — abrindo câmera direto", "warning");
+          openCamDireto(bi);
+          return;
+        }
+
+        openCamScanAtivo = true;
+        var existente = document.getElementById("openCamScanModal");
+        if (existente) existente.remove();
+
+        var modal = document.createElement("div");
+        modal.id = "openCamScanModal";
+        modal.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:5000;display:flex;flex-direction:column;";
+
+        var qrBoxSize = Math.min(280, Math.floor(Math.min(window.innerWidth, window.innerHeight) * 0.7));
+
+        modal.innerHTML =
+          '<div style="background:#fff;padding:10px 14px;border-bottom:1px solid #e0e0e0;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;">' +
+          '<div><div style="font-size:0.95em;font-weight:700;color:#ef4444;">🏷️ Código de Barras</div><div id="openCamScanStatus" style="font-size:0.7em;color:#888;">OP ' + b.enc + ' — ' + b.item + '/v' + b.ver + '<br>Escaneie a etiqueta antes da foto</div></div>' +
+          '<button onclick="openCamScanPular(' + bi + ')" style="padding:8px 12px;border:none;border-radius:8px;background:#fef3c7;color:#d97706;font-size:0.78em;font-weight:600;cursor:pointer;">Pular ➜</button>' +
+          '</div>' +
+          '<div id="openCamScanReader" style="flex:1;min-height:0;"></div>' +
+          '<div style="background:#111;padding:8px 14px;flex-shrink:0;display:flex;gap:8px;align-items:center;">' +
+          '<input id="openCamScanManual" type="text" placeholder="Digitar código manualmente" style="flex:1;padding:10px;border-radius:8px;border:1px solid #444;background:#222;color:#fff;font-size:0.85em;" />' +
+          '<button onclick="openCamScanManualOK(' + bi + ')" style="padding:10px 14px;border:none;border-radius:8px;background:#2563eb;color:#fff;font-size:0.85em;font-weight:600;cursor:pointer;">OK</button>' +
+          '</div>';
+
+        document.body.appendChild(modal);
+
+        window.openCamScanManualOK = function(biIdx) {
+          var inp = document.getElementById("openCamScanManual");
+          if (inp && inp.value.trim()) {
+            openCamScanProcessar(biIdx, inp.value.trim());
+            inp.value = "";
+          }
+        };
+
+        try {
+          openCamScanLeitor = new Html5Qrcode("openCamScanReader");
+          openCamScanLeitor.start(
+            { facingMode: "environment" },
+            {
+              fps: 15,
+              qrbox: { width: qrBoxSize, height: Math.round(qrBoxSize * 0.6) },
+              formatsToSupport: [0, 2, 3, 4, 5, 7, 8],
+            },
+            function(decodedText) {
+              if (openCamScanAtivo) openCamScanProcessar(bi, decodedText);
+            },
+            function() {}
+          ).catch(function(err) {
+            toast("Erro câmera: " + err, "error");
+            openCamScanFechar(bi);
+          });
+        } catch (err) {
+          toast("Erro scanner: " + err, "error");
+          openCamScanFechar(bi);
+        }
+      }
+
+      async function openCamScanProcessar(bi, codigo) {
+        var codigoLimpo = String(codigo || "").trim();
+        if (!codigoLimpo) return;
+
+        if (codigoLimpo.indexOf("-10-") !== 0) {
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+          var st = document.getElementById("openCamScanStatus");
+          if (st) st.textContent = "Inválido — precisa começar com -10-";
+          return;
+        }
+
+        openCamScanAtivo = false;
+        var b = B[bi];
+
+        // Salvar o código
+        try {
+          var chave = (b.item || "") + "|" + (b.ver || "") + "|" + (b.qtde || "");
+          var docId = "cb_" + chave.replace(/\|/g, "_");
+          await db.collection("datas_manuais").doc(docId).set({
+            tipo: "codigobarras",
+            item: b.item || "",
+            versao: b.ver || "",
+            qtde: b.qtde || "",
+            codigo_barras: codigoLimpo,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+          });
+          if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+          toast("✔ Código salvo: " + codigoLimpo, "success", 1500);
+        } catch (err) {
+          toast("Erro ao salvar código: " + err.message, "error");
+        }
+
+        // Fechar scanner e abrir câmera de foto
+        openCamScanFechar(bi);
+      }
+
+      function openCamScanPular(bi) {
+        openCamScanFechar(bi);
+      }
+
+      async function openCamScanFechar(bi) {
+        openCamScanAtivo = false;
+        try {
+          if (openCamScanLeitor) {
+            await openCamScanLeitor.stop();
+            openCamScanLeitor.clear();
+            openCamScanLeitor = null;
+          }
+        } catch (e) { openCamScanLeitor = null; }
+        var modal = document.getElementById("openCamScanModal");
+        if (modal) modal.remove();
+        // Abrir câmera de foto
+        openCamDireto(bi);
+      }
+
+      // openCam sem verificação de código (chamado depois do scanner ou quando já tem código)
+      async function openCamDireto(bi) {
         curB = bi;
         var b = B[bi];
         camEtapa = 1;
         fotoEtiqueta = null;
         fotoRotacao = 0;
 
-        // ✅ Verificar se a bobina já tem código de barras
+        // Buscar código atual pra mostrar
         var codBarrasAtual = "";
         try {
           var chaveEnc = (b.item || "") + "|" + (b.ver || "") + "|" + (b.qtde || "");
-          var docIdCod = chaveEnc.replace(/\|/g, "_");
-          var docCod = await db.collection("codigos_barras").doc(docIdCod).get();
+          var docIdCod = "cb_" + chaveEnc.replace(/\|/g, "_");
+          var docCod = await db.collection("datas_manuais").doc(docIdCod).get();
           if (docCod.exists && docCod.data().codigo_barras) {
             codBarrasAtual = docCod.data().codigo_barras;
           }
@@ -6982,18 +7104,10 @@ function getOpItemGroups(g) {
 
         var codAviso = codBarrasAtual
           ? '<div style="margin-top:4px;font-size:0.8em;background:#dcfce7;color:#10b981;padding:3px 8px;border-radius:6px;display:inline-block;">🏷️ Código: ' + codBarrasAtual + '</div>'
-          : '<div style="margin-top:4px;font-size:0.8em;background:#fee2e2;color:#ef4444;padding:3px 8px;border-radius:6px;display:inline-block;">⚠️ Sem código de barras — vincule depois</div>';
+          : '<div style="margin-top:4px;font-size:0.8em;background:#fee2e2;color:#ef4444;padding:3px 8px;border-radius:6px;display:inline-block;">⚠️ Sem código de barras</div>';
 
         document.getElementById("ci").innerHTML =
-          "OP <strong>" +
-          b.enc +
-          "</strong> | " +
-          b.item +
-          " / v" +
-          b.ver +
-          " | " +
-          b.qtde +
-          " kg" +
+          "OP <strong>" + b.enc + "</strong> | " + b.item + " / v" + b.ver + " | " + b.qtde + " kg" +
           codAviso +
           '<div style="margin-top:4px;font-size:0.85em;background:#eff6ff;padding:3px 8px;border-radius:6px;display:inline-block;">📸 Passo 1 de 2: Etiqueta</div>';
         document.getElementById("cv").style.display = "block";
@@ -7002,17 +7116,38 @@ function getOpItemGroups(g) {
         document.getElementById("cm").classList.add("active");
         try {
           strm = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: { ideal: "environment" },
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-            },
+            video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
           });
           document.getElementById("cv").srcObject = strm;
         } catch (e) {
           toast("Erro ao abrir câmera", "error");
           xM("cm");
         }
+      }
+
+      async function openCam(bi) {
+        curB = bi;
+        var b = B[bi];
+
+        // ✅ Verificar se a bobina já tem código de barras
+        var codBarrasAtual = "";
+        try {
+          var chaveEnc = (b.item || "") + "|" + (b.ver || "") + "|" + (b.qtde || "");
+          var docIdCod = "cb_" + chaveEnc.replace(/\|/g, "_");
+          var docCod = await db.collection("datas_manuais").doc(docIdCod).get();
+          if (docCod.exists && docCod.data().codigo_barras) {
+            codBarrasAtual = docCod.data().codigo_barras;
+          }
+        } catch (e) {}
+
+        // Se não tem código, abrir scanner ANTES da câmera
+        if (!codBarrasAtual) {
+          openCamCodigoBarras(bi);
+          return;
+        }
+
+        // Já tem código — abrir câmera direto
+        openCamDireto(bi);
       }
 
       function camBt(s) {
@@ -9500,21 +9635,21 @@ function getOpItemGroups(g) {
         var filmeVal = toleranciaFilme >= 0 ? toleranciaFilme : "";
         var sacoVal = toleranciaSaco >= 0 ? toleranciaSaco : "";
         var filmeStatus =
-          toleranciaFilme >= 0 ? toleranciaFilme + "cm" : "auto (10cm)";
+          toleranciaFilme >= 0 ? toleranciaFilme + "cm" : "auto (0cm)";
         var sacoStatus =
-          toleranciaSaco >= 0 ? toleranciaSaco + "cm" : "auto (2cm)";
+          toleranciaSaco >= 0 ? toleranciaSaco + "cm" : "auto (0cm)";
 
         criarModal(
           "tolModal",
           '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:4px;">📏 Tolerância de Largura</h3>' +
             '<p style="font-size:0.72em;color:#888;margin-bottom:14px;">Quantos cm a mais a bobina pode ter em relação à OP</p>' +
             '<div style="background:#eff6ff;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:0.7em;color:#555;">' +
-            "💡 <strong>Padrão:</strong> Filme = 10cm | Saco/Folha = 2cm<br>" +
+            "💡 <strong>Padrão:</strong> Filme = 0cm | Saco/Folha = 0cm<br>" +
             "⚙️ Campo vazio = usa o padrão" +
             "</div>" +
             '<label style="font-size:0.7em;color:#888;display:block;margin-bottom:4px;">🎞️ Filme / Filme picotado</label>' +
             '<div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">' +
-            '<input type="number" id="tolFilmeInput" placeholder="auto (10cm)" value="' +
+            '<input type="number" id="tolFilmeInput" placeholder="auto (0cm)" value="' +
             filmeVal +
             '" step="0.5" min="0" max="30" inputmode="decimal" ' +
             'style="flex:1;padding:11px 12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;">' +
@@ -9522,7 +9657,7 @@ function getOpItemGroups(g) {
             "</div>" +
             '<label style="font-size:0.7em;color:#888;display:block;margin-bottom:4px;">📦 Saco / Saco picotado / Folha</label>' +
             '<div style="display:flex;align-items:center;gap:6px;margin-bottom:14px;">' +
-            '<input type="number" id="tolSacoInput" placeholder="auto (2cm)" value="' +
+            '<input type="number" id="tolSacoInput" placeholder="auto (0cm)" value="' +
             sacoVal +
             '" step="0.5" min="0" max="30" inputmode="decimal" ' +
             'style="flex:1;padding:11px 12px;border-radius:10px;border:1px solid #e0e0e0;background:#f8fafc;color:#1a1a2e;font-size:0.9em;">' +
@@ -9571,9 +9706,9 @@ function getOpItemGroups(g) {
         fecharModal("tolModal");
 
         var msgFilme =
-          toleranciaFilme >= 0 ? toleranciaFilme + "cm" : "auto (10cm)";
+          toleranciaFilme >= 0 ? toleranciaFilme + "cm" : "auto (0cm)";
         var msgSaco =
-          toleranciaSaco >= 0 ? toleranciaSaco + "cm" : "auto (2cm)";
+          toleranciaSaco >= 0 ? toleranciaSaco + "cm" : "auto (0cm)";
         toast(
           "Tolerância: Filme " + msgFilme + " | Saco " + msgSaco,
           "success",
@@ -9659,11 +9794,13 @@ function getOpItemGroups(g) {
           // ✅ Buscar códigos de barras das bobinas do estoque que foram encaixadas
           var codBarrasMapa = {};
           try {
-            var codSnap = await db.collection("codigos_barras").get();
+            var codSnap = await db.collection("datas_manuais").get();
             codSnap.forEach(function(doc) {
               var d = doc.data();
-              var chave = d.item + "|" + d.versao + "|" + d.qtde;
-              if (d.codigo_barras) codBarrasMapa[chave] = d.codigo_barras;
+              if (d.tipo === "codigobarras" && d.codigo_barras) {
+                var chave = d.item + "|" + d.versao + "|" + d.qtde;
+                codBarrasMapa[chave] = d.codigo_barras;
+              }
             });
           } catch (e) {}
 
@@ -11448,14 +11585,18 @@ function getOpItemGroups(g) {
             });
           });
 
-          // 2. Carregar códigos das não encaixadas do Firebase
-          var codSnap = await db.collection("codigos_barras").get();
+          // 2. Carregar códigos das não encaixadas do Firebase (datas_manuais com prefixo cb_)
           var codMapaEstoque = {}; // chave -> codigo_barras
-          codSnap.forEach(function(doc) {
-            var d = doc.data();
-            var chave = d.item + "|" + d.versao + "|" + d.qtde;
-            if (d.codigo_barras) codMapaEstoque[chave] = d.codigo_barras;
-          });
+          try {
+            var codSnap = await db.collection("datas_manuais").get();
+            codSnap.forEach(function(doc) {
+              var d = doc.data();
+              if (d.tipo === "codigobarras" && d.codigo_barras) {
+                var chave = d.item + "|" + d.versao + "|" + d.qtde;
+                codMapaEstoque[chave] = d.codigo_barras;
+              }
+            });
+          } catch (e) { console.error("Erro ao carregar códigos:", e); }
 
           // 3. Adicionar bobinas do estoque (não encaixadas)
           var itensComEncaixe = {};
@@ -11641,8 +11782,8 @@ function getOpItemGroups(g) {
 
           if (regEncontrado && regEncontrado.tipo === "estoque") {
             var chave = regEncontrado.item + "|" + regEncontrado.versao + "|" + regEncontrado.qtde;
-            var docIdCod = chave.replace(/\|/g, "_");
-            await db.collection("codigos_barras").doc(docIdCod).delete();
+            var docIdCod = "cb_" + chave.replace(/\|/g, "_");
+            await db.collection("datas_manuais").doc(docIdCod).delete();
           } else if (regEncontrado && regEncontrado.firebaseDoc) {
             await db.collection("encaixes").doc(docId).update({
               codigo_barras: ""
@@ -11791,10 +11932,11 @@ function getOpItemGroups(g) {
           }
 
           if (regEncontrado && regEncontrado.tipo === "estoque") {
-            // Não encaixada: salvar na coleção codigos_barras
+            // Não encaixada: salvar em datas_manuais com prefixo cb_ (tem permissão)
             var chave = regEncontrado.item + "|" + regEncontrado.versao + "|" + regEncontrado.qtde;
-            var docIdCod = chave.replace(/\|/g, "_");
-            await db.collection("codigos_barras").doc(docIdCod).set({
+            var docIdCod = "cb_" + chave.replace(/\|/g, "_");
+            await db.collection("datas_manuais").doc(docIdCod).set({
+              tipo: "codigobarras",
               item: regEncontrado.item,
               versao: regEncontrado.versao,
               qtde: regEncontrado.qtde,
@@ -12028,7 +12170,23 @@ function getOpItemGroups(g) {
           var e = estoque[i],
             itemCode = getItemEstoque(e),
             desc = e["DESCRICAO"] || "";
-          if (consumirEncaixeFinalizadoEstoque(e, mapaFinalizadosConf).tem) continue;
+          var encFinResult = consumirEncaixeFinalizadoEstoque(e, mapaFinalizadosConf);
+          // ✅ Se a bobina já foi encaixada com foto, marcar automaticamente como OK na conferência
+          if (encFinResult.tem) {
+            var uidEncFin = e.__UID || "";
+            var keyEncFin = makeConfKey(itemCode, e["VERSAO"] || "", parseFloat(e["QTDE_ESTOQUE"]) || 0, uidEncFin);
+            if (!confStatus[keyEncFin] || confStatus[keyEncFin].status !== "ok") {
+              confStatus[keyEncFin] = {
+                status: "ok",
+                endereco: "ENCAIXE OP " + encFinResult.eop,
+                uid: uidEncFin,
+                item: itemCode,
+                versao: e["VERSAO"] || "",
+                qtde: String(parseFloat(e["QTDE_ESTOQUE"]) || 0),
+              };
+            }
+            continue;
+          }
           var larg = extrairLargura(desc),
             esp = extrairEspessura(desc),
             comp = normalizarComposicao(e["COMPOSICAO"] || ""),
@@ -12506,10 +12664,47 @@ function getOpItemGroups(g) {
         var listaRemover = [],
           listaTodas = [];
 
+        // ✅ Criar mapa de bobinas já encaixadas com foto
+        var mapaFinalizadosFinalizar = criarMapaEncaixesFinalizados();
+
         for (var i = 0; i < estoque.length; i++) {
           var ic = getItemEstoque(estoque[i]);
           var categoriaConf = confCategoriaBobina(ic);
           if (categoriaConf !== tipoSelecionado) continue;
+
+          // ✅ Se a bobina já foi encaixada com foto, contar como encontrada automaticamente
+          var encFinResult = consumirEncaixeFinalizadoEstoque(estoque[i], mapaFinalizadosFinalizar);
+          if (encFinResult.tem) {
+            var uidEncFin = estoque[i].__UID || "";
+            var qtdeEncFin = parseFloat(estoque[i]["QTDE_ESTOQUE"]) || 0;
+            var verEncFin = estoque[i]["VERSAO"] || "";
+            var keyEncFin = makeConfKey(ic, verEncFin, qtdeEncFin, uidEncFin);
+
+            listaTodas.push({
+              item: ic,
+              versao: verEncFin,
+              descricao: estoque[i]["DESCRICAO"] || "",
+              qtde: qtdeEncFin,
+              uid: uidEncFin,
+              bobinaId: uidEncFin,
+              identidade: getChaveIdentidadeBobina(estoque[i]),
+              dataFinalizacaoOP: getDataFinalizacaoOP(estoque[i]),
+              confKey: keyEncFin,
+              tipo: confTipoRegistro(ic),
+              endereco: "ENCAIXE OP " + encFinResult.eop,
+              observacao: "",
+              status: "ENCONTRADA",
+              adicional: false,
+              isManual: false,
+              estoqueIdx: i,
+              splitGroup: estoque[i].__SPLIT_GROUP || "",
+              splitIndex: parseInt(estoque[i].__SPLIT_INDEX) || 0,
+              splitTotal: parseInt(estoque[i].__SPLIT_TOTAL) || 0,
+              divisao: "",
+            });
+            encontradas++;
+            continue;
+          }
 
           var uidEstoque = getUidEstoque(estoque[i]);
           var qtde = parseFloat(estoque[i]["QTDE_ESTOQUE"]) || 0;
@@ -14141,9 +14336,9 @@ async function shareFotos() {
 
             var tol;
             if (ap === "saco" || ap === "saco picotado" || ap === "folha") {
-              tol = toleranciaSaco >= 0 ? toleranciaSaco : 2;
+              tol = toleranciaSaco >= 0 ? toleranciaSaco : 0;
             } else if (ap === "filme" || ap === "filme picotado") {
-              tol = toleranciaFilme >= 0 ? toleranciaFilme : 10;
+              tol = toleranciaFilme >= 0 ? toleranciaFilme : 0;
             } else {
               tol = 0;
             }
@@ -14494,9 +14689,9 @@ async function shareFotos() {
           html += "</div>";
 
           var tolFilmeAtual =
-            toleranciaFilme >= 0 ? toleranciaFilme + "cm ⚙️" : "10cm (auto)";
+            toleranciaFilme >= 0 ? toleranciaFilme + "cm ⚙️" : "0cm (auto)";
           var tolSacoAtual =
-            toleranciaSaco >= 0 ? toleranciaSaco + "cm ⚙️" : "2cm (auto)";
+            toleranciaSaco >= 0 ? toleranciaSaco + "cm ⚙️" : "0cm (auto)";
           html +=
             '<div style="margin-top:8px;font-size:0.68em;color:#888;background:#f8fafc;padding:6px 8px;border-radius:6px;">';
           html +=
@@ -14557,9 +14752,9 @@ async function shareFotos() {
 
               var tol;
               if (ap === "saco" || ap === "saco picotado" || ap === "folha") {
-                tol = toleranciaSaco >= 0 ? toleranciaSaco : 2;
+                tol = toleranciaSaco >= 0 ? toleranciaSaco : 0;
               } else if (ap === "filme" || ap === "filme picotado") {
-                tol = toleranciaFilme >= 0 ? toleranciaFilme : 10;
+                tol = toleranciaFilme >= 0 ? toleranciaFilme : 0;
               } else {
                 tol = 0;
               }
@@ -16782,5 +16977,5 @@ async function shareFotos() {
         </div>
       </div>
     </div>
-  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ee04fafdf864c4',t:'MTc4NDY3Njg5OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ee22e6bd94630c',t:'MTc4NDY3ODEyNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
