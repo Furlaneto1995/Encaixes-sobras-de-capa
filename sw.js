@@ -1,4 +1,4 @@
-var CACHE_NAME = 'encaixes-v6'; // Subimos para v5 para forçar a atualização limpa
+var CACHE_NAME = 'encaixes-v7'; // Subimos para v5 para forçar a atualização limpa
 
 var urlsToCache = [
     './',
