@@ -4,7 +4,6 @@
     "description": "Importar → Fotografar → Finalizar",
     "start_url": "./index.html",
     "display": "standalone",
-    "orientation": "portrait",
     "background_color": "#1a1a2e",
     "theme_color": "#4169E1",
     "icons": [
