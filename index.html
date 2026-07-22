@@ -3200,15 +3200,15 @@
         </div>
         <button class="btn-close" onclick="xM('vincCodModal')">✖</button>
       </div>
-      <div style="padding:10px 14px;flex-shrink:0;display:flex;gap:6px;">
-        <input type="text" id="vincCodBusca" inputmode="numeric" placeholder="🔍 OP" style="flex:1;min-width:0;padding:10px;border-radius:8px;border:1px solid #d1d5db;font-size:0.9em;" oninput="vincCodFiltrar()">
-        <input type="text" id="vincCodBuscaItem" placeholder="Item" style="flex:1;min-width:0;padding:10px;border-radius:8px;border:1px solid #d1d5db;font-size:0.9em;" oninput="vincCodFiltrar()">
+      <div style="padding:10px 14px;flex-shrink:0;display:flex;gap:6px;flex-wrap:wrap;">
+        <input type="text" id="vincCodBusca" inputmode="numeric" placeholder="🔍 OP" style="flex:1 1 120px;min-width:0;padding:10px;border-radius:8px;border:1px solid #d1d5db;font-size:0.9em;" oninput="vincCodFiltrar()">
+        <input type="text" id="vincCodBuscaItem" placeholder="Item" style="flex:1 1 120px;min-width:0;padding:10px;border-radius:8px;border:1px solid #d1d5db;font-size:0.9em;" oninput="vincCodFiltrar()">
         <input type="number" id="vincCodBuscaKg" placeholder="Kg" step="0.1" inputmode="decimal" style="width:62px;min-width:0;padding:10px 6px;border-radius:8px;border:1px solid #d1d5db;font-size:0.9em;" oninput="vincCodFiltrar()">
         <button onclick="vincCodLimparBusca()" title="Limpar busca" style="padding:10px;border:none;border-radius:8px;background:#e2e8f0;color:#64748b;font-size:0.85em;font-weight:600;cursor:pointer;">✕</button>
         <button onclick="vincCodCarregarOPs()" style="padding:10px 12px;border:none;border-radius:8px;background:#2563eb;color:#fff;font-size:0.85em;font-weight:600;cursor:pointer;">🔍</button>
         <button id="vincCodBtnColetor" onclick="vincCodToggleColetor()" style="padding:10px 14px;border:none;border-radius:8px;background:#6b7280;color:#fff;font-size:0.8em;font-weight:600;cursor:pointer;">📡 Coletor</button>
       </div>
-      <div id="vincCodFiltros" style="padding:0 14px 8px;display:flex;gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
+      <div id="vincCodFiltros" style="padding:0 14px 8px;display:flex;gap:5px;flex-wrap:wrap;overflow-x:hidden;">
         <button data-vf="encaixadas" onclick="vincCodToggleFiltro('encaixadas')" style="padding:7px 10px;border:2px solid #2563eb;border-radius:999px;background:#eff6ff;color:#2563eb;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">🔗 Encaixadas</button>
         <button data-vf="semencaixe" onclick="vincCodToggleFiltro('semencaixe')" style="padding:7px 10px;border:2px solid #2563eb;border-radius:999px;background:#eff6ff;color:#2563eb;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">📦 Sem encaixe</button>
         <button data-vf="fundos" onclick="vincCodToggleFiltro('fundos')" style="padding:7px 10px;border:2px solid #f97316;border-radius:999px;background:#fff7ed;color:#f97316;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">🟠 Fundos</button>
@@ -17481,5 +17481,5 @@ async function shareFotos() {
           <p>Carregando fórmulas...</p>
         </div>
       </div>
-    </div><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1f32ba33bd3f1f7',t:'MTc4NDczMDkxMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    </div><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1f3d115afa01225',t:'MTc4NDczNzY4Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
