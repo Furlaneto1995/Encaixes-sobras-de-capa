@@ -3238,8 +3238,6 @@
         <button data-vf="fundos" onclick="vincCodToggleFiltro('fundos')" style="padding:7px 10px;border:2px solid #f97316;border-radius:999px;background:#fff7ed;color:#f97316;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">🟠 Fundos</button>
         <button data-vf="metal" onclick="vincCodToggleFiltro('metal')" style="padding:7px 10px;border:2px solid #64748b;border-radius:999px;background:#f1f5f9;color:#64748b;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">⚪ Metal</button>
         <button data-vf="ocultas" onclick="vincCodToggleFiltro('ocultas')" style="padding:7px 10px;border:2px solid #8b5cf6;border-radius:999px;background:#f5f3ff;color:#8b5cf6;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">👁️ Ocultas</button>
-        <button data-vf="vinculadas" onclick="vincCodToggleFiltro('vinculadas')" style="padding:7px 10px;border:2px solid #10b981;border-radius:999px;background:#fff;color:#10b981;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">✅ Já lidas</button>
-        <button data-vf="semcodigo" onclick="vincCodToggleFiltro('semcodigo')" style="padding:7px 10px;border:2px solid #ef4444;border-radius:999px;background:#fff;color:#ef4444;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">❌ Sem código</button>
       </div>
       <div id="vincCodColetorArea" style="padding:0 14px 8px;display:none;gap:6px;align-items:center;">
         <input id="vincCodColetorInput" type="text" inputmode="none" autocomplete="off" placeholder="Selecionar bobina e escanear..." style="flex:1;min-width:0;padding:10px;border-radius:8px;border:2px solid #10b981;background:#f0fdf4;color:#1a1a2e;font-size:0.9em;font-weight:600;" onkeydown="vincCodColetorProcessar(event)" oninput="vincCodColetorAutoProcessar(this)">
@@ -3251,11 +3249,11 @@
             <div style="font-size:1em;color:#8b5cf6;font-weight:700;" id="vincCodTotalOPs">0</div>
             <div style="font-size:0.55em;color:#888;">OPs</div>
           </div>
-          <div id="vincCodComCodCard" onclick="vincCodToggleFiltro('vinculadas')" style="background:#fff;padding:6px 10px;border-radius:8px;text-align:center;border:1px solid #10b981;flex:1;cursor:pointer;">
+          <div id="vincCodComCodCard" onclick="vincCodFiltrarPorCodigo('vinculadas')" style="background:#fff;padding:6px 10px;border-radius:8px;text-align:center;border:1px solid #10b981;flex:1;cursor:pointer;">
             <div style="font-size:1em;color:#10b981;font-weight:700;" id="vincCodComCod">0</div>
             <div style="font-size:0.55em;color:#888;">Com código</div>
           </div>
-          <div id="vincCodSemCodCard" onclick="vincCodToggleFiltro('semcodigo')" style="background:#fff;padding:6px 10px;border-radius:8px;text-align:center;border:1px solid #ef4444;flex:1;cursor:pointer;">
+          <div id="vincCodSemCodCard" onclick="vincCodFiltrarPorCodigo('semcodigo')" style="background:#fff;padding:6px 10px;border-radius:8px;text-align:center;border:1px solid #ef4444;flex:1;cursor:pointer;">
             <div style="font-size:1em;color:#ef4444;font-weight:700;" id="vincCodSemCod">0</div>
             <div style="font-size:0.55em;color:#888;">Sem código</div>
           </div>
@@ -11800,6 +11798,32 @@ function getOpItemGroups(g) {
         semcodigo: false
       };
 
+      function vincCodFiltrarPorCodigo(filtro) {
+        // Os dois cards funcionam como escolha de status: clicar novamente limpa o filtro.
+        if (vincCodFiltrosAtivos[filtro]) {
+          vincCodFiltrosAtivos.vinculadas = false;
+          vincCodFiltrosAtivos.semcodigo = false;
+        } else {
+          vincCodFiltrosAtivos.vinculadas = filtro === "vinculadas";
+          vincCodFiltrosAtivos.semcodigo = filtro === "semcodigo";
+        }
+        vincCodAtualizarCardsCodigo();
+        vincCodFiltrar();
+      }
+
+      function vincCodAtualizarCardsCodigo() {
+        var cardCom = document.getElementById("vincCodComCodCard");
+        var cardSem = document.getElementById("vincCodSemCodCard");
+        if (cardCom) {
+          cardCom.style.background = vincCodFiltrosAtivos.vinculadas ? "#dcfce7" : "#fff";
+          cardCom.style.opacity = vincCodFiltrosAtivos.vinculadas ? "1" : "0.8";
+        }
+        if (cardSem) {
+          cardSem.style.background = vincCodFiltrosAtivos.semcodigo ? "#fee2e2" : "#fff";
+          cardSem.style.opacity = vincCodFiltrosAtivos.semcodigo ? "1" : "0.8";
+        }
+      }
+
       function vincCodToggleFiltro(filtro) {
         if (!Object.prototype.hasOwnProperty.call(vincCodFiltrosAtivos, filtro)) return;
         vincCodFiltrosAtivos[filtro] = !vincCodFiltrosAtivos[filtro];
@@ -11823,16 +11847,6 @@ function getOpItemGroups(g) {
           btn.style.borderColor = ativo ? cor[0] : "#e2e8f0";
           btn.style.opacity = ativo ? "1" : "0.55";
         });
-        var cardCom = document.getElementById("vincCodComCodCard");
-        var cardSem = document.getElementById("vincCodSemCodCard");
-        if (cardCom) {
-          cardCom.style.background = vincCodFiltrosAtivos.vinculadas ? "#dcfce7" : "#fff";
-          cardCom.style.opacity = vincCodFiltrosAtivos.vinculadas ? "1" : "0.55";
-        }
-        if (cardSem) {
-          cardSem.style.background = vincCodFiltrosAtivos.semcodigo ? "#fee2e2" : "#fff";
-          cardSem.style.opacity = vincCodFiltrosAtivos.semcodigo ? "1" : "0.55";
-        }
         vincCodFiltrar();
       }
 
@@ -12085,6 +12099,19 @@ function getOpItemGroups(g) {
         }
       }
 
+      function vincCodCompararItens(a, b) {
+        var digA = (String(a.item || "").match(/\d/g) || []).join("").slice(0, 4);
+        var digB = (String(b.item || "").match(/\d/g) || []).join("").slice(0, 4);
+        var prefA = parseInt(digA || "9999", 10);
+        var prefB = parseInt(digB || "9999", 10);
+        if (prefA !== prefB) return prefA - prefB;
+        var itemCmp = String(a.item || "").localeCompare(String(b.item || ""), "pt-BR", { numeric: true });
+        if (itemCmp !== 0) return itemCmp;
+        var verCmp = String(a.versao || "").localeCompare(String(b.versao || ""), "pt-BR", { numeric: true });
+        if (verCmp !== 0) return verCmp;
+        return (parseFloat(a.qtde) || 0) - (parseFloat(b.qtde) || 0);
+      }
+
       function vincCodFiltrar() {
         var busca = document.getElementById("vincCodBusca").value.trim();
         var buscaItem = (document.getElementById("vincCodBuscaItem").value || "").trim().toUpperCase();
@@ -12139,6 +12166,8 @@ function getOpItemGroups(g) {
           }).filter(function(op) { return op.regs.length > 0; });
         }
 
+        filtradas.forEach(function(op) { op.regs.sort(vincCodCompararItens); });
+
         var totalComCod = 0, totalSemCod = 0;
         for (var i = 0; i < filtradas.length; i++) {
           for (var j = 0; j < filtradas[i].regs.length; j++) {
@@ -12146,7 +12175,7 @@ function getOpItemGroups(g) {
             else totalSemCod++;
           }
         }
-        statsEl.style.display = filtradas.length > 0 ? "block" : "none";
+        statsEl.style.display = vincCodOPs.length > 0 ? "block" : "none";
         // “OPs” só é relevante para registros do histórico de encaixadas.
         var totalOpsHistorico = 0;
         for (var fo = 0; fo < filtradas.length; fo++) {
@@ -17592,5 +17621,5 @@ async function shareFotos() {
           <p>Carregando fórmulas...</p>
         </div>
       </div>
-    </div></body>
+    </div><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1f400d50fc3c547',t:'MTc4NDczOTY0Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
