@@ -3517,45 +3517,26 @@
       var LS = "enc_v3";
       var ultimoRelatorio = "";
 
-      // ✅ Bloquear/liberar rotação da tela durante scanner
-      var rotacaoBloqueada = false;
-      function bloquearRotacao() {
-        if (rotacaoBloqueada) return;
-        rotacaoBloqueada = true;
-        // Em PWA standalone, requestFullscreen falha e orientation.lock não funciona.
-        // Tentamos orientation.lock de qualquer forma (funciona se app estiver em fullscreen real)
+      // ✅ Lock permanente portrait-primary — NÃO usar unlock nunca
+      function lockOrientation() {
         try {
           if (screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('portrait').catch(function(){});
+            screen.orientation.lock('portrait-primary').catch(function(){});
           }
         } catch (e) {}
-        // Overlay: mostra aviso "Gire para vertical" quando em landscape
-        var style = document.getElementById('rotacaoBlockStyle');
-        if (!style) {
-          style = document.createElement('style');
-          style.id = 'rotacaoBlockStyle';
-          style.textContent = '@media (orientation: landscape) { body.rotacao-bloqueada #rotacaoOverlay { display:flex!important; } }';
-          document.head.appendChild(style);
-        }
-        var overlay = document.getElementById('rotacaoOverlay');
-        if (!overlay) {
-          overlay = document.createElement('div');
-          overlay.id = 'rotacaoOverlay';
-          overlay.style.cssText = 'display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:999999;background:#1a1a2e;color:#fff;flex-direction:column;align-items:center;justify-content:center;font-size:1.3em;';
-          overlay.innerHTML = '<div style="transform:rotate(-90deg);font-size:2em;text-align:center;">📱<br>Gire o celular<br>para vertical</div>';
-          document.body.appendChild(overlay);
-        }
-        document.body.classList.add('rotacao-bloqueada');
       }
+      // Lock na carga e quando app volta ao foco
+      lockOrientation();
+      document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) lockOrientation();
+      });
+      // Também lock ao abrir scanner (reforça após câmera liberar)
+      function bloquearRotacao() {
+        lockOrientation();
+      }
+      // NÃO chama unlock — mantém portrait-primary sempre
       function liberarRotacao() {
-        if (!rotacaoBloqueada) return;
-        rotacaoBloqueada = false;
-        try {
-          if (screen.orientation && screen.orientation.unlock) {
-            screen.orientation.unlock();
-          }
-        } catch (e) {}
-        document.body.classList.remove('rotacao-bloqueada');
+        lockOrientation(); // reforça lock ao fechar scanner
       }
       var confStatus = {};
       var confHistorico = {};
@@ -17688,5 +17669,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1f5bd320e953e73',t:'MTc4NDc1Nzg0NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1f6193cfab9f1ea',t:'MTc4NDc2MTYxNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
