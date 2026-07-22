@@ -1,19 +1,26 @@
-var CACHE_NAME = 'encaixes-v4'; // Incrementado para v4 para forçar a atualização
+var CACHE_NAME = 'encaixes-v5'; // Subimos para v5 para forçar a atualização limpa
 
 var urlsToCache = [
     './',
     './index.html',
     './manifest.json',
     './icon-192.png',
-    './icon-512.png' // <-- ADICIONADO AQUI!
+    './icon-512.png'
 ];
 
-// Instala e faz cache dos arquivos estáticos
+// Instala e faz cache de forma RESILIENTE (não quebra se faltar um arquivo)
 self.addEventListener('install', function(event) {
     event.waitUntil(
         caches.open(CACHE_NAME).then(function(cache) {
-            // Se algum arquivo falhar, o console do outro celular vai te avisar
-            return cache.addAll(urlsToCache);
+            // Tentamos baixar cada arquivo individualmente. 
+            // Se um falhar, os outros ainda são salvos e o SW funciona!
+            return Promise.all(
+                urlsToCache.map(function(url) {
+                    return cache.add(url).catch(function(error) {
+                        console.warn('Aviso: Falha ao cachear o arquivo (' + url + '). Verifique se ele existe no servidor.', error);
+                    });
+                })
+            );
         })
     );
     self.skipWaiting();
@@ -50,7 +57,7 @@ self.addEventListener('fetch', function(event) {
         url.indexOf('unpkg.com') > -1 ||
         event.request.method !== 'GET'
     ) {
-        return; // deixa passar sem cache
+        return;
     }
 
     // Para arquivos locais: cache first
