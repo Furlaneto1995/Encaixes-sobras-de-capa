@@ -2812,6 +2812,16 @@
         </div>
         <div
           class="st-btn on"
+          id="estFFundo"
+          onclick="estToggleFiltro('fundo')"
+          style="flex: 1; min-width: 55px; padding: 6px 4px; cursor: pointer"
+        >
+          <div style="font-size: 0.95em; color: #f97316; font-weight: 700" id="estFundo">0</div>
+          <div style="font-size: 0.5em; color: #888">Fundos</div>
+          <div style="font-size: 0.6em; color: #f97316; font-weight: 600" id="estPesoFundo">0kg</div>
+        </div>
+        <div
+          class="st-btn on"
           id="estFOculto"
           onclick="estToggleFiltro('oculto')"
           style="flex: 1; min-width: 55px; padding: 6px 4px; cursor: pointer"
@@ -2920,6 +2930,15 @@
             0
           </div>
           <div style="font-size: 0.58em; color: #888">Capas</div>
+        </div>
+        <div
+          class="st-btn"
+          id="confFTipoFundo"
+          onclick="confSelecionarTipo('fundo')"
+          style="flex: 1; min-width: 80px; padding: 8px 4px; cursor: pointer"
+        >
+          <div style="font-size: 1em; color: #f97316; font-weight: 700" id="confCFundo">0</div>
+          <div style="font-size: 0.58em; color: #888">Fundos</div>
         </div>
         <div
           class="st-btn"
@@ -3477,7 +3496,7 @@
       var toleranciaFilme = 10;
       var toleranciaSaco = 0;
       var ultimoEndereco = "";
-      var estFiltros = { enc: true, sem: true, metal: true, oculto: true };
+      var estFiltros = { enc: true, sem: true, metal: true, fundo: true, oculto: true };
       var confFiltros = {
         enc: true,
         sem: true,
@@ -10054,10 +10073,12 @@ function getOpItemGroups(g) {
           cEnc = 0,
           cSem = 0,
           cMetal = 0,
+          cFundo = 0,
           cOculto = 0,
           pEnc = 0,
           pSem = 0,
           pMetal = 0,
+          pFundo = 0,
           pOculto = 0;
         var mapaFinalizadosEstoque = criarMapaEncaixesFinalizados();
 
@@ -10087,7 +10108,11 @@ function getOpItemGroups(g) {
             }
           }
           var categoria = "";
-          if (isMetal) {
+          if (isFundo) {
+            categoria = "fundo";
+            cFundo++;
+            pFundo += qtde;
+          } else if (isMetal) {
             categoria = "metal";
             cMetal++;
             pMetal += qtde;
@@ -10156,6 +10181,8 @@ function getOpItemGroups(g) {
         document.getElementById("estMetal").textContent = cMetal;
         document.getElementById("estPesoMetal").textContent =
           pMetal.toFixed(0) + "kg";
+        document.getElementById("estFundo").textContent = cFundo;
+        document.getElementById("estPesoFundo").textContent = pFundo.toFixed(0) + "kg";
         document.getElementById("estOculto").textContent = cOculto;
         document.getElementById("estPesoOculto").textContent =
           pOculto.toFixed(0) + "kg";
@@ -10174,6 +10201,11 @@ function getOpItemGroups(g) {
           totalVis += cMetal;
           pesoVis += pMetal;
         }
+        if (estFiltros.fundo) {
+          totalVis += cFundo;
+          pesoVis += pFundo;
+        }
+
         if (estFiltros.oculto) {
           totalVis += cOculto;
           pesoVis += pOculto;
@@ -12276,18 +12308,20 @@ function getOpItemGroups(g) {
 
       function confTipoLabel(tipo) {
         if (tipo === "metal") return "Metalizados";
+        if (tipo === "fundo") return "Fundos";
         if (tipo === "oculto") return "Ocultas";
         return "Capas";
       }
 
-      function confCategoriaBobina(itemCode) {
-        var isMetal = isMetalizado(itemCode);
-        if (isMetal) return "metal";
+      function confCategoriaBobina(itemCode, descricao) {
+        if (temFundo(descricao || "")) return "fundo";
+        if (isMetalizado(itemCode)) return "metal";
         if (confOcultos[itemCode] === true) return "oculto";
         return "capas";
       }
 
-      function confTipoRegistro(itemCode) {
+      function confTipoRegistro(itemCode, descricao) {
+        if (temFundo(descricao || "")) return "FUNDO";
         if (isMetalizado(itemCode)) return "METAL";
         if (confOcultos[itemCode] === true) return "OCULTA";
         return temCapa(itemCode) ? "CAPA" : "BASE";
@@ -12297,6 +12331,7 @@ function getOpItemGroups(g) {
         var ids = {
           metal: "confFTipoMetal",
           capas: "confFTipoCapas",
+          fundo: "confFTipoFundo",
           oculto: "confFTipoOculto",
         };
         Object.keys(ids).forEach(function (k) {
@@ -12339,7 +12374,7 @@ function getOpItemGroups(g) {
       }
 
       function confSelecionarTipo(tipo) {
-        if (["metal", "capas", "oculto"].indexOf(tipo) === -1) tipo = "capas";
+        if (["metal", "capas", "fundo", "oculto"].indexOf(tipo) === -1) tipo = "capas";
         confTipo = tipo;
         try {
           localStorage.setItem("enc_conf_tipo", confTipo);
@@ -12350,7 +12385,7 @@ function getOpItemGroups(g) {
 
       // Mantém compatibilidade com chamadas antigas.
       function confToggleFiltro(tipo) {
-        if (tipo === "metal" || tipo === "oculto" || tipo === "capas") {
+        if (tipo === "metal" || tipo === "fundo" || tipo === "oculto" || tipo === "capas") {
           confSelecionarTipo(tipo);
         } else {
           confSelecionarTipo("capas");
@@ -12492,6 +12527,7 @@ function getOpItemGroups(g) {
         var itens = [],
           cCapas = 0,
           cMetal = 0,
+          cFundo = 0,
           cOculto = 0,
           cOkTipo = 0,
           cFaltamVis = 0;
@@ -12524,8 +12560,9 @@ function getOpItemGroups(g) {
           var qtde = parseFloat(e["QTDE_ESTOQUE"]) || 0,
             ver = e["VERSAO"] || "",
             isCapa = temCapa(itemCode);
-          var isMetal = isMetalizado(itemCode),
-            isOculto = !isMetal && confOcultos[itemCode] === true,
+          var isFundo = temFundo(desc),
+            isMetal = !isFundo && isMetalizado(itemCode),
+            isOculto = !isFundo && !isMetal && confOcultos[itemCode] === true,
             temEnc = itensComEncaixe[itemCode] === true;
           var uidEstoque = getUidEstoque(e);
           var key = makeConfKey(itemCode, ver, qtde, uidEstoque),
@@ -12533,8 +12570,9 @@ function getOpItemGroups(g) {
               status: "pend",
               endereco: "",
             };
-          var categoria = isMetal ? "metal" : isOculto ? "oculto" : "capas";
+          var categoria = isFundo ? "fundo" : (isMetal ? "metal" : isOculto ? "oculto" : "capas");
           if (categoria === "metal") cMetal++;
+          else if (categoria === "fundo") cFundo++;
           else if (categoria === "oculto") cOculto++;
           else cCapas++;
           if (categoria !== tipoSelecionado) continue;
@@ -12567,7 +12605,7 @@ function getOpItemGroups(g) {
             comp: comp,
             pig: pig,
             qtde: qtde,
-            tipo: isMetal ? "METAL" : isOculto ? "OCULTA" : isCapa ? "CAPA" : "BASE",
+            tipo: isFundo ? "FUNDO" : (isMetal ? "METAL" : isOculto ? "OCULTA" : isCapa ? "CAPA" : "BASE"),
             desc: desc,
             status: info.status,
             endereco: info.endereco,
@@ -12576,6 +12614,7 @@ function getOpItemGroups(g) {
             estoqueIdx: i,
             oculto: isOculto,
             metal: isMetal,
+            fundo: isFundo,
             temEnc: temEnc,
             categoria: categoria,
             manual:
@@ -12587,6 +12626,8 @@ function getOpItemGroups(g) {
         if (elCapas) elCapas.textContent = cCapas;
         var elMetal = document.getElementById("confCMetal");
         if (elMetal) elMetal.textContent = cMetal;
+        var elFundo = document.getElementById("confCFundo");
+        if (elFundo) elFundo.textContent = cFundo;
         var elOculto = document.getElementById("confCOculto");
         if (elOculto) elOculto.textContent = cOculto;
         confAtualizarTipoBtns();
@@ -12594,7 +12635,9 @@ function getOpItemGroups(g) {
         var totalVis =
           tipoSelecionado === "metal"
             ? cMetal
-            : tipoSelecionado === "oculto"
+            : tipoSelecionado === "fundo"
+              ? cFundo
+              : tipoSelecionado === "oculto"
               ? cOculto
               : cCapas;
         document.getElementById("confSubtitle").textContent =
@@ -12623,7 +12666,7 @@ function getOpItemGroups(g) {
           else if (it.temEnc)
             cardStyle = "border-color:#f59e0b;background:#fffbeb;";
 
-          var icone = it.metal ? "⚪" : it.oculto ? "👁️‍🗨️" : it.tipo === "CAPA" ? "🔴" : "🔵";
+          var icone = it.fundo ? "🟠" : it.metal ? "⚪" : it.oculto ? "👁️‍🗨️" : it.tipo === "CAPA" ? "🔴" : "🔵";
 
           html +=
             '<div class="conf-card" style="' +
@@ -17375,5 +17418,5 @@ async function shareFotos() {
           <p>Carregando fórmulas...</p>
         </div>
       </div>
-    </div><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ef34c2a9b17d48',t:'MTc4NDY4OTM0MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    </div><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ef39bdd9d04f4a',t:'MTc4NDY4OTU0NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
