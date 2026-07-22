@@ -3514,6 +3514,37 @@
       var sessaoQrAtualId = "";
       var LS = "enc_v3";
       var ultimoRelatorio = "";
+
+      // ✅ Bloquear/liberar rotação da tela durante scanner
+      var rotacaoBloqueada = false;
+      function bloquearRotacao() {
+        if (rotacaoBloqueada) return;
+        rotacaoBloqueada = true;
+        try {
+          if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('portrait').catch(function(){});
+          }
+        } catch (e) {}
+        // CSS backup: transforma o conteúdo se girar
+        var style = document.getElementById('rotacaoBlockStyle');
+        if (!style) {
+          style = document.createElement('style');
+          style.id = 'rotacaoBlockStyle';
+          style.textContent = '@media (orientation: landscape) { .rotacao-block { transform: rotate(-90deg); transform-origin: top left; width: 100vh; height: 100vw; position: fixed; top: 0; left: 100vw; overflow-y: auto; } }';
+          document.head.appendChild(style);
+        }
+        document.body.classList.add('rotacao-block');
+      }
+      function liberarRotacao() {
+        if (!rotacaoBloqueada) return;
+        rotacaoBloqueada = false;
+        try {
+          if (screen.orientation && screen.orientation.unlock) {
+            screen.orientation.unlock();
+          }
+        } catch (e) {}
+        document.body.classList.remove('rotacao-block');
+      }
       var confStatus = {};
       var confHistorico = {};
       var confOcultos = {};
@@ -7069,6 +7100,7 @@ function getOpItemGroups(g) {
       var openCamScanAtivo = false;
 
       async function openCamCodigoBarras(bi) {
+        bloquearRotacao();
         var b = B[bi];
         if (typeof Html5Qrcode === "undefined") {
           toast("Leitor não disponível — abrindo câmera direto", "warning");
@@ -7173,6 +7205,7 @@ function getOpItemGroups(g) {
       }
 
       async function openCamScanFechar(bi) {
+        liberarRotacao();
         openCamScanAtivo = false;
         try {
           if (openCamScanLeitor) {
@@ -12319,6 +12352,7 @@ function getOpItemGroups(g) {
         }
 
         // Modo câmera
+        bloquearRotacao();
         if (typeof Html5Qrcode === "undefined") {
           toast("Leitor de código não disponível", "error");
           return;
@@ -12391,6 +12425,7 @@ function getOpItemGroups(g) {
       }
 
       function vincCodPararScan() {
+        liberarRotacao();
         vincCodAtivo = false;
         try {
           if (vincCodLeitor) {
@@ -13675,6 +13710,7 @@ function getOpItemGroups(g) {
       }
 
       function confEstAbrirScan() {
+        bloquearRotacao();
         if (typeof Html5Qrcode === "undefined") {
           toast("Leitor de código não disponível", "error");
           return;
@@ -13749,6 +13785,7 @@ function getOpItemGroups(g) {
       }
 
       function confEstPararScan() {
+        liberarRotacao();
         confEstScanAtivo = false;
         try {
           if (confEstScanLeitor) {
