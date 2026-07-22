@@ -2709,6 +2709,7 @@
           >
             <option value="all">Todos</option>
             <option value="capa">Capas</option>
+            <option value="fundo">Fundos</option>
             <option value="base">Bases</option>
           </select>
         </div>
@@ -3184,6 +3185,14 @@
         <input type="text" id="vincCodBusca" inputmode="numeric" placeholder="🔍 Buscar OP..." style="flex:1;padding:10px;border-radius:8px;border:1px solid #d1d5db;font-size:0.9em;" oninput="vincCodFiltrar()">
         <button onclick="vincCodCarregarOPs()" style="padding:10px 14px;border:none;border-radius:8px;background:#2563eb;color:#fff;font-size:0.85em;font-weight:600;cursor:pointer;">🔍</button>
         <button id="vincCodBtnColetor" onclick="vincCodToggleColetor()" style="padding:10px 14px;border:none;border-radius:8px;background:#6b7280;color:#fff;font-size:0.8em;font-weight:600;cursor:pointer;">📡 Coletor</button>
+      </div>
+      <div id="vincCodFiltros" style="padding:0 14px 8px;display:flex;gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
+        <button data-vf="all" onclick="vincCodSetFiltro('all')" style="padding:7px 10px;border:none;border-radius:999px;background:#2563eb;color:#fff;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">Todos</button>
+        <button data-vf="encaixadas" onclick="vincCodSetFiltro('encaixadas')" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:999px;background:#fff;color:#64748b;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">🔗 Encaixadas</button>
+        <button data-vf="semencaixe" onclick="vincCodSetFiltro('semencaixe')" style="padding:7px 10px;border:1px solid #bfdbfe;border-radius:999px;background:#fff;color:#2563eb;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">📦 Sem encaixe</button>
+        <button data-vf="fundos" onclick="vincCodSetFiltro('fundos')" style="padding:7px 10px;border:1px solid #fed7aa;border-radius:999px;background:#fff;color:#f97316;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">🟠 Fundos</button>
+        <button data-vf="metal" onclick="vincCodSetFiltro('metal')" style="padding:7px 10px;border:1px solid #cbd5e1;border-radius:999px;background:#fff;color:#64748b;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">⚪ Metal</button>
+        <button data-vf="ocultas" onclick="vincCodSetFiltro('ocultas')" style="padding:7px 10px;border:1px solid #ddd6fe;border-radius:999px;background:#fff;color:#8b5cf6;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">👁️ Ocultas</button>
       </div>
       <div id="vincCodColetorArea" style="padding:0 14px 8px;display:none;gap:6px;align-items:center;">
         <input id="vincCodColetorInput" type="text" placeholder="Selecionar bobina e escanear..." style="flex:1;padding:10px;border-radius:8px;border:2px solid #10b981;background:#f0fdf4;color:#1a1a2e;font-size:0.9em;font-weight:600;" onkeydown="vincCodColetorProcessar(event)">
@@ -4010,6 +4019,24 @@ var estObservacoes = {};
         return '<span style="font-size:0.55em;padding:2px 5px;border-radius:5px;background:#dcfce7;color:#16a34a;font-weight:700;margin-left:3px;animation:piscar 1.5s ease-in-out 3;">NEW</span>';
       }
 
+      function tagFundo() {
+        return '<span style="font-size:0.6em;padding:2px 6px;border-radius:6px;background:#fff7ed;color:#f97316;font-weight:700;margin-left:4px;">FUNDO</span>';
+      }
+
+      function isFundoBobina(bob) {
+        if (!bob) return false;
+        if (bob.fundo === true) return true;
+        for (var i = 0; i < estoque.length; i++) {
+          var e = estoque[i];
+          if (getItemEstoque(e) === String(bob.item || "").trim() &&
+              String(e["VERSAO"] || "").trim() === String(bob.ver || "").trim() &&
+              Math.abs((parseFloat(e["QTDE_ESTOQUE"]) || 0) - (parseFloat(bob.qtde) || 0)) < 0.05) {
+            return temFundo(e["DESCRICAO"] || "");
+          }
+        }
+        return false;
+      }
+
       // ================================================================
       //                    VALIDAÇÃO ESTOQUE
       // ================================================================
@@ -4263,6 +4290,19 @@ var estObservacoes = {};
         return /-2$/.test(String(ic || "").trim());
       }
 
+      // Categoria visual: Fundo é identificado pela descrição e tem prioridade
+      // sobre os sufixos de item usados para Capa (-2) e Metal (-4).
+      function temFundo(descricao) {
+        return /\bFUNDO\b/.test(normalizarTexto(descricao || ""));
+      }
+
+      function getCategoriaVisual(item, descricao, oculto) {
+        if (temFundo(descricao)) return "fundo";
+        if (isMetalizado(item)) return "metal";
+        if (oculto) return "oculto";
+        return temCapa(item) ? "capa" : "base";
+      }
+
       function getItemEstoque(e) {
         return String(
           e["ITEM"] || e["CODIGO"] || e["CÓDIGO"] || e["__A"] || "",
@@ -4316,17 +4356,20 @@ var estObservacoes = {};
         return /-4$/.test(String(cod || "").trim());
       }
 
-      function getIconeTipo(cod) {
+      function getIconeTipo(cod, descricao) {
+        if (temFundo(descricao)) return "🟠";
         if (isMetalizado(cod)) return "⚪";
         return temCapa(cod) ? "🔴" : "🟢";
       }
 
-      function getLabelTipo(cod) {
+      function getLabelTipo(cod, descricao) {
+        if (temFundo(descricao)) return "FUNDO";
         if (isMetalizado(cod)) return "METAL";
         return temCapa(cod) ? "CAPA" : "BASE";
       }
 
-      function getCorTipo(cod) {
+      function getCorTipo(cod, descricao) {
+        if (temFundo(descricao)) return "#f97316";
         if (isMetalizado(cod)) return "#94a3b8";
         return temCapa(cod) ? "#ef4444" : "#10b981";
       }
@@ -4556,6 +4599,7 @@ var estObservacoes = {};
             material: normalizarTexto(e["MATERIAL"] || ""),
             isCapa: temCapa(ic),
             isMetal: isMetalItem,
+            isFundo: temFundo(desc),
             chaveExata: larg + "|" + esp + "|" + comp + "|" + pig,
             chaveSemLarg: esp + "|" + comp + "|" + pig,
           });
@@ -4923,6 +4967,7 @@ var estObservacoes = {};
             largOP: rs.largOP || rs.larg,
             apresentacao: rs.apresentacao || "",
             formula: rs.composicao || buscarFormulaDoItem(rs.item) || "",
+            fundo: !!rs.fundo,
             foto: null,
             fotoNm: "",
             ok: false,
@@ -6656,9 +6701,11 @@ function getOpItemGroups(g) {
             : "") +
           "</span>"
         : "") +
-      (isMetalizado(bob.item)
-        ? ' <span style="font-size:0.6em;padding:2px 6px;border-radius:6px;background:#f1f5f9;color:#94a3b8;font-weight:700;">METAL</span>'
-        : "") +
+      (isFundoBobina(bob)
+        ? " " + tagFundo()
+        : (isMetalizado(bob.item)
+          ? ' <span style="font-size:0.6em;padding:2px 6px;border-radius:6px;background:#f1f5f9;color:#94a3b8;font-weight:700;">METAL</span>'
+          : "")) +
       (bob.manual ? tagManual() : "") +
       (isBobinaNova(bob.item, bob.qtde) ? tagNew() : "") +
       "</span>" +
@@ -9348,7 +9395,7 @@ function getOpItemGroups(g) {
             pig: pig,
             qtde: qtde,
             material: material,
-            tipo: cap ? "CAPA" : "BASE",
+            tipo: isFundo ? "FUNDO" : (isMetal ? "METAL" : (cap ? "CAPA" : "BASE")),
             desc: desc,
           });
         }
@@ -9704,7 +9751,7 @@ function getOpItemGroups(g) {
 
       function tolAutoSaco() {
         var input = document.getElementById("tolSacoInput");
-        input.value = "2";
+        input.value = "0";
         input.focus();
         input.select();
       }
@@ -10026,8 +10073,9 @@ function getOpItemGroups(g) {
             comp = normalizarComposicao(e["COMPOSICAO"] || ""),
             pig = normalizarPigmentado(e["PIGMENTADO"] || "");
           var cap = temCapa(ic),
-            isMetal = /-4$/.test(ic),
-            isOculto = !isMetal && confOcultos[ic] === true;
+            isFundo = temFundo(desc),
+            isMetal = !isFundo && /-4$/.test(ic),
+            isOculto = !isFundo && !isMetal && confOcultos[ic] === true;
           var eop = "",
             te = false;
           if (!isOculto && enc[ic]) {
@@ -10075,8 +10123,9 @@ function getOpItemGroups(g) {
               continue;
           }
 
-          if (filtro === "capa" && !cap) continue;
-          if (filtro === "base" && cap) continue;
+          if (filtro === "capa" && (isFundo || !cap)) continue;
+          if (filtro === "fundo" && !isFundo) continue;
+          if (filtro === "base" && (isFundo || cap || isMetal)) continue;
           itens.push({
             item: ic,
             ver: ver,
@@ -10089,6 +10138,7 @@ function getOpItemGroups(g) {
             eop: eop,
             te: te,
             isMetal: isMetal,
+            isFundo: isFundo,
             isOculto: isOculto,
             material: normalizarTexto(e["MATERIAL"] || ""),
             uid: uidEstoque,
@@ -10157,23 +10207,29 @@ function getOpItemGroups(g) {
           var obsAtual = it.observacao || "";
           var endAtual = it.endereco || "";
 
-          var icone = it.isMetal
-            ? "⚪"
-            : it.isOculto
-              ? "👁️‍🗨️"
-              : it.tipo === "CAPA"
-                ? "🔴"
-                : "🟢";
-          var corLabel = it.isMetal
-            ? "#94a3b8"
-            : it.isOculto
+          var icone = it.isFundo
+            ? "🟠"
+            : it.isMetal
+              ? "⚪"
+              : it.isOculto
+                ? "👁️‍🗨️"
+                : it.tipo === "CAPA"
+                  ? "🔴"
+                  : "🟢";
+          var corLabel = it.isFundo
+            ? "#f97316"
+            : it.isMetal
+              ? "#94a3b8"
+              : it.isOculto
               ? "#888"
               : it.tipo === "CAPA"
                 ? "#ef4444"
                 : "#10b981";
-          var labelTipo = it.isMetal
-            ? "METAL"
-            : it.isOculto
+          var labelTipo = it.isFundo
+            ? "FUNDO"
+            : it.isMetal
+              ? "METAL"
+              : it.isOculto
               ? "OCULTA"
               : it.tipo;
 
@@ -11649,6 +11705,35 @@ function getOpItemGroups(g) {
       var vincCodAtivo = false;
       var vincCodBobinaAlvo = null;
       var vincCodModoColetor = false;
+      var vincCodFiltro = "all";
+
+      function vincCodSetFiltro(filtro) {
+        vincCodFiltro = filtro || "all";
+        var botoes = document.querySelectorAll("#vincCodFiltros [data-vf]");
+        botoes.forEach(function(btn) {
+          var ativo = btn.getAttribute("data-vf") === vincCodFiltro;
+          btn.style.background = ativo ? "#2563eb" : "#fff";
+          btn.style.color = ativo ? "#fff" : (btn.getAttribute("data-vf") === "capas" ? "#ef4444" : btn.getAttribute("data-vf") === "fundos" ? "#f97316" : btn.getAttribute("data-vf") === "ocultas" ? "#8b5cf6" : "#64748b");
+          btn.style.borderColor = ativo ? "#2563eb" : "";
+        });
+        vincCodFiltrar();
+      }
+
+      function vincCodCategoriaRegistro(opData, reg) {
+        if (opData.tipo === "estoque") return reg.categoriaEstoque || "capas";
+        var desc = "";
+        for (var i = 0; i < estoque.length; i++) {
+          if (getItemEstoque(estoque[i]) === reg.item && String(estoque[i]["VERSAO"] || "").trim() === String(reg.versao || "").trim()) {
+            desc = estoque[i]["DESCRICAO"] || "";
+            break;
+          }
+        }
+        if (temFundo(desc)) return "fundos";
+        if (isMetalizado(reg.item)) return "metal";
+        if (confOcultos[reg.item] === true) return "ocultas";
+        return "capas";
+      }
+
 
       function abrirVincularCodigos() {
         document.getElementById("vincCodModal").classList.add("active");
@@ -11738,48 +11823,81 @@ function getOpItemGroups(g) {
             codSnap.forEach(function(doc) {
               var d = doc.data();
               if (d.tipo === "codigobarras" && d.codigo_barras) {
-                var chave = d.item + "|" + d.versao + "|" + d.qtde;
-                codMapaEstoque[chave] = d.codigo_barras;
+                if (d.uid) codMapaEstoque[String(d.uid)] = d.codigo_barras;
               }
             });
           } catch (e) { console.error("Erro ao carregar códigos:", e); }
 
-          // 3. Adicionar bobinas do estoque (não encaixadas)
-          var itensComEncaixe = {};
-          for (var bi = 0; bi < B.length; bi++) itensComEncaixe[getItemEstoque(B[bi])] = true;
+          // 3. Adiciona bobinas do estoque em grupos iguais aos da
+          // Conferência Não Encaixadas: Metalizados, Capas e Ocultas.
           var mapaFinalizados = criarMapaEncaixesFinalizados ? criarMapaEncaixesFinalizados() : {};
+          var gruposEstoque = [
+            { chave: "0_ESTOQUE_METAL", titulo: "⚪ Metalizados", categoria: "metal", cor: "#64748b", fundo: "#f1f5f9" },
+            { chave: "0_ESTOQUE_CAPAS", titulo: "🔴 Capas", categoria: "capas", cor: "#ef4444", fundo: "#fff1f2" },
+            { chave: "0_ESTOQUE_FUNDOS", titulo: "🟠 Fundos", categoria: "fundos", cor: "#f97316", fundo: "#fff7ed" },
+            { chave: "0_ESTOQUE_OCULTAS", titulo: "👁️ Ocultas", categoria: "ocultas", cor: "#8b5cf6", fundo: "#f5f3ff" }
+          ];
 
-          var opEstoque = "0_ESTOQUE";
-          opMap[opEstoque] = { op: "Estoque", regs: [], tipo: "estoque" };
-          opOrdem.unshift(opEstoque);
+          // Coloca os grupos do estoque antes das OPs, na mesma ordem da conferência.
+          for (var ge = gruposEstoque.length - 1; ge >= 0; ge--) {
+            var grupoEstoque = gruposEstoque[ge];
+            opMap[grupoEstoque.chave] = {
+              op: grupoEstoque.titulo,
+              titulo: grupoEstoque.titulo,
+              categoriaEstoque: grupoEstoque.categoria,
+              cor: grupoEstoque.cor,
+              fundo: grupoEstoque.fundo,
+              regs: [],
+              tipo: "estoque"
+            };
+            opOrdem.unshift(grupoEstoque.chave);
+          }
 
           for (var ei = 0; ei < estoque.length; ei++) {
             var e = estoque[ei];
             var itemCode = getItemEstoque(e);
             if (!itemCode) continue;
             if (consumirEncaixeFinalizadoEstoque(e, mapaFinalizados).tem) continue;
+
+            var categoriaEstoque = temFundo(e["DESCRICAO"] || "")
+              ? "fundos"
+              : (isMetalizado(itemCode)
+                ? "metal"
+                : (confOcultos[itemCode] === true ? "ocultas" : "capas"));
+            var chaveGrupoEstoque = categoriaEstoque === "metal"
+              ? "0_ESTOQUE_METAL"
+              : (categoriaEstoque === "fundos"
+                ? "0_ESTOQUE_FUNDOS"
+                : (categoriaEstoque === "ocultas" ? "0_ESTOQUE_OCULTAS" : "0_ESTOQUE_CAPAS"));
+
             var ver = String(e["VERSAO"] || "").trim();
             var qtde = String(e["QTDE_ESTOQUE"] || "").trim();
-            var chaveEst = itemCode + "|" + ver + "|" + qtde;
+            var uidEstoque = getUidEstoque(e);
 
-            opMap[opEstoque].regs.push({
+            opMap[chaveGrupoEstoque].regs.push({
               docId: "est_" + ei + "_" + itemCode.replace(/[^a-zA-Z0-9]/g, "_"),
               item: itemCode,
               versao: ver,
               qtde: qtde,
-              encaixe: "Estoque",
+              encaixe: opMap[chaveGrupoEstoque].titulo,
               data: "",
-              codigo_barras: codMapaEstoque[chaveEst] || "",
+              codigo_barras: codMapaEstoque[uidEstoque] || "",
+              uid: uidEstoque,
               tipo: "estoque",
+              categoriaEstoque: categoriaEstoque,
               estoqueIdx: ei,
               firebaseDoc: false,
             });
           }
 
-          // Remover grupo de estoque se vazio
-          if (opMap[opEstoque].regs.length === 0) {
-            delete opMap[opEstoque];
-            opOrdem.shift();
+          // Não mostra grupos vazios.
+          for (var rg = gruposEstoque.length - 1; rg >= 0; rg--) {
+            var chaveRemover = gruposEstoque[rg].chave;
+            if (opMap[chaveRemover] && opMap[chaveRemover].regs.length === 0) {
+              delete opMap[chaveRemover];
+              var posGrupo = opOrdem.indexOf(chaveRemover);
+              if (posGrupo >= 0) opOrdem.splice(posGrupo, 1);
+            }
           }
 
           vincCodOPs = [];
@@ -11807,11 +11925,34 @@ function getOpItemGroups(g) {
         var body = document.getElementById("vincCodBody");
         var statsEl = document.getElementById("vincCodStats");
 
-        var filtradas = vincCodOPs;
+        var filtradas = [];
+        for (var fi = 0; fi < vincCodOPs.length; fi++) {
+          var grupoOriginal = vincCodOPs[fi];
+          var regsFiltrados = grupoOriginal.regs.filter(function(reg) {
+            var categoria = vincCodCategoriaRegistro(grupoOriginal, reg);
+            // Encaixadas: exclusivamente registros do histórico (não estoque).
+            if (vincCodFiltro === "encaixadas") return grupoOriginal.tipo !== "estoque";
+            // Sem encaixe: exclusivamente bobinas ainda presentes no estoque.
+            if (vincCodFiltro === "semencaixe") return grupoOriginal.tipo === "estoque";
+            // Metal, Fundo e Ocultas são filtros somente do estoque.
+            if (["metal", "fundos", "ocultas"].indexOf(vincCodFiltro) !== -1) {
+              return grupoOriginal.tipo === "estoque" && categoria === vincCodFiltro;
+            }
+            return true;
+          });
+          if (regsFiltrados.length) {
+            var copia = Object.assign({}, grupoOriginal);
+            copia.regs = regsFiltrados;
+            filtradas.push(copia);
+          }
+        }
         if (busca) {
-          filtradas = vincCodOPs.filter(function(op) {
-            if (op.tipo === "estoque" && "estoque".indexOf(busca) > -1) return true;
-            return op.op.indexOf(busca) > -1;
+          var buscaMinuscula = busca.toLowerCase();
+          filtradas = filtradas.filter(function(op) {
+            var titulo = (op.tipo === "estoque" ? "estoque " + (op.titulo || op.op || "") : op.op || "").toLowerCase();
+            return titulo.indexOf(buscaMinuscula) > -1 || op.regs.some(function(reg) {
+              return String(reg.item || "").indexOf(busca) > -1 || String(reg.codigo_barras || "").indexOf(busca) > -1;
+            });
           });
         }
 
@@ -11843,13 +11984,13 @@ function getOpItemGroups(g) {
             pesoTotal += parseFloat(opData.regs[j].qtde) || 0;
           }
           var isEstoque = opData.tipo === "estoque";
-          var headerBg = isEstoque ? "#fef3c7" : "#faf5ff";
-          var opColor = isEstoque ? "#d97706" : "#2563eb";
+          var headerBg = isEstoque ? (opData.fundo || "#fef3c7") : "#faf5ff";
+          var opColor = isEstoque ? (opData.cor || "#d97706") : "#2563eb";
 
           html += '<div style="background:#fff;border-radius:10px;border:1px solid #e0e0e0;margin-bottom:8px;overflow:hidden;">';
           // Header
           html += '<div style="display:flex;align-items:center;padding:8px 12px;gap:8px;background:' + headerBg + ';border-bottom:1px solid #f0f0f0;">';
-          html += '<div style="font-size:0.9em;font-weight:700;color:' + opColor + ';min-width:55px;">' + (isEstoque ? '📦 Estoque' : 'OP ' + opData.op) + '</div>';
+          html += '<div style="font-size:0.9em;font-weight:700;color:' + opColor + ';min-width:55px;">' + (isEstoque ? (opData.titulo || '📦 Estoque') : 'OP ' + opData.op) + '</div>';
           html += '<div style="flex:1;font-size:0.6em;color:#888;">' + opData.regs.length + ' bob · ' + pesoTotal.toFixed(0) + ' kg';
           if (temCod > 0) html += ' · <span style="color:#10b981;">✔' + temCod + '</span>';
           if (semCod > 0) html += ' · <span style="color:#ef4444;">✖' + semCod + '</span>';
@@ -11928,8 +12069,8 @@ function getOpItemGroups(g) {
           }
 
           if (regEncontrado && regEncontrado.tipo === "estoque") {
-            var chave = regEncontrado.item + "|" + regEncontrado.versao + "|" + regEncontrado.qtde;
-            var docIdCod = "cb_" + chave.replace(/\|/g, "_");
+            var docIdCod = "cb_" + String(regEncontrado.uid || "");
+            if (!regEncontrado.uid) throw new Error("Bobina sem UID");
             await db.collection("datas_manuais").doc(docIdCod).delete();
           } else if (regEncontrado && regEncontrado.firebaseDoc) {
             await db.collection("encaixes").doc(docId).update({
@@ -12080,10 +12221,11 @@ function getOpItemGroups(g) {
 
           if (regEncontrado && regEncontrado.tipo === "estoque") {
             // Não encaixada: salvar em datas_manuais com prefixo cb_ (tem permissão)
-            var chave = regEncontrado.item + "|" + regEncontrado.versao + "|" + regEncontrado.qtde;
-            var docIdCod = "cb_" + chave.replace(/\|/g, "_");
+            if (!regEncontrado.uid) throw new Error("Bobina sem UID");
+            var docIdCod = "cb_" + String(regEncontrado.uid);
             await db.collection("datas_manuais").doc(docIdCod).set({
               tipo: "codigobarras",
+              uid: regEncontrado.uid,
               item: regEncontrado.item,
               versao: regEncontrado.versao,
               qtde: regEncontrado.qtde,
@@ -12248,25 +12390,17 @@ function getOpItemGroups(g) {
             var d = doc.data() || {};
             if (d.tipo !== "codigobarras" || !d.codigo_barras) return;
 
-            var itemDoc = String(d.item || "").trim();
-            var verDoc = String(d.versao || "").trim();
-            var pesoDoc = parseFloat(String(d.qtde || "").replace(",", ".")) || 0;
-            if (!itemDoc) return;
+            var uidDoc = String(d.uid || "").trim();
+            if (!uidDoc) return;
 
-            // Localiza a bobina correspondente no estoque importado.
+            // UID identifica uma bobina sem depender de item, versão ou peso.
             for (var i = 0; i < estoque.length; i++) {
               var e = estoque[i];
-              var itemEstoque = getItemEstoque(e);
-              var verEstoque = String(e["VERSAO"] || "").trim();
-              var pesoEstoque = parseFloat(String(e["QTDE_ESTOQUE"] || "").replace(",", ".")) || 0;
-
-              if (
-                itemEstoque === itemDoc &&
-                verEstoque === verDoc &&
-                Math.abs(pesoEstoque - pesoDoc) < 0.05
-              ) {
-                var uidEstoque = getUidEstoque(e);
-                var chave = makeConfKey(itemEstoque, verEstoque, pesoEstoque, uidEstoque);
+              var uidEstoque = getUidEstoque(e);
+              if (uidEstoque === uidDoc) {
+                var chave = makeConfKey(
+                  getItemEstoque(e), e["VERSAO"] || "", e["QTDE_ESTOQUE"] || "", uidEstoque
+                );
                 confEstCodBarras[String(d.codigo_barras).trim()] = chave;
                 carregados++;
                 break;
@@ -17241,5 +17375,5 @@ async function shareFotos() {
           <p>Carregando fórmulas...</p>
         </div>
       </div>
-    </div><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ef0a55ece100d7',t:'MTc4NDY4NzYwNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    </div><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ef34c2a9b17d48',t:'MTc4NDY4OTM0MQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
