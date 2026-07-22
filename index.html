@@ -7,7 +7,6 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <title>Encaixes</title>
-    <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#2563eb" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta
@@ -15,7 +14,6 @@
       content="black-translucent"
     />
     <meta name="apple-mobile-web-app-title" content="Encaixes" />
-    <link rel="apple-touch-icon" href="icon-192.png" />
     <style>
       * {
         -webkit-user-select: none;
@@ -11278,6 +11276,9 @@ function getOpItemGroups(g) {
               formula: d.formula || "",
               largura: d.largura || "",
               espessura: d.espessura || "",
+              // Código previamente vinculado em “Vincular Códigos”.
+              // Ele identifica a bobina na conferência por coletor/câmera.
+              codigo_barras: String(d.codigo_barras || "").trim(),
             });
           });
         } catch (e) {
@@ -11385,10 +11386,10 @@ function getOpItemGroups(g) {
                 ' <span style="color:#64748b;">' + Math.round(parseFloat(item.reg.qtde) || 0) + 'kg</span>' +
                 '</div>' +
                 '</div>';
+              }
+              html += '</div>';
             }
-            html += '</div>';
           }
-        }
 
         body.innerHTML = html;
 
@@ -11487,46 +11488,87 @@ function getOpItemGroups(g) {
         var codigoLimpo = String(codigo || "").trim();
         if (!codigoLimpo) return;
 
-        // Buscar no histórico pelo código do item
-        var encontrou = false;
-        for (var i = 0; i < confEncRegistros.length; i++) {
-          var reg = confEncRegistros[i];
-          var itemCode = String(reg.item || "").trim();
-          var itemSemTraco = itemCode.replace(/-/g, "");
-          var codSemTraco = codigoLimpo.replace(/-/g, "");
+        // Normaliza só para comparação: mantém o valor original salvo e exibido.
+        function normalizarCodigo(valor) {
+          return String(valor || "").trim().replace(/[\s-]/g, "");
+        }
 
+        var codigoNormalizado = normalizarCodigo(codigoLimpo);
+        var registroEncontrado = null;
+
+        // Prioridade: encontra pela etiqueta/código vinculado no Firebase.
+        // É o fluxo usado pelo coletor, que lê valores como “-10-...”.
+        for (var i = 0; i < confEncRegistros.length; i++) {
+          var regComCodigo = confEncRegistros[i];
           if (
-            itemCode === codigoLimpo ||
-            itemSemTraco === codSemTraco ||
-            itemCode.indexOf(codigoLimpo) > -1 ||
-            codigoLimpo.indexOf(itemCode) > -1 ||
-            itemSemTraco.indexOf(codSemTraco) > -1 ||
-            codSemTraco.indexOf(itemSemTraco) > -1
+            regComCodigo.codigo_barras &&
+            normalizarCodigo(regComCodigo.codigo_barras) === codigoNormalizado
           ) {
-            var key = reg.uid ? "enc_" + reg.uid : reg.item + "|" + reg.versao + "|" + reg.qtde;
-            if (!confEncCodBarras[key]) {
-              confEncCodBarras[key] = codigoLimpo;
-              encontrou = true;
-              if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-              toast("✔ " + itemCode + " OP " + reg.encaixe, "success", 1500);
-            } else {
-              if (navigator.vibrate) navigator.vibrate([50]);
-              toast(itemCode + " já conferida", "warning", 1500);
-            }
+            registroEncontrado = regComCodigo;
             break;
           }
         }
 
-        if (!encontrou) {
-          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-          toast("Código não encontrado: " + codigoLimpo, "error", 2500);
+        // Compatibilidade: se um registro antigo ainda não tiver código vinculado,
+        // conserva a busca anterior pelo código do item.
+        if (!registroEncontrado) {
+          for (var j = 0; j < confEncRegistros.length; j++) {
+            var regPorItem = confEncRegistros[j];
+            var itemCode = String(regPorItem.item || "").trim();
+            var itemSemTraco = normalizarCodigo(itemCode);
+
+            if (
+              itemCode === codigoLimpo ||
+              itemSemTraco === codigoNormalizado ||
+              itemCode.indexOf(codigoLimpo) > -1 ||
+              codigoLimpo.indexOf(itemCode) > -1 ||
+              itemSemTraco.indexOf(codigoNormalizado) > -1 ||
+              codigoNormalizado.indexOf(itemSemTraco) > -1
+            ) {
+              registroEncontrado = regPorItem;
+              break;
+            }
+          }
         }
 
-        try { localStorage.setItem("enc_conf_codbarras", JSON.stringify(confEncCodBarras)); } catch (e) {}
+        if (!registroEncontrado) {
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+          toast("Código não vinculado a uma bobina encaixada: " + codigoLimpo, "error", 2500);
+          return;
+        }
+
+        var key = registroEncontrado.uid
+          ? "enc_" + registroEncontrado.uid
+          : registroEncontrado.item + "|" + registroEncontrado.versao + "|" + registroEncontrado.qtde;
+
+        if (!confEncCodBarras[key]) {
+          // Este mapa é o status da conferência, separado do código vinculado.
+          confEncCodBarras[key] = codigoLimpo;
+          if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+          toast(
+            "✔ " + registroEncontrado.item + " OP " + registroEncontrado.encaixe,
+            "success",
+            1500,
+          );
+        } else {
+          if (navigator.vibrate) navigator.vibrate([50]);
+          toast(
+            registroEncontrado.item + " — OP " + registroEncontrado.encaixe + " já conferida",
+            "warning",
+            1500,
+          );
+        }
+
+        try {
+          localStorage.setItem("enc_conf_codbarras", JSON.stringify(confEncCodBarras));
+        } catch (e) {}
+
         confEncRender();
 
         var statusEl = document.getElementById("scanEncStatus");
-        if (statusEl) statusEl.textContent = "Último: " + codigoLimpo + " — continue escaneando...";
+        if (statusEl)
+          statusEl.textContent =
+            "Último: " + codigoLimpo + " — continue escaneando...";
       }
 
       function gerarCSVEncaixadas() {
@@ -11828,8 +11870,10 @@ function getOpItemGroups(g) {
             html += '<div style="font-size:0.85em;margin-top:1px;" id="vincCod_' + reg.docId + '">' + codDisplay + '</div>';
             html += '</div>';
             if (reg.codigo_barras) {
-              html += '<button onclick="vincCodEditarCodigo(\'' + reg.docId + '\')" style="width:28px;height:28px;border:none;border-radius:6px;background:#fef3c7;color:#d97706;font-size:0.85em;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="Editar código">✏️</button>';
-              html += '<button onclick="vincCodApagarCodigo(\'' + reg.docId + '\')" style="width:28px;height:28px;border:none;border-radius:6px;background:#fee2e2;color:#ef4444;font-size:0.85em;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="Apagar código">🗑️</button>';
+              html += '<button onclick="vincCodEditarCodigo(\'' + reg.docId + '\')" style="width:28px;height:28px;border:none;border-radius:6px;background:#fef3c7;color:#d97706;font-size:0.85em;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="Editar código">✏️</button>' +
+                      '<button onclick="vincCodApagarCodigo(\'' + reg.docId + '\')" style="width:28px;height:28px;border:none;border-radius:6px;background:#fee2e2;color:#ef4444;font-size:0.85em;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="Apagar código">🗑️</button>';
+            } else {
+              html += '<button onclick="vincCodScanBobina(\'' + reg.docId + '\')" style="width:28px;height:28px;border:none;border-radius:6px;background:#2563eb;color:#fff;font-size:0.9em;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="Escanear código">📷</button>';
             }
             html += '</div>';
           }
@@ -15049,7 +15093,6 @@ async function shareFotos() {
                 '<span style="font-size:0.68em;background:#fee2e2;color:#ef4444;padding:2px 6px;border-radius:6px;">Tol:' +
                 rej.tl +
                 "</span>";
-            }
             html +=
               '<span style="font-size:0.68em;background:#fee2e2;color:#ef4444;padding:2px 6px;border-radius:6px;">Peso:' +
               rej.ps +
@@ -15154,6 +15197,7 @@ async function shareFotos() {
             html +=
               '<div style="background:#fee2e2;border-radius:12px;padding:14px;text-align:center;font-size:0.88em;color:#ef4444;font-weight:700;">❌ NENHUM ENCAIXE</div>';
           }
+        }
         }
 
         if (!encontrou) {
@@ -17148,6 +17192,5 @@ async function shareFotos() {
           <p>Carregando fórmulas...</p>
         </div>
       </div>
-    </div>
-  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ee22e6bd94630c',t:'MTc4NDY3ODEyNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ee8f6dec458762',t:'MTc4NDY4MjU2OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1eeb3531b43117d',t:'MTc4NDY4NDA0MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    </div><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ef03a1bbad119d',t:'MTc4NDY4NzMyOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
