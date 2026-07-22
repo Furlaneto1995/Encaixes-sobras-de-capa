@@ -7,8 +7,6 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <title>Encaixes</title>
-    <link rel="manifest" href="./manifest.json" />
-    <link rel="apple-touch-icon" href="./icon-192.png" />
     <meta name="theme-color" content="#2563eb" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta
@@ -2983,9 +2981,9 @@
       <div id="confColetorArea" style="display:none;padding:0 14px 8px;">
         <div style="display:flex;gap:8px;align-items:center;background:#f0fdf4;border:2px solid #10b981;border-radius:12px;padding:6px 10px;">
           <div style="flex:1;">
-            <input id="confEstColetorInput" type="text" placeholder="📡 Aguardando coletor..." 
+            <input id="confEstColetorInput" type="text" inputmode="none" autocomplete="off" placeholder="📡 Aguardando coletor..." 
                    style="width:100%;background:transparent;border:none;outline:none;color:#1a1a2e;font-size:0.9em;font-weight:600;" 
-                   onkeydown="confEstColetorProcessar(event)">
+                   onkeydown="confEstColetorProcessar(event)" oninput="confEstColetorAutoProcessar(this)">
           </div>
           <div id="confColetorStatus" style="font-size:0.75em;font-weight:700;color:#10b981;min-width:70px;text-align:right;"></div>
         </div>
@@ -3203,8 +3201,11 @@
         <button class="btn-close" onclick="xM('vincCodModal')">✖</button>
       </div>
       <div style="padding:10px 14px;flex-shrink:0;display:flex;gap:6px;">
-        <input type="text" id="vincCodBusca" inputmode="numeric" placeholder="🔍 Buscar OP..." style="flex:1;padding:10px;border-radius:8px;border:1px solid #d1d5db;font-size:0.9em;" oninput="vincCodFiltrar()">
-        <button onclick="vincCodCarregarOPs()" style="padding:10px 14px;border:none;border-radius:8px;background:#2563eb;color:#fff;font-size:0.85em;font-weight:600;cursor:pointer;">🔍</button>
+        <input type="text" id="vincCodBusca" inputmode="numeric" placeholder="🔍 OP" style="flex:1;min-width:0;padding:10px;border-radius:8px;border:1px solid #d1d5db;font-size:0.9em;" oninput="vincCodFiltrar()">
+        <input type="text" id="vincCodBuscaItem" placeholder="Item" style="flex:1;min-width:0;padding:10px;border-radius:8px;border:1px solid #d1d5db;font-size:0.9em;" oninput="vincCodFiltrar()">
+        <input type="number" id="vincCodBuscaKg" placeholder="Kg" step="0.1" inputmode="decimal" style="width:62px;min-width:0;padding:10px 6px;border-radius:8px;border:1px solid #d1d5db;font-size:0.9em;" oninput="vincCodFiltrar()">
+        <button onclick="vincCodLimparBusca()" title="Limpar busca" style="padding:10px;border:none;border-radius:8px;background:#e2e8f0;color:#64748b;font-size:0.85em;font-weight:600;cursor:pointer;">✕</button>
+        <button onclick="vincCodCarregarOPs()" style="padding:10px 12px;border:none;border-radius:8px;background:#2563eb;color:#fff;font-size:0.85em;font-weight:600;cursor:pointer;">🔍</button>
         <button id="vincCodBtnColetor" onclick="vincCodToggleColetor()" style="padding:10px 14px;border:none;border-radius:8px;background:#6b7280;color:#fff;font-size:0.8em;font-weight:600;cursor:pointer;">📡 Coletor</button>
       </div>
       <div id="vincCodFiltros" style="padding:0 14px 8px;display:flex;gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
@@ -3213,9 +3214,10 @@
         <button data-vf="fundos" onclick="vincCodToggleFiltro('fundos')" style="padding:7px 10px;border:2px solid #f97316;border-radius:999px;background:#fff7ed;color:#f97316;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">🟠 Fundos</button>
         <button data-vf="metal" onclick="vincCodToggleFiltro('metal')" style="padding:7px 10px;border:2px solid #64748b;border-radius:999px;background:#f1f5f9;color:#64748b;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">⚪ Metal</button>
         <button data-vf="ocultas" onclick="vincCodToggleFiltro('ocultas')" style="padding:7px 10px;border:2px solid #8b5cf6;border-radius:999px;background:#f5f3ff;color:#8b5cf6;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">👁️ Ocultas</button>
+        <button data-vf="vinculadas" onclick="vincCodToggleFiltro('vinculadas')" style="padding:7px 10px;border:2px solid #10b981;border-radius:999px;background:#fff;color:#10b981;font-size:.72em;font-weight:700;white-space:nowrap;cursor:pointer;">✅ Já lidas</button>
       </div>
       <div id="vincCodColetorArea" style="padding:0 14px 8px;display:none;gap:6px;align-items:center;">
-        <input id="vincCodColetorInput" type="text" placeholder="Selecionar bobina e escanear..." style="flex:1;padding:10px;border-radius:8px;border:2px solid #10b981;background:#f0fdf4;color:#1a1a2e;font-size:0.9em;font-weight:600;" onkeydown="vincCodColetorProcessar(event)">
+        <input id="vincCodColetorInput" type="text" inputmode="none" autocomplete="off" placeholder="Selecionar bobina e escanear..." style="flex:1;padding:10px;border-radius:8px;border:2px solid #10b981;background:#f0fdf4;color:#1a1a2e;font-size:0.9em;font-weight:600;" onkeydown="vincCodColetorProcessar(event)" oninput="vincCodColetorAutoProcessar(this)">
       </div>
       <div id="vincCodStats" style="padding:0 14px 8px;display:none;">
         <div style="display:flex;gap:6px;">
@@ -7111,12 +7113,6 @@ function getOpItemGroups(g) {
         var codigoLimpo = String(codigo || "").trim();
         if (!codigoLimpo) return;
 
-        if (codigoLimpo.indexOf("-10-") !== 0) {
-          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-          var st = document.getElementById("openCamScanStatus");
-          if (st) st.textContent = "Inválido — precisa começar com -10-";
-          return;
-        }
 
         openCamScanAtivo = false;
         var b = B[bi];
@@ -7174,7 +7170,8 @@ function getOpItemGroups(g) {
         var codBarrasAtual = "";
         try {
           var chaveEnc = (b.item || "") + "|" + (b.ver || "") + "|" + (b.qtde || "");
-          var docIdCod = "cb_" + chaveEnc.replace(/\|/g, "_");
+          // Códigos de estoque novos são salvos pelo UID único da bobina.
+          var docIdCod = b.uid ? "cb_" + String(b.uid) : "cb_" + chaveEnc.replace(/\|/g, "_");
           var docCod = await db.collection("datas_manuais").doc(docIdCod).get();
           if (docCod.exists && docCod.data().codigo_barras) {
             codBarrasAtual = docCod.data().codigo_barras;
@@ -7212,7 +7209,8 @@ function getOpItemGroups(g) {
         var codBarrasAtual = "";
         try {
           var chaveEnc = (b.item || "") + "|" + (b.ver || "") + "|" + (b.qtde || "");
-          var docIdCod = "cb_" + chaveEnc.replace(/\|/g, "_");
+          // Códigos de estoque novos são salvos pelo UID único da bobina.
+          var docIdCod = b.uid ? "cb_" + String(b.uid) : "cb_" + chaveEnc.replace(/\|/g, "_");
           var docCod = await db.collection("datas_manuais").doc(docIdCod).get();
           if (docCod.exists && docCod.data().codigo_barras) {
             codBarrasAtual = docCod.data().codigo_barras;
@@ -11192,6 +11190,18 @@ function getOpItemGroups(g) {
         estRender();
       }
 
+      function estDividirBobina(uid) {
+        var idx = -1;
+        for (var i = 0; i < estoque.length; i++) {
+          if (getUidEstoque(estoque[i]) === uid) { idx = i; break; }
+        }
+        if (idx < 0) { toast("Bobina não encontrada", "error"); return; }
+        var e = estoque[idx];
+        var key = makeConfKey(getItemEstoque(e), e["VERSAO"] || "", e["QTDE_ESTOQUE"] || "", uid);
+        fecharModal("estOpcoesModal");
+        confDividirBobina(key, idx);
+      }
+
       function estAbrirOpcoes(item, uid) {
         if (navigator.vibrate) navigator.vibrate([50]);
 
@@ -11225,6 +11235,10 @@ function getOpItemGroups(g) {
             item.replace(/'/g, "\\'") +
             '\');},300);" style="width:100%;padding:12px;border:none;border-radius:10px;background:#fef3c7;color:#92400e;font-size:0.88em;font-weight:600;cursor:pointer;">🔍 Investigar (Debug)</button>';
         }
+
+        // Dividir bobina
+        html +=
+          "<button onclick=\"fecharModal('estOpcoesModal');estDividirBobina('" + uid + "')\" style=\"width:100%;padding:12px;border:none;border-radius:10px;background:#f3e8ff;color:#7c3aed;font-size:0.88em;font-weight:600;cursor:pointer;\">✂️ Dividir bobina</button>";
 
         // Observação
         html +=
@@ -11743,7 +11757,8 @@ function getOpItemGroups(g) {
         semencaixe: true,
         fundos: true,
         metal: true,
-        ocultas: true
+        ocultas: true,
+        vinculadas: false
       };
 
       function vincCodToggleFiltro(filtro) {
@@ -11755,7 +11770,8 @@ function getOpItemGroups(g) {
           semencaixe: ["#2563eb", "#eff6ff"],
           fundos: ["#f97316", "#fff7ed"],
           metal: ["#64748b", "#f1f5f9"],
-          ocultas: ["#8b5cf6", "#f5f3ff"]
+          ocultas: ["#8b5cf6", "#f5f3ff"],
+          vinculadas: ["#10b981", "#dcfce7"]
         };
         var botoes = document.querySelectorAll("#vincCodFiltros [data-vf]");
         botoes.forEach(function(btn) {
@@ -11767,6 +11783,12 @@ function getOpItemGroups(g) {
           btn.style.borderColor = ativo ? cor[0] : "#e2e8f0";
           btn.style.opacity = ativo ? "1" : "0.55";
         });
+        vincCodFiltrar();
+      }
+
+      function vincCodLimparBusca() {
+        var ids = ["vincCodBusca", "vincCodBuscaItem", "vincCodBuscaKg"];
+        ids.forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ""; });
         vincCodFiltrar();
       }
 
@@ -11807,6 +11829,17 @@ function getOpItemGroups(g) {
         }
       }
 
+      var vincCodColetorTimer = null;
+      function vincCodColetorAutoProcessar(input) {
+        if (vincCodColetorTimer) clearTimeout(vincCodColetorTimer);
+        vincCodColetorTimer = setTimeout(function () {
+          if (!input || !input.value.trim() || !vincCodBobinaAlvo) return;
+          var codigo = input.value.trim();
+          input.value = "";
+          vincCodSalvarCodigo(vincCodBobinaAlvo, codigo);
+        }, 180);
+      }
+
       function vincCodColetorProcessar(e) {
         if (e.key === "Enter") {
           var inp = document.getElementById("vincCodColetorInput");
@@ -11814,12 +11847,6 @@ function getOpItemGroups(g) {
           var codigo = inp.value.trim();
           inp.value = "";
 
-          if (codigo.indexOf("-10-") !== 0) {
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-            toast("Código inválido — precisa começar com -10-", "error", 2500);
-            inp.focus();
-            return;
-          }
 
           if (!vincCodBobinaAlvo) {
             toast("Selecione uma bobina primeiro (toque no 📷)", "warning", 2500);
@@ -11973,6 +12000,9 @@ function getOpItemGroups(g) {
 
       function vincCodFiltrar() {
         var busca = document.getElementById("vincCodBusca").value.trim();
+        var buscaItem = (document.getElementById("vincCodBuscaItem").value || "").trim().toUpperCase();
+        var buscaKgTxt = (document.getElementById("vincCodBuscaKg").value || "").trim().replace(",", ".");
+        var buscaKg = buscaKgTxt === "" ? null : parseFloat(buscaKgTxt);
         var body = document.getElementById("vincCodBody");
         var statsEl = document.getElementById("vincCodStats");
 
@@ -11981,8 +12011,10 @@ function getOpItemGroups(g) {
           var grupoOriginal = vincCodOPs[fi];
           var regsFiltrados = grupoOriginal.regs.filter(function(reg) {
             var categoria = vincCodCategoriaRegistro(grupoOriginal, reg);
-            // Cada botão é independente, como os filtros do Estoque.
-            // Nenhum botão ativo = nenhuma bobina exibida.
+            // “Já lidas” é um refinamento: quando ativo, mostra somente
+            // bobinas que já possuem código de barras vinculado.
+            if (vincCodFiltrosAtivos.vinculadas && !reg.codigo_barras) return false;
+            // Cada botão de categoria é independente, como os filtros do Estoque.
             if (grupoOriginal.tipo !== "estoque") {
               return vincCodFiltrosAtivos.encaixadas === true;
             }
@@ -12006,6 +12038,17 @@ function getOpItemGroups(g) {
               return String(reg.item || "").indexOf(busca) > -1 || String(reg.codigo_barras || "").indexOf(busca) > -1;
             });
           });
+        }
+        if (buscaItem || (buscaKg !== null && !isNaN(buscaKg))) {
+          filtradas = filtradas.map(function(op) {
+            var copia = Object.assign({}, op);
+            copia.regs = op.regs.filter(function(reg) {
+              if (buscaItem && String(reg.item || "").toUpperCase().indexOf(buscaItem) === -1) return false;
+              if (buscaKg !== null && !isNaN(buscaKg) && Math.abs((parseFloat(reg.qtde) || 0) - buscaKg) > 0.05) return false;
+              return true;
+            });
+            return copia;
+          }).filter(function(op) { return op.regs.length > 0; });
         }
 
         var totalComCod = 0, totalSemCod = 0;
@@ -12103,10 +12146,6 @@ function getOpItemGroups(g) {
           if (confirm("Código vazio. Remover o código?")) {
             vincCodApagarCodigo(docId);
           }
-          return;
-        }
-        if (novo.indexOf("-10-") !== 0) {
-          toast("Código inválido — precisa começar com -10-", "error", 2500);
           return;
         }
         vincCodSalvarCodigo(docId, novo);
@@ -12235,14 +12274,6 @@ function getOpItemGroups(g) {
         var codigoLimpo = String(codigo || "").trim();
         if (!codigoLimpo || !docId) return;
 
-        // Validar: código precisa começar com -10-
-        if (codigoLimpo.indexOf("-10-") !== 0) {
-          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-          toast("Código inválido — precisa começar com -10-", "error", 2500);
-          var statusEl = document.getElementById("vincCodScanStatus");
-          if (statusEl) statusEl.textContent = "Inválido: " + codigoLimpo;
-          return;
-        }
 
         // Desativar scan pra evitar duplicação
         vincCodAtivo = false;
@@ -13006,8 +13037,10 @@ function getOpItemGroups(g) {
         if (cbKg) cbKg.value = "";
         confRender();
         setTimeout(function () {
-          var kg = document.getElementById("confBuscaKg");
-          if (kg) kg.focus();
+          var destino = confModoLeitura === "coletor"
+            ? document.getElementById("confEstColetorInput")
+            : document.getElementById("confBuscaKg");
+          if (destino) destino.focus({ preventScroll: true });
         }, 120);
 
         var msg = itemNome + " → " + endereco;
@@ -13453,6 +13486,17 @@ function getOpItemGroups(g) {
         }
       }
 
+      var confEstColetorTimer = null;
+      function confEstColetorAutoProcessar(input) {
+        if (confEstColetorTimer) clearTimeout(confEstColetorTimer);
+        confEstColetorTimer = setTimeout(function () {
+          if (!input || !input.value.trim()) return;
+          var codigo = input.value.trim();
+          input.value = "";
+          confEstProcessarCodigo(codigo);
+        }, 180);
+      }
+
       function confEstColetorProcessar(e) {
         if (e.key === "Enter") {
           var inp = document.getElementById("confEstColetorInput");
@@ -13590,14 +13634,6 @@ function getOpItemGroups(g) {
         var codigoLimpo = String(codigo || "").trim();
         if (!codigoLimpo) return;
 
-        // Validar -10-
-        if (codigoLimpo.indexOf("-10-") !== 0) {
-          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-          toast("Código inválido — precisa começar com -10-", "error", 2500);
-          var statusEl = document.getElementById("confEstScanStatus");
-          if (statusEl) statusEl.textContent = "Inválido: " + codigoLimpo;
-          return;
-        }
 
         // Desativar pra evitar duplicação
         confEstScanAtivo = false;
@@ -17445,5 +17481,5 @@ async function shareFotos() {
           <p>Carregando fórmulas...</p>
         </div>
       </div>
-    </div><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1ef4623be47a09c',t:'MTc4NDY5MDA1Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1f28e1a4e04be74',t:'MTc4NDcyNDQ1OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    </div><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1f32ba33bd3f1f7',t:'MTc4NDczMDkxMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
