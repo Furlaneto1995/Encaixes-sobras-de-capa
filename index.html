@@ -4868,6 +4868,7 @@ var estObservacoes = {};
                 esp: String(bob.espessura),
                 pig: bob.pigmentado,
                 qtde: String(bob.qtde),
+                uid: bob.uid || "",
                 material: bob.material || "",
                 largOP: String(escL.largura || bob.largura),
                 composicao: bob.composicao || "",
@@ -6759,6 +6760,9 @@ function getOpItemGroups(g) {
       "</span>" +
       obsHTML +
       getEnderecoMini(bob) +
+      (codigoDaBobina(bob)
+        ? '<div style="font-size:0.58em;color:#10b981;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;">🏷️ ' + htmlSafe(codigoDaBobina(bob)) + "</div>"
+        : "") +
       "</div>" +
       (bob.foto
         ? '<img src="' + bob.foto + '" class="bob-mini" data-b="' + bi + '">'
@@ -7145,10 +7149,12 @@ function getOpItemGroups(g) {
 
         // Salvar o código
         try {
-          var chave = (b.item || "") + "|" + (b.ver || "") + "|" + (b.qtde || "");
-          var docId = "cb_" + chave.replace(/\|/g, "_");
+          var uidCodigo = getUidBobina(b);
+          if (!uidCodigo) throw new Error("Bobina sem UID");
+          var docId = "cb_" + uidCodigo;
           await db.collection("datas_manuais").doc(docId).set({
             tipo: "codigobarras",
+            uid: uidCodigo,
             item: b.item || "",
             versao: b.ver || "",
             qtde: b.qtde || "",
@@ -15756,6 +15762,23 @@ async function shareFotos() {
         appId: "1:664379035552:web:5f13a79285409096e4dec5",
       });
       var db = firebase.firestore();
+      // Cache visual dos códigos vinculados às bobinas por UID.
+      var codigosBobinasCache = {};
+      function codigoDaBobina(bob) {
+        return bob ? (codigosBobinasCache[getUidBobina(bob)] || "") : "";
+      }
+      async function carregarCodigosBobinasCache() {
+        try {
+          var snap = await db.collection("datas_manuais").get();
+          var mapa = {};
+          snap.forEach(function(doc) {
+            var d = doc.data() || {};
+            if (d.tipo === "codigobarras" && d.uid && d.codigo_barras) mapa[String(d.uid)] = String(d.codigo_barras);
+          });
+          codigosBobinasCache = mapa;
+          if (B && B.length) build();
+        } catch (e) { console.error("Erro ao carregar cache de códigos:", e); }
+      }
 
       async function salvarHistorico() {
         var lo = document.getElementById("lo"),
@@ -17158,6 +17181,12 @@ async function shareFotos() {
       } catch (e) {
         console.error("Erro carregarExcluidasEncaixe:", e);
       }
+      try {
+        carregarCodigosBobinasCache();
+      } catch (e) {
+        console.error("Erro ao carregar códigos vinculados:", e);
+      }
+
       try {
         iniciarListenerConferenciaNuvem();
       } catch (e) {
