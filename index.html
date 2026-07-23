@@ -11986,7 +11986,8 @@ function getOpItemGroups(g) {
 
           // 2. Carregar códigos das não encaixadas do Firebase (datas_manuais com prefixo cb_)
           var codMapaEstoque = {}; // UID -> codigo_barras
-          var codMapaLegado = {}; // recuperação temporária: item|versão|peso -> código
+          var codMapaLegado = {}; // recuperação: item|versão|qtde -> {uid_antigo, codigo}
+          var codDocsMigrar = []; // docs que precisam migração para UID novo
           try {
             var codSnap = await db.collection("datas_manuais").get();
             codSnap.forEach(function(doc) {
@@ -11994,10 +11995,64 @@ function getOpItemGroups(g) {
               if (d.tipo === "codigobarras" && d.codigo_barras) {
                 if (d.uid) codMapaEstoque[String(d.uid)] = d.codigo_barras;
                 var chaveLegada = String(d.item || "") + "|" + String(d.versao || "") + "|" + String(d.qtde || "");
-                if (d.item && d.versao !== undefined && d.qtde !== undefined) codMapaLegado[chaveLegada] = d.codigo_barras;
+                if (d.item && d.versao !== undefined && d.qtde !== undefined) {
+                  // Guardar uid_antigo também para migração
+                  if (!codMapaLegado[chaveLegada]) codMapaLegado[chaveLegada] = { uid_antigo: d.uid || "", codigo: d.codigo_barras, docId: doc.id };
+                }
               }
             });
           } catch (e) { console.error("Erro ao carregar códigos:", e); }
+
+          // 2b. Verificar se UIDs novos precisam de migração de códigos legados
+          var migracoesPendentes = [];
+          for (var ei_m = 0; ei_m < estoque.length; ei_m++) {
+            var e_m = estoque[ei_m];
+            var uidNovo = getUidEstoque(e_m);
+            var itemM = getItemEstoque(e_m);
+            var verM = String(e_m["VERSAO"] || "").trim();
+            var qtdeM = String(e_m["QTDE_ESTOQUE"] || "").trim();
+            var chaveM = itemM + "|" + verM + "|" + qtdeM;
+            // Se o UID novo não tem código no Firebase, mas a chave legada tem, migrar
+            if (!codMapaEstoque[uidNovo] && codMapaLegado[chaveM]) {
+              migracoesPendentes.push({
+                uidNovo: uidNovo,
+                uidAntigo: codMapaLegado[chaveM].uid_antigo,
+                codigo: codMapaLegado[chaveM].codigo,
+                docIdAntigo: codMapaLegado[chaveM].docId,
+                item: itemM,
+                versao: verM,
+                qtde: qtdeM,
+              });
+            }
+          }
+          // Executar migrações em batch
+          if (migracoesPendentes.length > 0) {
+            try {
+              var batchMig = db.batch();
+              for (var mi = 0; mi < migracoesPendentes.length; mi++) {
+                var m = migracoesPendentes[mi];
+                // Criar novo doc com UID novo
+                var novoDocId = "cb_" + m.uidNovo;
+                batchMig.set(db.collection("datas_manuais").doc(novoDocId), {
+                  tipo: "codigobarras",
+                  uid: m.uidNovo,
+                  item: m.item,
+                  versao: m.versao,
+                  qtde: m.qtde,
+                  codigo_barras: m.codigo,
+                  timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                });
+                // Apagar doc antigo se UID antigo diferente
+                if (m.uidAntigo && m.uidAntigo !== m.uidNovo) {
+                  batchMig.delete(db.collection("datas_manuais").doc(m.docIdAntigo));
+                }
+                // Atualizar mapa local
+                codMapaEstoque[m.uidNovo] = m.codigo;
+              }
+              await batchMig.commit();
+              console.log("Migração de códigos:", migracoesPendentes.length, "códigos migrados para UID novo");
+            } catch (e) { console.error("Erro na migração de códigos:", e); }
+          }
 
           // 3. Adiciona bobinas do estoque em grupos iguais aos da
           // Conferência Não Encaixadas: Metalizados, Capas e Ocultas.
@@ -12052,7 +12107,7 @@ function getOpItemGroups(g) {
               qtde: qtde,
               encaixe: opMap[chaveGrupoEstoque].titulo,
               data: "",
-              codigo_barras: codMapaEstoque[uidEstoque] || "",
+              codigo_barras: codMapaEstoque[uidEstoque] || (codMapaLegado[itemCode + "|" + ver + "|" + qtde] && codMapaLegado[itemCode + "|" + ver + "|" + qtde].codigo) || "",
               uid: uidEstoque,
               tipo: "estoque",
               categoriaEstoque: categoriaEstoque,
@@ -17669,5 +17724,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    </body>
+    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1fadc58d8b61f6a',t:'MTc4NDgxMTU0OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
