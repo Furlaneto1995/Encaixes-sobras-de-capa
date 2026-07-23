@@ -7189,15 +7189,15 @@ function getOpItemGroups(g) {
           toast("Erro ao salvar código: " + err.message, "error");
         }
 
-        // Fechar scanner e abrir câmera de foto
-        openCamScanFechar(bi);
+        // Fechar scanner e abrir câmera de foto, passando código escaneado
+        openCamScanFechar(bi, codigoLimpo);
       }
 
       function openCamScanPular(bi) {
-        openCamScanFechar(bi);
+        openCamScanFechar(bi, "");
       }
 
-      async function openCamScanFechar(bi) {
+      async function openCamScanFechar(bi, codigoPassado) {
         liberarRotacao();
         openCamScanAtivo = false;
         try {
@@ -7209,29 +7209,30 @@ function getOpItemGroups(g) {
         } catch (e) { openCamScanLeitor = null; }
         var modal = document.getElementById("openCamScanModal");
         if (modal) modal.remove();
-        // Abrir câmera de foto
-        openCamDireto(bi);
+        // Abrir câmera de foto, com código já escaneado
+        openCamDireto(bi, codigoPassado || "");
       }
 
       // openCam sem verificação de código (chamado depois do scanner ou quando já tem código)
-      async function openCamDireto(bi) {
+      async function openCamDireto(bi, codigoPassado) {
         curB = bi;
         var b = B[bi];
         camEtapa = 1;
         fotoEtiqueta = null;
         fotoRotacao = 0;
 
-        // Buscar código atual pra mostrar
-        var codBarrasAtual = "";
-        try {
-          var chaveEnc = (b.item || "") + "|" + (b.ver || "") + "|" + (b.qtde || "");
-          // Códigos de estoque novos são salvos pelo UID único da bobina.
-          var docIdCod = b.uid ? "cb_" + String(b.uid) : "cb_" + chaveEnc.replace(/\|/g, "_");
-          var docCod = await db.collection("datas_manuais").doc(docIdCod).get();
-          if (docCod.exists && docCod.data().codigo_barras) {
-            codBarrasAtual = docCod.data().codigo_barras;
-          }
-        } catch (e) {}
+        // Código passado direto do scanner (sem delay de Firebase)
+        var codBarrasAtual = codigoPassado || "";
+        if (!codBarrasAtual) {
+          try {
+            var chaveEnc = (b.item || "") + "|" + (b.ver || "") + "|" + (b.qtde || "");
+            var docIdCod = b.uid ? "cb_" + String(b.uid) : "cb_" + chaveEnc.replace(/\|/g, "_");
+            var docCod = await db.collection("datas_manuais").doc(docIdCod).get();
+            if (docCod.exists && docCod.data().codigo_barras) {
+              codBarrasAtual = docCod.data().codigo_barras;
+            }
+          } catch (e) {}
+        }
 
         var codAviso = codBarrasAtual
           ? '<div style="margin-top:4px;font-size:0.8em;background:#dcfce7;color:#10b981;padding:3px 8px;border-radius:6px;display:inline-block;">🏷️ Código: ' + codBarrasAtual + '</div>'
@@ -13637,7 +13638,7 @@ function getOpItemGroups(g) {
       //                    SCANNER CÓDIGO DE BARRAS - CONFERÊNCIA
       // ================================================================
       var confModoLeitura = "camera"; // "camera" ou "coletor"
-      var confPedirEnderecoAoBip = true;
+      var confPedirEnderecoAoBip = false;
 
       function confToggleEnderecoAoBip() {
         confPedirEnderecoAoBip = !confPedirEnderecoAoBip;
@@ -17724,5 +17725,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1fadc58d8b61f6a',t:'MTc4NDgxMTU0OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1fc88bddc420126',t:'MTc4NDgyOTA5Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
