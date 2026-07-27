@@ -3006,13 +3006,13 @@
       <!-- Campo do coletor (linha de baixo) -->
       <div id="confColetorArea" style="display:none;padding:0 14px 8px;">
         <div style="display:flex;gap:8px;align-items:center;background:#f0fdf4;border:2px solid #10b981;border-radius:12px;padding:6px 10px;">
+          <div id="confColetorStatus" style="font-size:0.75em;font-weight:700;color:#10b981;min-width:50px;"></div>
           <div style="flex:1;">
             <input id="confEstColetorInput" type="text" inputmode="none" autocomplete="off" placeholder="📡 Aguardando coletor..." 
                    style="width:100%;background:transparent;border:none;outline:none;color:#1a1a2e;font-size:0.9em;font-weight:600;" 
                    onkeydown="confEstColetorProcessar(event)" oninput="confEstColetorAutoProcessar(this)">
           </div>
           <button onclick="limparCampoColetor('confEstColetorInput')" title="Limpar leitura" style="width:34px;height:34px;flex-shrink:0;border:none;border-radius:8px;background:#fee2e2;color:#ef4444;font-size:.9em;font-weight:700;cursor:pointer;">✕</button>
-          <div id="confColetorStatus" style="font-size:0.75em;font-weight:700;color:#10b981;min-width:50px;text-align:right;"></div>
         </div>
       </div>
       <div
@@ -3539,6 +3539,9 @@
         lockOrientation(); // reforça lock ao fechar scanner
       }
       var confStatus = {};
+      function normalizarCodigoGlobal(valor) {
+        return String(valor || "").trim().replace(/[\s-]/g, "");
+      }
       var confHistorico = {};
       var confOcultos = {};
       var confEstCodBarras = {}; // mapa: codigo_barras -> key da conferência
@@ -6611,7 +6614,7 @@ var estObservacoes = {};
       function getEnderecoMini(bob) {
         var uid = getUidBobina(bob);
         var endereco = getEnderecoBobinaAtual(bob.item, bob.ver, bob.qtde, uid);
-        if (!endereco || /^ENCAIXE\s+OP/i.test(String(endereco))) return "";
+        if (!endereco || /^OP\s/i.test(String(endereco))) return "";
         var atual = getConfStatusAtual(bob.item, bob.ver, bob.qtde, uid);
         var cor = atual && atual.endereco ? "#10b981" : "#2563eb";
         return (
@@ -11378,7 +11381,11 @@ function getOpItemGroups(g) {
             }
           }, 2000);
           
-          inp.focus();
+          // Refocar após render (o render rebuild o HTML)
+          setTimeout(function() {
+            var inp2 = document.getElementById("encColetorInput");
+            if (inp2) inp2.focus({ preventScroll: true });
+          }, 100);
         }
       }
 
@@ -12796,7 +12803,7 @@ function getOpItemGroups(g) {
             if (!confStatus[keyEncFin] || confStatus[keyEncFin].status !== "ok") {
               confStatus[keyEncFin] = {
                 status: "ok",
-                endereco: "ENCAIXE OP " + encFinResult.eop,
+                endereco: "OP " + encFinResult.eop,
                 uid: uidEncFin,
                 item: itemCode,
                 versao: e["VERSAO"] || "",
@@ -12894,12 +12901,8 @@ function getOpItemGroups(g) {
               : cCapas;
         document.getElementById("confSubtitle").textContent =
           confTipoLabel(tipoSelecionado) +
-          ": " +
-          totalVis +
-          " bobinas | " +
-          cOkTipo +
-          " encontradas" +
-          (confMostrarSoFaltam ? " | faltam " + cFaltamVis : "");
+          ": " + totalVis + " bobinas | ✅" + cOkTipo + " encontradas | ❌" + cFaltamVis + " não encontradas" +
+          (confMostrarSoFaltam ? " | mostrando faltam" : "");
         if (itens.length === 0) {
           body.innerHTML =
             '<div style="text-align:center;padding:40px;color:#aaa;"><div style="font-size:2.5em;margin-bottom:8px;">📭</div><p>Nenhuma bobina neste filtro</p></div>';
@@ -12958,8 +12961,8 @@ function getOpItemGroups(g) {
           html += '<div class="conf-det">';
           html += "<span>📐 " + it.larg + "cm x " + it.esp + "mu</span>";
           if (!it.metal) html += "<span>" + it.pig + "</span>";
-          if (isOk2 && it.endereco)
-            html += '<span style="color:#10b981;">📌' + it.endereco + "</span>";
+          if (it.endereco)
+            html += '<span style="color:' + (isOk2 ? '#10b981' : '#2563eb') + ';">📌' + it.endereco + "</span>";
           html += "</div>";
 
           // Mostra histórico somente da própria bobina (UID), nunca por item/peso.
@@ -13336,7 +13339,7 @@ function getOpItemGroups(g) {
               dataFinalizacaoOP: getDataFinalizacaoOP(estoque[i]),
               confKey: keyEncFin,
               tipo: confTipoRegistro(ic),
-              endereco: "ENCAIXE OP " + encFinResult.eop,
+              endereco: "OP " + encFinResult.eop,
               observacao: "",
               status: "ENCONTRADA",
               adicional: false,
@@ -13921,7 +13924,71 @@ function getOpItemGroups(g) {
           return;
         }
 
-        // Código não mapeado — não sabemos qual bobina é
+        // Código não mapeado — verificar se é de bobina já encaixada
+        var encReg = null;
+        for (var encI = 0; encI < confEncRegistros.length; encI++) {
+          var rEnc = confEncRegistros[encI];
+          if (rEnc.codigo_barras && normalizarCodigoGlobal(rEnc.codigo_barras) === codigoNormalizado) {
+            encReg = rEnc;
+            break;
+          }
+        }
+        if (encReg) {
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+          toast("⚠️ Bobina já encaixada! " + encReg.item + " v" + encReg.versao + " — OP " + encReg.encaixe, "warning", 3000);
+          confEstScanAtivo = true;
+          return;
+        }
+
+        // Código não mapeado e não é encaixada — anexar direto (Ponto 3)
+        // Buscar bobina no estoque sem código que corresponda
+        var chaveLegadaEncontrada = null;
+        var estoqueIdxEncontrado = -1;
+        for (var estI = 0; estI < estoque.length; estI++) {
+          var eEst = estoque[estI];
+          var icEst = getItemEstoque(eEst);
+          var verEst = String(eEst["VERSAO"] || "").trim();
+          var qtdeEst = String(parseFloat(eEst["QTDE_ESTOQUE"] || "") || 0);
+          // Verificar se o código contém o item code ou vice versa
+          var icNormalizado = normalizarCodigoGlobal(icEst);
+          if (icEst === codigoLimpo || icNormalizado === codigoNormalizado || codigoNormalizado.indexOf(icNormalizado) > -1) {
+            chaveLegadaEncontrada = icEst + "|" + verEst + "|" + qtdeEst;
+            estoqueIdxEncontrado = estI;
+            break;
+          }
+        }
+
+        if (chaveLegadaEncontrada) {
+          // Anexar código à bobina e confirmar
+          var uidAnexar = getUidEstoque(estoque[estoqueIdxEncontrado]);
+          var keyAnexar = makeConfKey(getItemEstoque(estoque[estoqueIdxEncontrado]), String(estoque[estoqueIdxEncontrado]["VERSAO"] || "").trim(), parseFloat(estoque[estoqueIdxEncontrado]["QTDE_ESTOQUE"]) || 0, uidAnexar);
+
+          confEstCodBarras[codigoLimpo] = keyAnexar;
+          try { localStorage.setItem("enc_conf_est_cod", JSON.stringify(confEstCodBarras)); } catch (e) {}
+
+          // Salvar no Firebase também
+          try {
+            var docIdAnexar = "cb_" + uidAnexar;
+            await db.collection("datas_manuais").doc(docIdAnexar).set({
+              tipo: "codigobarras",
+              uid: uidAnexar,
+              item: getItemEstoque(estoque[estoqueIdxEncontrado]),
+              versao: String(estoque[estoqueIdxEncontrado]["VERSAO"] || "").trim(),
+              qtde: String(parseFloat(estoque[estoqueIdxEncontrado]["QTDE_ESTOQUE"]) || 0),
+              codigo_barras: codigoLimpo,
+              timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+          } catch (e) {}
+
+          if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+          toast("⚠️ Bobina sem código, código " + codigoLimpo + " anexado", "warning", 2000);
+          confTratarBobinaLida(keyAnexar);
+          confEstCodBarrasAlvo = null;
+          confRender();
+          return;
+        }
+
+        // Realmente não encontrado
         if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
         toast("Código não vinculado — selecione a bobina primeiro", "warning", 3000);
         var statusEl2 = document.getElementById("confEstScanStatus");
@@ -14876,26 +14943,50 @@ async function shareFotos() {
     window._arquivosRelatorio = arquivos;
 
     if (navigator.share) {
-      try {
-        await navigator.share({
-          files: arquivos,
-          title: "📦 Encaixes " + new Date().toLocaleDateString("pt-BR"),
-          text: textoRelatorioWpp,
-        });
-        return;
-      } catch (e) {
-        if (e.name === "AbortError") return;
-        console.warn("Compartilhamento com fotos falhou, tentando texto:", e);
+      // Verificar se canShare suporta os arquivos
+      var canShareFiles = false;
+      if (navigator.canShare) {
+        try {
+          canShareFiles = navigator.canShare({ files: [arquivos[0]] });
+        } catch (e) { canShareFiles = false; }
+      }
+      
+      if (canShareFiles) {
         try {
           await navigator.share({
+            files: arquivos,
             title: "📦 Encaixes " + new Date().toLocaleDateString("pt-BR"),
             text: textoRelatorioWpp,
           });
           return;
-        } catch (e2) {
-          if (e2.name === "AbortError") return;
-          console.warn("Web Share texto falhou, usando fallback WhatsApp:", e2);
+        } catch (e) {
+          if (e.name === "AbortError") return;
+          // Se falhou com todos os arquivos, tentar batch menor (só relatório + 5 fotos)
+          console.warn("Share com todos arquivos falhou, tentando batch:", e);
+          try {
+            var batchFiles = arquivos.length > 6 ? arquivos.slice(-6) : arquivos;
+            await navigator.share({
+              files: batchFiles,
+              title: "📦 Encaixes " + new Date().toLocaleDateString("pt-BR"),
+              text: textoRelatorioWpp,
+            });
+            return;
+          } catch (e2) {
+            if (e2.name === "AbortError") return;
+          }
         }
+      }
+      
+      // Fallback: share com texto apenas
+      try {
+        await navigator.share({
+          title: "📦 Encaixes " + new Date().toLocaleDateString("pt-BR"),
+          text: textoRelatorioWpp,
+        });
+        return;
+      } catch (e3) {
+        if (e3.name === "AbortError") return;
+        console.warn("Web Share texto falhou, usando fallback WhatsApp:", e3);
       }
     }
 
@@ -17734,5 +17825,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1fd22516dcef18d',t:'MTc4NDgzNTM4Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    </body>
 </html>
