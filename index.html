@@ -2945,17 +2945,31 @@
         </div>
         <div
           class="st-btn on"
-          id="confFTipoCapas"
-          onclick="confSelecionarTipo('capas')"
-          style="flex: 1; min-width: 80px; padding: 8px 4px; cursor: pointer"
+          id="confFTipoCapa"
+          onclick="confSelecionarTipo('capa')"
+          style="flex: 1; min-width: 60px; padding: 8px 4px; cursor: pointer"
         >
           <div
             style="font-size: 1em; color: #ef4444; font-weight: 700"
-            id="confCCapas"
+            id="confCCapa"
           >
             0
           </div>
           <div style="font-size: 0.58em; color: #888">Capas</div>
+        </div>
+        <div
+          class="st-btn"
+          id="confFTipoBase"
+          onclick="confSelecionarTipo('base')"
+          style="flex: 1; min-width: 60px; padding: 8px 4px; cursor: pointer"
+        >
+          <div
+            style="font-size: 1em; color: #10b981; font-weight: 700"
+            id="confCBase"
+          >
+            0
+          </div>
+          <div style="font-size: 0.58em; color: #888">Bases</div>
         </div>
         <div
           class="st-btn"
@@ -3560,9 +3574,9 @@
         metal: true,
         oculto: true,
       };
-      var confTipo = "capas";
+      var confTipo = "capa";
       try {
-        confTipo = localStorage.getItem("enc_conf_tipo") || "capas";
+        confTipo = localStorage.getItem("enc_conf_tipo") || "capa";
       } catch (e) {}
       var confMostrarSoFaltam = false;
       try {
@@ -4826,6 +4840,7 @@ var estObservacoes = {};
         }
 
         window.fpLam = fpLam;
+        window.fp = fp;
         var saldoLam = {};
         for (var sl = 0; sl < fpLam.length; sl++) {
           if (!saldoLam[fpLam[sl].op]) saldoLam[fpLam[sl].op] = fpLam[sl].peso;
@@ -11809,17 +11824,8 @@ function getOpItemGroups(g) {
           var opConf = String(registroEncontrado.encaixe || "").trim().replace(/^OP\s*/i, "");
           var opNaFilaLam = false;
           var fpLamArr = window.fpLam || [];
-          var bobEhMetal = isMetalizado(registroEncontrado.item || "");
           for (var fli = 0; fli < fpLamArr.length; fli++) {
-            // Metalizado: OP guardada é OP mãe (B-2) → compara só com fpLam.op
-            // Normal: OP guardada é coluna B exata → compara só com fpLam.opOriginal
-            var match = false;
-            if (bobEhMetal) {
-              match = String(fpLamArr[fli].op || "").trim() === opConf;
-            } else {
-              match = String(fpLamArr[fli].opOriginal || "").trim() === opConf;
-            }
-            if (match) {
+            if (String(fpLamArr[fli].op || "").trim() === opConf || String(fpLamArr[fli].opOriginal || "").trim() === opConf) {
               opNaFilaLam = true;
               break;
             }
@@ -12683,6 +12689,8 @@ function getOpItemGroups(g) {
         if (tipo === "metal") return "Metalizados";
         if (tipo === "fundo") return "Fundos";
         if (tipo === "oculto") return "Ocultas";
+        if (tipo === "capa") return "Capas";
+        if (tipo === "base") return "Bases";
         return "Capas";
       }
 
@@ -12690,7 +12698,7 @@ function getOpItemGroups(g) {
         if (temFundo(descricao || "")) return "fundo";
         if (isMetalizado(itemCode)) return "metal";
         if (confOcultos[itemCode] === true) return "oculto";
-        return "capas";
+        return temCapa(itemCode) ? "capa" : "base";
       }
 
       function confTipoRegistro(itemCode, descricao) {
@@ -12703,14 +12711,15 @@ function getOpItemGroups(g) {
       function confAtualizarTipoBtns() {
         var ids = {
           metal: "confFTipoMetal",
-          capas: "confFTipoCapas",
+          capa: "confFTipoCapa",
+          base: "confFTipoBase",
           fundo: "confFTipoFundo",
           oculto: "confFTipoOculto",
         };
         Object.keys(ids).forEach(function (k) {
           var el = document.getElementById(ids[k]);
           if (!el) return;
-          el.classList.toggle("on", (confTipo || "capas") === k);
+          el.classList.toggle("on", (confTipo || "capa") === k);
         });
       }
 
@@ -12747,7 +12756,7 @@ function getOpItemGroups(g) {
       }
 
       function confSelecionarTipo(tipo) {
-        if (["metal", "capas", "fundo", "oculto"].indexOf(tipo) === -1) tipo = "capas";
+        if (["metal", "capa", "base", "fundo", "oculto"].indexOf(tipo) === -1) tipo = "capa";
         confTipo = tipo;
         try {
           localStorage.setItem("enc_conf_tipo", confTipo);
@@ -12758,10 +12767,10 @@ function getOpItemGroups(g) {
 
       // Mantém compatibilidade com chamadas antigas.
       function confToggleFiltro(tipo) {
-        if (tipo === "metal" || tipo === "fundo" || tipo === "oculto" || tipo === "capas") {
+        if (tipo === "metal" || tipo === "fundo" || tipo === "oculto" || tipo === "capa" || tipo === "base") {
           confSelecionarTipo(tipo);
         } else {
-          confSelecionarTipo("capas");
+          confSelecionarTipo("capa");
         }
       }
       async function abrirConferencia() {
@@ -12887,7 +12896,7 @@ function getOpItemGroups(g) {
       function confRender() {
         var body = document.getElementById("confBody");
         if (!body) return;
-        var tipoSelecionado = confTipo || "capas";
+        var tipoSelecionado = confTipo || "capa";
         var buscaEl = document.getElementById("confBusca");
         var buscaKgEl = document.getElementById("confBuscaKg");
         var busca = buscaEl ? buscaEl.value.trim().toUpperCase() : "";
@@ -12898,7 +12907,8 @@ function getOpItemGroups(g) {
         var itensComEncaixe = {};
         for (var b = 0; b < B.length; b++) itensComEncaixe[B[b].item] = true;
         var itens = [],
-          cCapas = 0,
+          cCapa = 0,
+          cBase = 0,
           cMetal = 0,
           cFundo = 0,
           cOculto = 0,
@@ -12943,11 +12953,12 @@ function getOpItemGroups(g) {
               status: "pend",
               endereco: "",
             };
-          var categoria = isFundo ? "fundo" : (isMetal ? "metal" : isOculto ? "oculto" : "capas");
+          var categoria = isFundo ? "fundo" : (isMetal ? "metal" : isOculto ? "oculto" : isCapa ? "capa" : "base");
           if (categoria === "metal") cMetal++;
           else if (categoria === "fundo") cFundo++;
           else if (categoria === "oculto") cOculto++;
-          else cCapas++;
+          else if (categoria === "capa") cCapa++;
+          else cBase++;
           if (categoria !== tipoSelecionado) continue;
           if (info.status === "ok") cOkTipo++;
           if (busca) {
@@ -12995,8 +13006,10 @@ function getOpItemGroups(g) {
               desc.indexOf("ITEM MANUAL") > -1,
           });
         }
-        var elCapas = document.getElementById("confCCapas");
-        if (elCapas) elCapas.textContent = cCapas;
+        var elCapa = document.getElementById("confCCapa");
+        if (elCapa) elCapa.textContent = cCapa;
+        var elBase = document.getElementById("confCBase");
+        if (elBase) elBase.textContent = cBase;
         var elMetal = document.getElementById("confCMetal");
         if (elMetal) elMetal.textContent = cMetal;
         var elFundo = document.getElementById("confCFundo");
@@ -13012,7 +13025,9 @@ function getOpItemGroups(g) {
               ? cFundo
               : tipoSelecionado === "oculto"
               ? cOculto
-              : cCapas;
+              : tipoSelecionado === "base"
+              ? cBase
+              : cCapa;
         document.getElementById("confSubtitle").textContent =
           confTipoLabel(tipoSelecionado) +
           ": " + totalVis + " bobinas | ✅" + cOkTipo + " encontradas | ❌" + cFaltamVis + " não encontradas" +
@@ -13417,7 +13432,7 @@ function getOpItemGroups(g) {
       // ================================================================
 
       async function confFinalizar() {
-        var tipoSelecionado = confTipo || "capas";
+        var tipoSelecionado = confTipo || "capa";
         var tipoLabel = confTipoLabel(tipoSelecionado);
 
         var encontradas = 0,
@@ -14079,7 +14094,12 @@ function getOpItemGroups(g) {
         }
 
         if (chaveLegadaEncontrada) {
-          // Anexar código à bobina e confirmar
+          // Perguntar se quer inserir o código na bobina
+          var itemAnexar = getItemEstoque(estoque[estoqueIdxEncontrado]);
+          if (!confirm("Inserir código " + codigoLimpo + " na bobina " + itemAnexar + "?")) {
+            confEstScanAtivo = true;
+            return;
+          }
           var uidAnexar = getUidEstoque(estoque[estoqueIdxEncontrado]);
           var keyAnexar = makeConfKey(getItemEstoque(estoque[estoqueIdxEncontrado]), String(estoque[estoqueIdxEncontrado]["VERSAO"] || "").trim(), parseFloat(estoque[estoqueIdxEncontrado]["QTDE_ESTOQUE"]) || 0, uidAnexar);
 
@@ -14101,8 +14121,9 @@ function getOpItemGroups(g) {
           } catch (e) {}
 
           if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-          toast("⚠️ Bobina sem código, código " + codigoLimpo + " anexado", "warning", 2000);
-          confTratarBobinaLida(keyAnexar);
+          toast("⚠️ Código " + codigoLimpo + " anexado à " + itemAnexar, "warning", 2000);
+          // Depois de anexar, SEMPRE pedir endereço (mesmo se toggle está em direto)
+          confPedirEndereco(keyAnexar);
           confEstCodBarrasAlvo = null;
           confRender();
           return;
@@ -14651,7 +14672,7 @@ function getOpItemGroups(g) {
       }
 
       function confCompartilhar() {
-        var tipoSelecionado = confTipo || "capas";
+        var tipoSelecionado = confTipo || "capa";
         var tipoLabel = confTipoLabel(tipoSelecionado);
         var data = new Date().toLocaleDateString("pt-BR"),
           texto =
@@ -17965,5 +17986,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21d6c754b82b127',t:'MTc4NTE3Mzk2OA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21de2745f8aa427',t:'MTc4NTE3ODgwMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
