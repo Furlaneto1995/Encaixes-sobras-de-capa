@@ -11614,10 +11614,20 @@ function getOpItemGroups(g) {
           '<div id="encColetorStatus" style="font-size:0.75em;font-weight:700;color:#10b981;min-width:70px;text-align:right;"></div>' +
           '</div></div>' +
 
+          '<div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">' +
+          '<input id="confEncBuscaOP" type="text" inputmode="none" autocomplete="off" placeholder="🔍 Buscar OP..." ' +
+          'style="flex:1;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;color:#1a1a2e;font-size:0.85em;font-weight:600;" ' +
+          'oninput="confEncRender()">' +
+          '<button onclick="document.getElementById(\'confEncBuscaOP\').value=\'\';confEncRender();" style="width:36px;height:36px;border:none;border-radius:10px;background:#fee2e2;color:#ef4444;font-size:0.9em;cursor:pointer;flex-shrink:0;">✖</button>' +
+          '</div>' +
           '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
           '<button onclick="compartilharCSVEncaixadas()" style="flex:1;padding:12px;border:none;border-radius:10px;background:#25d366;color:#fff;font-size:0.82em;font-weight:600;cursor:pointer;">💬 WhatsApp</button>' +
           '<button onclick="baixarCSVEncaixadas()" style="padding:12px 14px;border:none;border-radius:10px;background:#64748b;color:#fff;font-size:0.82em;font-weight:600;cursor:pointer;">💾</button>' +
           '</div>';
+
+        // Filtro de busca por OP
+        var buscaOpEl = document.getElementById("confEncBuscaOP");
+        var buscaOp = buscaOpEl ? buscaOpEl.value.trim().toUpperCase() : "";
 
         // Lista agrupada por OP
         var grupos = {};
@@ -11641,6 +11651,8 @@ function getOpItemGroups(g) {
         } else {
           for (var oi = 0; oi < grupoOrdem.length; oi++) {
             var grp = grupos[grupoOrdem[oi]];
+            // Filtrar por busca OP
+            if (buscaOp && String(grp.enc || "").toUpperCase().indexOf(buscaOp) === -1) continue;
             var grpOk = grp.conferidas === grp.regs.length;
             var grpCor = grpOk ? "#10b981" : grp.conferidas > 0 ? "#f59f0b" : "#94a3b8";
             var grpBg = grpOk ? "#f0fdf4" : grp.conferidas > 0 ? "#fffbeb" : "#f8fafc";
@@ -17986,5 +17998,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21de2745f8aa427',t:'MTc4NTE3ODgwMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
