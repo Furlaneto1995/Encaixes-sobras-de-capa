@@ -11377,16 +11377,18 @@ function getOpItemGroups(g) {
           
           // Remove o feedback após 2 segundos
           setTimeout(function() {
-            if (statusEl) {
-              statusEl.innerHTML = '';
-            }
+            var stEl = document.getElementById("encColetorStatus");
+            if (stEl) stEl.innerHTML = '';
           }, 2000);
           
           // Refocar após render (o render rebuild o HTML)
           setTimeout(function() {
             var inp2 = document.getElementById("encColetorInput");
-            if (inp2) inp2.focus({ preventScroll: true });
-          }, 100);
+            if (inp2) {
+              inp2.focus({ preventScroll: true });
+              inp2.placeholder = "📡 Aguardando coletor...";
+            }
+          }, 150);
         }
       }
 
@@ -11487,14 +11489,14 @@ function getOpItemGroups(g) {
         html +=
           '<div style="display:flex;gap:8px;margin-bottom:4px;align-items:center;">' +
           '<div style="display:flex;background:#f1f5f9;border-radius:999px;padding:2px;flex-shrink:0;">' +
-          '<button id="encModoCameraBtn" onclick="confEncSetModo(\'camera\')" style="padding:6px 12px;border:none;border-radius:999px;background:#2563eb;color:#fff;font-size:0.76em;font-weight:700;cursor:pointer;">📷 Câmera</button>' +
-          '<button id="encModoColetorBtn" onclick="confEncSetModo(\'coletor\')" style="padding:6px 12px;border:none;border-radius:999px;background:transparent;color:#64748b;font-size:0.76em;font-weight:700;cursor:pointer;">📡 Coletor</button>' +
+          '<button id="encModoCameraBtn" onclick="confEncSetModo(\'camera\')" style="padding:6px 12px;border:none;border-radius:999px;background:' + (confEncModoLeitura === 'camera' ? '#2563eb' : 'transparent') + ';color:' + (confEncModoLeitura === 'camera' ? '#fff' : '#64748b') + ';font-size:0.76em;font-weight:700;cursor:pointer;">📷 Câmera</button>' +
+          '<button id="encModoColetorBtn" onclick="confEncSetModo(\'coletor\')" style="padding:6px 12px;border:none;border-radius:999px;background:' + (confEncModoLeitura === 'coletor' ? '#10b981' : 'transparent') + ';color:' + (confEncModoLeitura === 'coletor' ? '#fff' : '#64748b') + ';font-size:0.76em;font-weight:700;cursor:pointer;">📡 Coletor</button>' +
           '</div>' +
           '<button onclick="confEncIniciarLeitura()" style="padding:7px 14px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.8em;font-weight:700;cursor:pointer;flex-shrink:0;">▶️ Iniciar</button>' +
           '</div>' +
 
           // Campo do coletor (linha de baixo)
-          '<div id="encColetorArea" style="display:none;margin-bottom:8px;">' +
+          '<div id="encColetorArea" style="display:' + (confEncModoLeitura === "coletor" ? "block" : "none") + ';margin-bottom:8px;">' +
           '<div style="display:flex;gap:8px;align-items:center;background:#f0fdf4;border:2px solid #10b981;border-radius:12px;padding:6px 10px;margin:0 2px;">' +
           '<div style="flex:1;">' +
           '<input id="encColetorInput" type="text" placeholder="📡 Aguardando coletor..." ' +
@@ -13667,7 +13669,11 @@ function getOpItemGroups(g) {
         if (confPedirEnderecoAoBip) { confPedirEndereco(key); return; }
         var partes = String(key || "").split("_");
         var uid = getUidFromConfKey(key);
-        confStatus[key] = { status: "ok", endereco: "", observacao: "", uid: uid, item: partes[0] || "", versao: partes[1] || "", qtde: partes[2] || "" };
+        // Preservar endereço já cadastrado
+        var enderecoExistente = "";
+        if (confStatus[key] && confStatus[key].endereco) enderecoExistente = confStatus[key].endereco;
+        var historicoEnd = confHistorico[uid] ? (confHistorico[uid].endereco || "") : "";
+        confStatus[key] = { status: "ok", endereco: enderecoExistente || historicoEnd, observacao: "", uid: uid, item: partes[0] || "", versao: partes[1] || "", qtde: partes[2] || "" };
         salvarConferenciaNuvem(true);
         confRender();
         var inp = document.getElementById("confEstColetorInput");
@@ -17826,5 +17832,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21b79b40d6c01a0',t:'MTc4NTE1MzUzOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    </body>
 </html>
