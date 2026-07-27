@@ -7095,6 +7095,9 @@ function getOpItemGroups(g) {
       // ✅ Scanner de código de barras antes de tirar foto
       var openCamScanLeitor = null;
       var openCamScanAtivo = false;
+      var openCamScanEtapa = "amarela"; // "amarela" ou "branca"
+      var openCamCodigoAmarela = ""; // código amarela (sobra)
+      var openCamCodigoBranca = ""; // código branca (encaixe)
 
       async function openCamCodigoBarras(bi) {
         bloquearRotacao();
@@ -7117,7 +7120,7 @@ function getOpItemGroups(g) {
 
         modal.innerHTML =
           '<div style="background:#fff;padding:10px 14px;border-bottom:1px solid #e0e0e0;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;">' +
-          '<div><div style="font-size:0.95em;font-weight:700;color:#ef4444;">🏷️ Código de Barras</div><div id="openCamScanStatus" style="font-size:0.7em;color:#888;">OP ' + b.enc + ' — ' + b.item + '/v' + b.ver + '<br>Escaneie a etiqueta antes da foto</div></div>' +
+          '<div><div style="font-size:0.95em;font-weight:700;color:' + (openCamScanEtapa === 'amarela' ? '#f59e0b' : '#2563eb') + ';">🏷️ Etiqueta ' + (openCamScanEtapa === 'amarela' ? 'AMARELA (sobra)' : 'BRANCA (encaixe)') + '</div><div id="openCamScanStatus" style="font-size:0.7em;color:#888;">OP ' + b.enc + ' — ' + b.item + '/v' + b.ver + (openCamScanEtapa === 'amarela' ? '<br>1/2: Escaneie a etiqueta amarela' : '<br>2/2: Escaneie a etiqueta branca') + '</div></div>' +
           '<button onclick="openCamScanPular(' + bi + ')" style="padding:8px 12px;border:none;border-radius:8px;background:#fef3c7;color:#d97706;font-size:0.78em;font-weight:600;cursor:pointer;">Pular ➜</button>' +
           '</div>' +
           '<div id="openCamScanReader" style="flex:1;min-height:0;"></div>' +
@@ -7163,41 +7166,93 @@ function getOpItemGroups(g) {
         var codigoLimpo = String(codigo || "").trim();
         if (!codigoLimpo) return;
 
-
-        openCamScanAtivo = false;
         var b = B[bi];
 
-        // Salvar o código
-        try {
-          var uidCodigo = getUidBobina(b);
-          if (!uidCodigo) throw new Error("Bobina sem UID");
-          var docId = "cb_" + uidCodigo;
-          await db.collection("datas_manuais").doc(docId).set({
-            tipo: "codigobarras",
-            uid: uidCodigo,
-            item: b.item || "",
-            versao: b.ver || "",
-            qtde: b.qtde || "",
-            codigo_barras: codigoLimpo,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-          });
-          // Garante que o UID usado no vínculo também fique salvo localmente e na nuvem.
+        // ETAPA AMARELA (sobra) — salva codigo_barras e pede branca
+        if (openCamScanEtapa === "amarela") {
+          openCamCodigoAmarela = codigoLimpo;
           try {
-            save();
-            salvarEstoqueNuvemAgora();
-          } catch (ePersist) { console.error("Erro ao persistir UID do estoque:", ePersist); }
-
-          if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-          toast("✔ Código salvo: " + codigoLimpo, "success", 1500);
-        } catch (err) {
-          toast("Erro ao salvar código: " + err.message, "error");
+            var uidCodigo = getUidBobina(b);
+            if (!uidCodigo) throw new Error("Bobina sem UID");
+            var docId = "cb_" + uidCodigo;
+            await db.collection("datas_manuais").doc(docId).set({
+              tipo: "codigobarras",
+              uid: uidCodigo,
+              item: b.item || "",
+              versao: b.ver || "",
+              qtde: b.qtde || "",
+              codigo_barras: codigoLimpo,
+              timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+            try { save(); salvarEstoqueNuvemAgora(); } catch (ePersist) {}
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+            toast("Amarela: " + codigoLimpo + " — agora escaneie a branca", "success", 2000);
+          } catch (err) {
+            toast("Erro amarela: " + err.message, "error");
+          }
+          // Mudar para etapa branca — reabrir scanner
+          openCamScanEtapa = "branca";
+          openCamScanAtivo = true;
+          // Fechar modal atual e abrir novo scanner para branca
+          try {
+            if (openCamScanLeitor) {
+              await openCamScanLeitor.stop();
+              openCamScanLeitor.clear();
+              openCamScanLeitor = null;
+            }
+          } catch (e) { openCamScanLeitor = null; }
+          var oldModal = document.getElementById("openCamScanModal");
+          if (oldModal) oldModal.remove();
+          openCamCodigoBarras(bi); // reabrir scanner para etapa branca
+          return;
         }
 
-        // Fechar scanner e abrir câmera de foto, passando código escaneado
-        openCamScanFechar(bi, codigoLimpo);
+        // ETAPA BRANCA (encaixe) — salva codigo_barras_encaixe
+        openCamCodigoBranca = codigoLimpo;
+        openCamScanAtivo = false;
+        try {
+          var uidCodigo2 = getUidBobina(b);
+          if (!uidCodigo2) throw new Error("Bobina sem UID");
+          var docId2 = "cb_" + uidCodigo2;
+          // Merge: adiciona codigo_barras_encaixe sem apagar codigo_barras (amarela)
+          await db.collection("datas_manuais").doc(docId2).update({
+            codigo_barras_encaixe: codigoLimpo,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+          });
+          // Se o doc não existe (no set), usar set com merge
+        } catch (err) {
+          // Doc pode não existir se amarela falhou — usar set com merge
+          try {
+            var uidCodigo3 = getUidBobina(b);
+            var docId3 = "cb_" + uidCodigo3;
+            await db.collection("datas_manuais").doc(docId3).set({
+              tipo: "codigobarras",
+              uid: uidCodigo3,
+              item: b.item || "",
+              versao: b.ver || "",
+              qtde: b.qtde || "",
+              codigo_barras: openCamCodigoAmarela || "",
+              codigo_barras_encaixe: codigoLimpo,
+              timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+          } catch (err2) {
+            toast("Erro branca: " + err2.message, "error");
+          }
+        }
+
+        try { save(); salvarEstoqueNuvemAgora(); } catch (ePersist) {}
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        toast("Branca: " + codigoLimpo + " salvo", "success", 1500);
+
+        // Reset etapa e abrir câmera de foto
+        openCamScanEtapa = "amarela";
+        openCamScanFechar(bi, openCamCodigoAmarela);
+        openCamCodigoAmarela = "";
+        openCamCodigoBranca = "";
       }
 
       function openCamScanPular(bi) {
+        openCamScanEtapa = "amarela";
         openCamScanFechar(bi, "");
       }
 
@@ -11446,9 +11501,22 @@ function getOpItemGroups(g) {
             .orderBy("timestamp", "desc")
             .limit(3000)
             .get();
+          // Carregar códigos de encaixe (brancas) do datas_manuais
+          var codEncaixeMapa = {};
+          try {
+            var codSnap = await db.collection("datas_manuais").get();
+            codSnap.forEach(function(doc2) {
+              var d2 = doc2.data();
+              if (d2.tipo === "codigobarras" && d2.codigo_barras_encaixe) {
+                if (d2.uid) codEncaixeMapa[String(d2.uid)] = d2.codigo_barras_encaixe;
+              }
+            });
+          } catch (e2) {}
           confEncRegistros = [];
           snap.forEach(function (doc) {
             var d = doc.data();
+            var uid = d.uid || "";
+            var codEncaixe = codEncaixeMapa[uid] || String(d.codigo_barras || "").trim();
             confEncRegistros.push({
               id: doc.id,
               data: d.data || "",
@@ -11456,14 +11524,13 @@ function getOpItemGroups(g) {
               item: d.item || "",
               versao: d.versao || "",
               qtde: d.qtde || "",
-              uid: d.uid || "",
+              uid: uid,
               material: d.material || "",
               formula: d.formula || "",
               largura: d.largura || "",
               espessura: d.espessura || "",
-              // Código previamente vinculado em “Vincular Códigos”.
-              // Ele identifica a bobina na conferência por coletor/câmera.
-              codigo_barras: String(d.codigo_barras || "").trim(),
+              codigo_barras: codEncaixe,
+              codigo_barras_sobra: String(d.codigo_barras || "").trim(),
             });
           });
         } catch (e) {
@@ -17848,5 +17915,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21d31806d8a35d8',t:'MTc4NTE3MTU1Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21d4b910b41b289',t:'MTc4NTE3MjYyMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
