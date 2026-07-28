@@ -5445,6 +5445,28 @@ var estObservacoes = {};
         return modo || syncTs > importTs;
       }
 
+      // A planilha de laminação vem com dezenas de colunas, mas o app só usa
+      // estas. Guardar a versão enxuta evita estourar a quota do localStorage.
+      function enxugarFilaLaminacao(arr) {
+        var origem = arr || [];
+        var out = [];
+        for (var i = 0; i < origem.length; i++) {
+          var l = origem[i] || {};
+          out.push({
+            OP: l["OP"] || "",
+            PRODUTO: l["PRODUTO"] || l["__K"] || "",
+            VERSAO: l["VERSÃO"] || l["VERSAO"] || l["__L"] || "",
+            PESO: l["PESO"] || "",
+            "PREV. ENTREGA": l["PREV. ENTREGA"] || l["PREV ENTREGA"] || "",
+            FAMILIA: l["FAMILIA"] || l["FAMÍLIA"] || l["__S"] || "",
+            __A: l["__A"] !== undefined ? l["__A"] : "",
+            __C: l["__C"] !== undefined ? l["__C"] : "",
+            RECURSO: l["RECURSO"] || "",
+          });
+        }
+        return out;
+      }
+
       function salvarCacheNuvemLocal() {
   try {
     localStorage.setItem(
@@ -5457,13 +5479,19 @@ var estObservacoes = {};
     localStorage.setItem("enc_fila_nuvem", JSON.stringify(fila || []));
   } catch (e) {}
 
-  // Removido para evitar erro de quota
-  // try {
-  //   localStorage.setItem(
-  //     "enc_filaLam_nuvem",
-  //     JSON.stringify(filaLaminacao || []),
-  //   );
-  // } catch (e) {}
+  // Fila de laminação: guardar SÓ as colunas usadas.
+  // A gravação da planilha inteira estourava a quota do localStorage e por isso
+  // tinha sido desativada — o efeito colateral era a fila sumir ao trocar de
+  // aparelho/recarregar, e a conferência acusar "OP não encontrada" falsamente.
+  try {
+    localStorage.setItem(
+      "enc_filaLam_nuvem",
+      JSON.stringify(enxugarFilaLaminacao(filaLaminacao)),
+    );
+  } catch (e) {
+    // Se ainda assim faltar espaço, limpa a chave para não deixar dado parcial
+    try { localStorage.removeItem("enc_filaLam_nuvem"); } catch (e2) {}
+  }
 }
 
       function carregarCacheNuvemLocal() {
@@ -11307,15 +11335,17 @@ var estObservacoes = {};
             console.log("SYNC: filaLam total carregado=" + lamNova.length);
             if (lamNova.length > 0) {
   filaLaminacao = lamNova;
-  // Removido para evitar erro de quota
-  // try {
-  //   localStorage.setItem(
-  //     "enc_filaLam",
-  //     JSON.stringify(filaLaminacao),
-  //   );
-  // } catch (e) {
-  //   console.error("SYNC: erro ao salvar enc_filaLam", e);
-  // }
+  // Persiste a versão enxuta (só as colunas usadas) para que a fila
+  // sobreviva ao recarregar e fique disponível em qualquer aparelho.
+  try {
+    localStorage.setItem(
+      "enc_filaLam_nuvem",
+      JSON.stringify(enxugarFilaLaminacao(filaLaminacao)),
+    );
+  } catch (e) {
+    console.error("SYNC: erro ao salvar enc_filaLam_nuvem", e);
+    try { localStorage.removeItem("enc_filaLam_nuvem"); } catch (e2) {}
+  }
 }
           }
 
@@ -11801,6 +11831,55 @@ var estObservacoes = {};
         if (cb) confEncCodBarras = JSON.parse(cb);
       } catch (e) {}
 
+      // Garante que a fila de laminação esteja disponível para a conferência.
+      // Ordem: memória → cache local → nuvem (config/filaLam_*).
+      // Sem isso, quem abre a conferência direto (sem calcular encaixes) via
+      // todas as bobinas marcadas como "OP não encontrada na fila".
+      async function garantirFilaLaminacao() {
+        if (filaLaminacao && filaLaminacao.length > 0) return true;
+
+        // 1) Cache local
+        try {
+          var cacheLam = localStorage.getItem("enc_filaLam_nuvem");
+          if (cacheLam) {
+            var parsed = JSON.parse(cacheLam);
+            if (parsed && parsed.length) {
+              filaLaminacao = parsed;
+              return true;
+            }
+          }
+        } catch (e) {}
+
+        // 2) Nuvem
+        try {
+          if (typeof db === "undefined" || !db) return false;
+          var lamMeta = await db.collection("config").doc("filaLam_meta").get();
+          if (!lamMeta.exists) return false;
+          var partes = lamMeta.data().partes || 0;
+          var lamNova = [];
+          for (var i = 0; i < partes; i++) {
+            var parte = await db.collection("config").doc("filaLam_" + i).get();
+            if (parte.exists && parte.data().dados) {
+              var pedaco = JSON.parse(parte.data().dados);
+              for (var j = 0; j < pedaco.length; j++) lamNova.push(pedaco[j]);
+            }
+          }
+          if (lamNova.length > 0) {
+            filaLaminacao = lamNova;
+            try {
+              localStorage.setItem(
+                "enc_filaLam_nuvem",
+                JSON.stringify(enxugarFilaLaminacao(filaLaminacao)),
+              );
+            } catch (e2) {}
+            return true;
+          }
+        } catch (e) {
+          console.error("Erro ao buscar fila de laminação:", e);
+        }
+        return false;
+      }
+
       async function abrirConfEncaixadas() {
         var modal = document.getElementById("confEncModal");
         if (!modal) {
@@ -11824,6 +11903,16 @@ var estObservacoes = {};
         }
         modal.classList.add("active");
         await carregarEncaixadasHistorico();
+        // Busca a fila de laminação (cache/nuvem) antes de liberar a leitura,
+        // para que o aviso de "OP na fila" seja confiável desde o primeiro bipe.
+        var temLam = await garantirFilaLaminacao();
+        if (!temLam) {
+          toast(
+            "Fila de laminação indisponível — o aviso de OP na fila ficará desativado",
+            "info",
+            3000,
+          );
+        }
         confEncRender();
       }
 
@@ -18342,5 +18431,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a22547e32e4c1ab2',t:'MTc4NTI1NjM1Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a225c56a68525e0f',t:'MTc4NTI2MTQ5Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
