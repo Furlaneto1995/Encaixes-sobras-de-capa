@@ -556,6 +556,32 @@
         min-width: 0;
       }
 
+      /* Scanner: o html5-qrcode injeta um <video> dentro do container.
+         Sem isto o vídeo fica menor que a área e a mira não corresponde
+         ao que a câmera realmente enxerga. */
+      #scanEncReader video,
+      #confEstScanReader video,
+      #openCamScanReader video,
+      #vincCodScanReader video {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        display: block;
+      }
+      #scanEncReader,
+      #confEstScanReader,
+      #openCamScanReader,
+      #vincCodScanReader {
+        border: none !important;
+      }
+      /* Alguns builds inserem uma borda/sombra própria no wrapper */
+      #scanEncReader > div,
+      #confEstScanReader > div,
+      #openCamScanReader > div,
+      #vincCodScanReader > div {
+        border: none !important;
+      }
+
       .bob-peso {
         font-size: 1em;
         color: #1a1a2e;
@@ -7344,14 +7370,17 @@ var estObservacoes = {};
         modal.id = "openCamScanModal";
         modal.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:5000;display:flex;flex-direction:column;";
 
-        var qrBoxSize = Math.min(280, Math.floor(Math.min(window.innerWidth, window.innerHeight) * 0.7));
 
         modal.innerHTML =
           '<div style="background:#fff;padding:10px 14px;border-bottom:1px solid #e0e0e0;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;">' +
           '<div><div style="font-size:0.95em;font-weight:700;color:' + (openCamScanEtapa === 'amarela' ? '#f59e0b' : '#2563eb') + ';">🏷️ Etiqueta ' + (openCamScanEtapa === 'amarela' ? 'AMARELA (sobra)' : 'BRANCA (encaixe)') + '</div><div id="openCamScanStatus" style="font-size:0.7em;color:#888;">OP ' + b.enc + ' — ' + b.item + '/v' + b.ver + (openCamScanEtapa === 'amarela' ? '<br>1/2: Escaneie a etiqueta amarela' : '<br>2/2: Escaneie a etiqueta branca') + '</div></div>' +
           '<button onclick="openCamScanPular(' + bi + ')" style="padding:8px 12px;border:none;border-radius:8px;background:#fef3c7;color:#d97706;font-size:0.78em;font-weight:600;cursor:pointer;">Pular ➜</button>' +
           '</div>' +
-          '<div id="openCamScanReader" style="flex:1;min-height:0;"></div>' +
+          '<div style="flex:1;position:relative;min-height:0;background:#000;overflow:hidden;">' +
+          '<div id="openCamScanReader" style="width:100%;height:100%;"></div>' +
+          overlayMiraHTML() +
+          '</div>' +
+          '<style>@keyframes scannerLine { 0%{top:20%} 50%{top:80%} 100%{top:20%} }</style>' +
           '<div style="background:#111;padding:8px 14px;flex-shrink:0;display:flex;gap:8px;align-items:center;">' +
           '<input id="openCamScanManual" type="text" placeholder="Digitar código manualmente" style="flex:1;padding:10px;border-radius:8px;border:1px solid #444;background:#222;color:#fff;font-size:0.85em;" />' +
           '<button onclick="openCamScanManualOK(' + bi + ')" style="padding:10px 14px;border:none;border-radius:8px;background:#2563eb;color:#fff;font-size:0.85em;font-weight:600;cursor:pointer;">OK</button>' +
@@ -7371,16 +7400,14 @@ var estObservacoes = {};
           openCamScanLeitor = new Html5Qrcode("openCamScanReader");
           openCamScanLeitor.start(
             { facingMode: "environment" },
-            {
-              fps: 15,
-              qrbox: { width: qrBoxSize, height: Math.round(qrBoxSize * 0.6) },
-              formatsToSupport: [0, 2, 3, 4, 5, 7, 8],
-            },
+            configScanner(),
             function(decodedText) {
               if (openCamScanAtivo) openCamScanProcessar(bi, decodedText);
             },
             function() {}
-          ).catch(function(err) {
+          ).then(function () {
+            sincronizarMira("openCamScanReader");
+          }).catch(function(err) {
             toast("Erro câmera: " + err, "error");
             openCamScanFechar(bi);
           });
@@ -7388,6 +7415,82 @@ var estObservacoes = {};
           toast("Erro scanner: " + err, "error");
           openCamScanFechar(bi);
         }
+      }
+
+      // ================================================================
+      //   SCANNER: MIRA x ÁREA REAL DE LEITURA
+      // ================================================================
+      // Antes o vídeo era espremido numa caixinha (320x90) e ainda se pedia
+      // um "qrbox" dentro dela — a biblioteca recortava um pedaço minúsculo no
+      // centro, e a moldura branca/linha vermelha eram só enfeite. Resultado:
+      // o operador mirava num lugar e o app lia em outro.
+      //
+      // Agora o vídeo ocupa a tela inteira e a mira é um OVERLAY desenhado por
+      // cima, com exatamente as mesmas medidas passadas para a leitura.
+      // Assim o que está dentro da moldura é o que é lido de fato.
+
+      // Área de leitura calculada a partir do tamanho real do container.
+      // Faixa larga e baixa: é o formato de um código de barras 1D.
+      function calcularQrBox(viewW, viewH) {
+        var w = Math.floor(Math.min(viewW * 0.9, 420));
+        var h = Math.floor(Math.min(viewH * 0.45, Math.max(120, w * 0.42)));
+        if (h < 80) h = Math.min(80, Math.floor(viewH * 0.8));
+        return { width: w, height: h };
+      }
+
+      // Config única de leitura. `qrbox` como função recebe o tamanho real do
+      // vídeo, então acompanha a rotação/tamanho da tela.
+      function configScanner(extra) {
+        var cfg = {
+          fps: 15,
+          qrbox: calcularQrBox,
+          aspectRatio: window.innerHeight > window.innerWidth ? 0.75 : 1.777,
+          formatsToSupport: [0, 2, 3, 4, 5, 7, 8],
+          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+        };
+        if (extra) {
+          for (var k in extra) {
+            if (Object.prototype.hasOwnProperty.call(extra, k)) cfg[k] = extra[k];
+          }
+        }
+        return cfg;
+      }
+
+      // Overlay da mira: escurece fora da área de leitura e desenha os cantos.
+      // Fica FORA do elemento do vídeo (pointer-events:none) para não interferir.
+      function overlayMiraHTML() {
+        return (
+          '<div class="scan-mira-wrap" style="position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:5;">' +
+          '<div class="scan-mira" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);' +
+          'box-shadow:0 0 0 4000px rgba(0,0,0,0.45);border-radius:10px;">' +
+          '<div style="position:absolute;top:-2px;left:-2px;width:26px;height:26px;border-top:4px solid #10b981;border-left:4px solid #10b981;border-radius:8px 0 0 0;"></div>' +
+          '<div style="position:absolute;top:-2px;right:-2px;width:26px;height:26px;border-top:4px solid #10b981;border-right:4px solid #10b981;border-radius:0 8px 0 0;"></div>' +
+          '<div style="position:absolute;bottom:-2px;left:-2px;width:26px;height:26px;border-bottom:4px solid #10b981;border-left:4px solid #10b981;border-radius:0 0 0 8px;"></div>' +
+          '<div style="position:absolute;bottom:-2px;right:-2px;width:26px;height:26px;border-bottom:4px solid #10b981;border-right:4px solid #10b981;border-radius:0 0 8px 0;"></div>' +
+          '<div style="position:absolute;top:50%;left:8px;right:8px;height:2px;background:linear-gradient(to right,transparent,#ef4444,transparent);animation:scannerLine 1.4s ease-in-out infinite;"></div>' +
+          "</div></div>"
+        );
+      }
+
+      // Ajusta a mira para as MESMAS medidas usadas na leitura.
+      function ajustarMira(containerId) {
+        var cont = document.getElementById(containerId);
+        if (!cont) return;
+        var wrap = cont.parentNode;
+        if (!wrap) return;
+        var mira = wrap.querySelector(".scan-mira");
+        if (!mira) return;
+        var w = cont.clientWidth || window.innerWidth;
+        var h = cont.clientHeight || window.innerHeight;
+        var box = calcularQrBox(w, h);
+        mira.style.width = box.width + "px";
+        mira.style.height = box.height + "px";
+      }
+
+      // Chamar depois do .start() — o vídeo só tem tamanho após iniciar.
+      function sincronizarMira(containerId) {
+        setTimeout(function () { ajustarMira(containerId); }, 300);
+        setTimeout(function () { ajustarMira(containerId); }, 900);
       }
 
       // ================================================================
@@ -11140,6 +11243,11 @@ var estObservacoes = {};
               largOP: b.largOP || "",
               apresentacao: b.apresentacao || "",
               formula: b.formula || "",
+              // Destino do encaixe (linha azul): item/versão da OP + fila e recurso
+              itemOP: b.itemOP || "",
+              verOP: b.verOP || "",
+              posFila: b.posFila || "",
+              recurso: b.recurso || "",
               ok: b.ok || false,
               manual: b.manual || false,
             };
@@ -11381,6 +11489,11 @@ var estObservacoes = {};
                 if (!B[n].fotoEtiqueta) B[n].fotoEtiqueta = null;
                 if (!B[n].fotoNm) B[n].fotoNm = "";
                 if (!B[n].formula) B[n].formula = "";
+                // Destino do encaixe — registros salvos antes desta versão não têm
+                if (!B[n].itemOP) B[n].itemOP = "";
+                if (!B[n].verOP) B[n].verOP = "";
+                if (!B[n].posFila) B[n].posFila = "";
+                if (!B[n].recurso) B[n].recurso = "";
               }
               grp();
               await restaurarFotosLocais(true);
@@ -12128,9 +12241,6 @@ var estObservacoes = {};
         modal.id = "scanEncModal";
         modal.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:5000;display:flex;flex-direction:column;";
 
-        // Caixa estreita estilo leitor de código de barras
-        var qrBoxWidth = Math.min(320, Math.floor(window.innerWidth * 0.85));
-        var qrBoxHeight = Math.min(90, Math.floor(qrBoxWidth * 0.28));
 
         modal.innerHTML =
           '<div style="background:#111;padding:10px 16px;border-bottom:1px solid #222;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;">' +
@@ -12138,16 +12248,13 @@ var estObservacoes = {};
           '<button onclick="pararScanEnc()" style="width:36px;height:36px;border:none;border-radius:8px;background:#fee2e2;color:#ef4444;font-size:1em;cursor:pointer;">✖</button>' +
           '</div>' +
           
-          // Área da câmera com moldura estilo scanner
-          '<div style="flex:1;display:flex;align-items:center;justify-content:center;background:#000;padding:20px;">' +
-            '<div style="position:relative;width:' + qrBoxWidth + 'px;height:' + qrBoxHeight + 'px;border:3px solid #fff;border-radius:4px;box-shadow:0 0 0 8px rgba(255,255,255,0.1);overflow:hidden;">' +
-              '<div id="scanEncReader" style="width:100%;height:100%;"></div>' +
-              // Linha vermelha estilo scanner
-              '<div style="position:absolute;top:50%;left:0;width:100%;height:3px;background:linear-gradient(to right, transparent, #ef4444, transparent);animation:scannerLine 1.2s linear infinite;z-index:10;"></div>' +
-            '</div>' +
+          // Vídeo ocupa toda a área; a mira é overlay com as medidas reais de leitura
+          '<div style="flex:1;position:relative;background:#000;min-height:0;overflow:hidden;">' +
+            '<div id="scanEncReader" style="width:100%;height:100%;"></div>' +
+            overlayMiraHTML() +
           '</div>' +
-          
-          '<style>@keyframes scannerLine { 0%{top:15%} 50%{top:85%} 100%{top:15%} }</style>' +
+
+          '<style>@keyframes scannerLine { 0%{top:20%} 50%{top:80%} 100%{top:20%} }</style>' +
           
           '<div style="background:#111;padding:8px 14px;flex-shrink:0;display:flex;gap:8px;align-items:center;">' +
           '<input id="scanEncManual" type="text" placeholder="Digitar código manualmente" style="flex:1;padding:10px;border-radius:8px;border:1px solid #444;background:#222;color:#fff;font-size:0.85em;" />' +
@@ -12168,16 +12275,14 @@ var estObservacoes = {};
           scanEncLeitor = new Html5Qrcode("scanEncReader");
           scanEncLeitor.start(
             { facingMode: "environment" },
-            {
-              fps: 15,
-              qrbox: { width: qrBoxWidth - 20, height: qrBoxHeight - 20 },
-              formatsToSupport: [0, 2, 3, 4, 5, 7, 8],
-            },
+            configScanner(),
             function (decodedText) {
               if (scanEncAtivo) registrarCodBarras(decodedText);
             },
             function () {}
-          ).catch(function (err) {
+          ).then(function () {
+            sincronizarMira("scanEncReader");
+          }).catch(function (err) {
             toast("Erro ao abrir câmera: " + err, "error");
             pararScanEnc();
           });
@@ -12978,14 +13083,17 @@ var estObservacoes = {};
         modal.id = "vincCodScanModal";
         modal.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:5000;display:flex;flex-direction:column;";
 
-        var qrBoxSize = Math.min(280, Math.floor(Math.min(window.innerWidth, window.innerHeight) * 0.7));
 
         modal.innerHTML =
           '<div style="background:#fff;padding:10px 14px;border-bottom:1px solid #e0e0e0;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;">' +
           '<div><div style="font-size:0.95em;font-weight:700;color:#2563eb;">📷 Escanear Código</div><div id="vincCodScanStatus" style="font-size:0.7em;color:#888;">Aponte para o código de barras</div></div>' +
           '<button onclick="vincCodPararScan()" style="width:36px;height:36px;border:none;border-radius:8px;background:#fee2e2;color:#ef4444;font-size:1em;cursor:pointer;">✖</button>' +
           '</div>' +
-          '<div id="vincCodScanReader" style="flex:1;min-height:0;"></div>' +
+          '<div style="flex:1;position:relative;min-height:0;background:#000;overflow:hidden;">' +
+          '<div id="vincCodScanReader" style="width:100%;height:100%;"></div>' +
+          overlayMiraHTML() +
+          '</div>' +
+          '<style>@keyframes scannerLine { 0%{top:20%} 50%{top:80%} 100%{top:20%} }</style>' +
           '<div style="background:#111;padding:8px 14px;flex-shrink:0;display:flex;gap:8px;align-items:center;">' +
           '<input id="vincCodManual" type="text" placeholder="Digitar código manualmente" style="flex:1;padding:10px;border-radius:8px;border:1px solid #444;background:#222;color:#fff;font-size:0.85em;" />' +
           '<button onclick="vincCodManualOK()" style="padding:10px 14px;border:none;border-radius:8px;background:#2563eb;color:#fff;font-size:0.85em;font-weight:600;cursor:pointer;">OK</button>' +
@@ -13005,18 +13113,16 @@ var estObservacoes = {};
           vincCodLeitor = new Html5Qrcode("vincCodScanReader");
           vincCodLeitor.start(
             { facingMode: "environment" },
-            {
-              fps: 15,
-              qrbox: { width: qrBoxSize, height: Math.round(qrBoxSize * 0.6) },
-              formatsToSupport: [0, 2, 3, 4, 5, 7, 8],
-            },
+            configScanner(),
             function(decodedText) {
               if (vincCodAtivo) {
                 vincCodValidarESalvar(vincCodBobinaAlvo, decodedText);
               }
             },
             function() {}
-          ).catch(function(err) {
+          ).then(function () {
+            sincronizarMira("vincCodScanReader");
+          }).catch(function(err) {
             toast("Erro ao abrir câmera: " + err, "error");
             vincCodPararScan();
           });
@@ -14353,9 +14459,6 @@ var estObservacoes = {};
         modal.id = "confEstScanModal";
         modal.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:5000;display:flex;flex-direction:column;";
 
-        // Caixa estreita estilo leitor de código de barras
-        var qrBoxWidth = Math.min(320, Math.floor(window.innerWidth * 0.85));
-        var qrBoxHeight = Math.min(90, Math.floor(qrBoxWidth * 0.28));
 
         modal.innerHTML =
           '<div style="background:#111;padding:10px 16px;border-bottom:1px solid #222;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;">' +
@@ -14363,16 +14466,13 @@ var estObservacoes = {};
           '<button onclick="confEstPararScan()" style="width:36px;height:36px;border:none;border-radius:8px;background:#fee2e2;color:#ef4444;font-size:1em;cursor:pointer;">✖</button>' +
           '</div>' +
           
-          // Área da câmera com moldura estilo scanner
-          '<div style="flex:1;display:flex;align-items:center;justify-content:center;background:#000;padding:20px;">' +
-            '<div style="position:relative;width:' + qrBoxWidth + 'px;height:' + qrBoxHeight + 'px;border:3px solid #fff;border-radius:4px;box-shadow:0 0 0 8px rgba(255,255,255,0.1);overflow:hidden;">' +
-              '<div id="confEstScanReader" style="width:100%;height:100%;"></div>' +
-              // Linha vermelha estilo scanner
-              '<div style="position:absolute;top:50%;left:0;width:100%;height:3px;background:linear-gradient(to right, transparent, #ef4444, transparent);animation:scannerLine 1.2s linear infinite;z-index:10;"></div>' +
-            '</div>' +
+          // Vídeo ocupa toda a área; a mira é overlay com as medidas reais de leitura
+          '<div style="flex:1;position:relative;background:#000;min-height:0;overflow:hidden;">' +
+            '<div id="confEstScanReader" style="width:100%;height:100%;"></div>' +
+            overlayMiraHTML() +
           '</div>' +
-          
-          '<style>@keyframes scannerLine { 0%{top:15%} 50%{top:85%} 100%{top:15%} }</style>' +
+
+          '<style>@keyframes scannerLine { 0%{top:20%} 50%{top:80%} 100%{top:20%} }</style>' +
           
           '<div style="background:#111;padding:8px 14px;flex-shrink:0;display:flex;gap:8px;align-items:center;">' +
           '<input id="confEstScanManual" type="text" placeholder="Digitar código manualmente" style="flex:1;padding:10px;border-radius:8px;border:1px solid #444;background:#222;color:#fff;font-size:0.85em;" />' +
@@ -14393,18 +14493,16 @@ var estObservacoes = {};
           confEstScanLeitor = new Html5Qrcode("confEstScanReader");
           confEstScanLeitor.start(
             { facingMode: "environment" },
-            {
-              fps: 15,
-              qrbox: { width: qrBoxWidth - 20, height: qrBoxHeight - 20 },
-              formatsToSupport: [0, 2, 3, 4, 5, 7, 8],
-            },
+            configScanner(),
             function(decodedText) {
               if (confEstScanAtivo) {
                 confEstProcessarCodigo(decodedText);
               }
             },
             function() {}
-          ).catch(function(err) {
+          ).then(function () {
+            sincronizarMira("confEstScanReader");
+          }).catch(function(err) {
             toast("Erro ao abrir câmera: " + err, "error");
             confEstPararScan();
           });
@@ -17425,6 +17523,11 @@ async function shareFotos() {
               b.manual ? 1 : 0,
               b.material || "",
               b.apresentacao || "",
+              // Destino do encaixe (linha azul) — posições 10 a 13
+              b.itemOP || "",
+              b.verOP || "",
+              b.posFila || "",
+              b.recurso || "",
             ];
           }),
         };
@@ -17870,7 +17973,13 @@ async function shareFotos() {
               pig: r[5] || "",
               qtde: r[6] || "",
               manual: !!r[7],
+              material: r[8] || "",
               apresentacao: r[9] || "",
+              // Destino do encaixe — QRs antigos não trazem estes campos
+              itemOP: r[10] || "",
+              verOP: r[11] || "",
+              posFila: r[12] || "",
+              recurso: r[13] || "",
               foto: null,
               fotoNm: "",
               ok: false,
@@ -18431,5 +18540,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a225c56a68525e0f',t:'MTc4NTI2MTQ5Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a225e7738afad7b2',t:'MTc4NTI2Mjg5Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
