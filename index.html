@@ -7190,14 +7190,114 @@ function getOpItemGroups(g) {
         }
       }
 
+      // ================================================================
+      //   VALIDAÇÃO DA ETIQUETA AMARELA CONTRA A SOBRA DE CAPA
+      // ================================================================
+      // A amarela é a sobra que SAI. Antes de aceitar, o código precisa
+      // existir no estoque de sobras E pertencer à bobina daquele encaixe.
+      // Retorna: {ok:true} | {ok:false, motivo:"outra_bobina"|"inexistente", ...}
+      function validarAmarelaNaSobra(bob, codigoLimpo) {
+        var codigoNorm = normalizarCodigoGlobal(codigoLimpo);
+        var uidEsperado = getUidBobina(bob);
+
+        // 1) O código já está vinculado a alguma bobina? (cache UID -> código)
+        var uidDono = "";
+        for (var uidC in codigosBobinasCache) {
+          var codCache = codigosBobinasCache[uidC] || "";
+          // O cache pode guardar o composto "amarela → branca"
+          var amarelaCache = extrairAmarelaDeComposto(codCache);
+          if (amarelaCache && normalizarCodigoGlobal(amarelaCache) === codigoNorm) {
+            uidDono = String(uidC);
+            break;
+          }
+        }
+
+        // 2) Esse UID ainda está no estoque de sobras?
+        var idxSobra = -1;
+        if (uidDono) {
+          for (var i = 0; i < estoque.length; i++) {
+            if (getUidEstoque(estoque[i]) === uidDono) { idxSobra = i; break; }
+          }
+        }
+
+        if (uidDono) {
+          if (uidEsperado && uidDono !== uidEsperado) {
+            // Código válido, mas é de OUTRA bobina — bloquear
+            var infoOutra = idxSobra > -1 ? estoque[idxSobra] : null;
+            return {
+              ok: false,
+              motivo: "outra_bobina",
+              item: infoOutra ? getItemEstoque(infoOutra) : "",
+              versao: infoOutra ? String(infoOutra["VERSAO"] || "").trim() : "",
+              qtde: infoOutra ? String(infoOutra["QTDE_ESTOQUE"] || "").trim() : "",
+              noEstoque: idxSobra > -1,
+            };
+          }
+          // Bate com a bobina esperada
+          return { ok: true, uid: uidDono };
+        }
+
+        // 3) Código não vinculado a ninguém — pode ser primeira leitura desta bobina.
+        //    Confere se a bobina do encaixe existe no estoque de sobras.
+        var idxEsperado = -1;
+        if (uidEsperado) {
+          for (var j = 0; j < estoque.length; j++) {
+            if (getUidEstoque(estoque[j]) === uidEsperado) { idxEsperado = j; break; }
+          }
+        }
+
+        return {
+          ok: false,
+          motivo: "inexistente",
+          uidEsperado: uidEsperado,
+          bobinaNoEstoque: idxEsperado > -1,
+        };
+      }
+
       async function openCamScanProcessar(bi, codigo) {
         var codigoLimpo = String(codigo || "").trim();
         if (!codigoLimpo) return;
 
+        // Trava imediata: evita ler a mesma etiqueta 2x durante os awaits
+        if (!openCamScanAtivo) return;
+        openCamScanAtivo = false;
+
         var b = B[bi];
 
-        // ETAPA AMARELA (sobra) — salva codigo_barras e pede branca
+        // ETAPA AMARELA (sobra) — valida na sobra de capa, salva e pede branca
         if (openCamScanEtapa === "amarela") {
+          var val = validarAmarelaNaSobra(b, codigoLimpo);
+
+          if (!val.ok && val.motivo === "outra_bobina") {
+            // Código pertence a outra bobina — NÃO deixa passar
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            var desc = val.item
+              ? val.item + (val.versao ? " v" + val.versao : "") + (val.qtde ? " — " + val.qtde + " kg" : "")
+              : "outra bobina";
+            toast("❌ Etiqueta de " + desc + ". Esperado: " + (b.item || "") + " v" + (b.ver || ""), "error", 4000);
+            var st = document.getElementById("openCamScanStatus");
+            if (st) {
+              st.innerHTML = '<span style="color:#ef4444;font-weight:700;">❌ Amarela de ' + desc +
+                '</span><br>Escaneie a amarela de ' + (b.item || "") + " v" + (b.ver || "");
+            }
+            openCamScanAtivo = true; // continua na etapa amarela
+            return;
+          }
+
+          if (!val.ok && val.motivo === "inexistente") {
+            // Código novo — oferecer vincular a esta bobina (padrão da Conferência)
+            if (navigator.vibrate) navigator.vibrate([150]);
+            var msgVinc = "Código " + codigoLimpo + " não encontrado na sobra de capa.\n\n" +
+              "Vincular à bobina " + (b.item || "") + " v" + (b.ver || "") +
+              (b.qtde ? " (" + b.qtde + " kg)" : "") + "?";
+            if (!confirm(msgVinc)) {
+              openCamScanAtivo = true; // recusou — segue na etapa amarela
+              return;
+            }
+            // Aceitou: o save abaixo já cria o vínculo em datas_manuais
+          }
+
+
           openCamCodigoAmarela = codigoLimpo;
           try {
             var uidCodigo = getUidBobina(b);
@@ -7212,9 +7312,11 @@ function getOpItemGroups(g) {
               codigo_barras: codigoLimpo,
               timestamp: firebase.firestore.FieldValue.serverTimestamp(),
             });
+            // Mantém o cache local em dia para a próxima validação
+            try { codigosBobinasCache[uidCodigo] = codigoLimpo; } catch (eCache) {}
             try { save(); salvarEstoqueNuvemAgora(); } catch (ePersist) {}
             if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-            toast("Amarela: " + codigoLimpo + " — agora escaneie a branca", "success", 2000);
+            toast("✔ Amarela baixada: " + codigoLimpo + " — agora escaneie a branca", "success", 2000);
           } catch (err) {
             toast("Erro amarela: " + err.message, "error");
           }
@@ -7236,8 +7338,16 @@ function getOpItemGroups(g) {
         }
 
         // ETAPA BRANCA (encaixe) — salva codigo_barras_encaixe e atualiza codigo_barras para "amarela → branca"
+        // Guarda: se leu a MESMA etiqueta da amarela, é releitura acidental
+        if (openCamCodigoAmarela &&
+            normalizarCodigoGlobal(codigoLimpo) === normalizarCodigoGlobal(openCamCodigoAmarela)) {
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+          toast("⚠️ Essa é a etiqueta AMARELA. Escaneie a BRANCA (encaixe).", "warning", 3000);
+          openCamScanAtivo = true;
+          return;
+        }
+
         openCamCodigoBranca = codigoLimpo;
-        openCamScanAtivo = false;
         try {
           var uidCodigo2 = getUidBobina(b);
           if (!uidCodigo2) throw new Error("Bobina sem UID");
@@ -7248,6 +7358,7 @@ function getOpItemGroups(g) {
             codigo_barras: codigoComposto,
             timestamp: firebase.firestore.FieldValue.serverTimestamp(),
           });
+          try { codigosBobinasCache[uidCodigo2] = codigoComposto; } catch (eCache2) {}
           // Se o doc não existe (no set), usar set com merge
         } catch (err) {
           // Doc pode não existir se amarela falhou — usar set com merge
@@ -7284,8 +7395,13 @@ function getOpItemGroups(g) {
       }
 
       function openCamScanPular(bi) {
+        // Se a amarela já foi lida e baixada, não perde o código ao pular a branca
+        var codParcial = openCamCodigoAmarela || "";
         openCamScanEtapa = "amarela";
-        openCamScanFechar(bi, "");
+        openCamScanAtivo = false;
+        openCamCodigoAmarela = "";
+        openCamCodigoBranca = "";
+        openCamScanFechar(bi, codParcial);
       }
 
       async function openCamScanFechar(bi, codigoPassado) {
