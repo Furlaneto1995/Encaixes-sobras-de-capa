@@ -436,6 +436,14 @@
       .op-head-left {
         flex: 1;
         min-width: 0;
+        /* Deixa a tabela Item/Ver/Larg/Esp/Pig ocupar a largura que precisa,
+           em vez de ser espremida pelos botões e quebrar o código do item
+           em duas linhas (ex.: "14004702-" / "2") no celular. */
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .op-head-left::-webkit-scrollbar {
+        height: 0;
       }
 
       .op-title-row {
@@ -7078,7 +7086,7 @@ var estObservacoes = {};
 
   if (!multiItem) {
     hd +=
-      '<table style="margin-top:4px;border-collapse:collapse;font-size:0.68em;">' +
+      '<table style="margin-top:4px;border-collapse:collapse;font-size:0.68em;white-space:nowrap;">' +
       '<tr><td style="color:#aaa;padding:0 4px;">Item</td><td style="color:#aaa;padding:0 4px;">Ver</td><td style="color:#aaa;padding:0 4px;">Larg</td><td style="color:#aaa;padding:0 4px;">Esp</td><td style="color:#aaa;padding:0 4px;">Pig</td></tr>' +
       '<tr><td style="color:#555;padding:0 4px;font-family:monospace;">' +
       (B[g.bs[0]].item || "-") +
@@ -7201,7 +7209,7 @@ var estObservacoes = {};
         '<div style="border-top:' +
         (ig === 0 ? "none" : "1px dashed #e0e0e0") +
         ';padding:10px 14px 6px;">' +
-        '<table style="border-collapse:collapse;font-size:0.68em;margin-bottom:6px;">' +
+        '<table style="border-collapse:collapse;font-size:0.68em;margin-bottom:6px;white-space:nowrap;">' +
         '<tr><td style="color:#aaa;padding:0 4px;">Item</td><td style="color:#aaa;padding:0 4px;">Ver</td><td style="color:#aaa;padding:0 4px;">Larg</td><td style="color:#aaa;padding:0 4px;">Esp</td><td style="color:#aaa;padding:0 4px;">Pig</td></tr>' +
         '<tr><td style="color:#555;padding:0 4px;font-family:monospace;">' +
         (ref.item || "-") +
@@ -18742,5 +18750,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a22623519946f1c5',t:'MTc4NTI2NTM0NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2262cdc7a07d7d7',t:'MTc4NTI2NTczNQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
