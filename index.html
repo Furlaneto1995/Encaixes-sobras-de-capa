@@ -4772,10 +4772,8 @@ var estObservacoes = {};
             op = f["OP_PRINCIPAL"] || f["OP"] || "";
 
           // Coluna A = posição na fila | Coluna C = recurso
-          var posFilaA = String(f["__A"] !== undefined ? f["__A"] : "").trim();
-          var recursoC = String(
-            f["RECURSO"] || (f["__C"] !== undefined ? f["__C"] : "")
-          ).trim();
+          var posFilaA = getColunaFila(f, 0, ["FILA", "POSICAO", "POSIÇÃO", "SEQ"]);
+          var recursoC = getColunaFila(f, 2, ["RECURSO", "REC", "MAQUINA", "MÁQUINA"]);
 
           // Bloqueia OPs interrompidas em qualquer recurso
           if (opsInterrompidas[String(op).trim()]) continue;
@@ -4816,9 +4814,13 @@ var estObservacoes = {};
             chavesSemLarg: compsFila.map(function (c) {
               return ef + "|" + c + "|" + pf;
             }),
-            versao: f["VERSAO"] || "",
+            versao: limparVersao(f["VERSAO"]),
             posFila: posFilaA,
             recurso: recursoC,
+            // Largura E espessura saem da coluna J, que traz a descrição
+            // no formato "(93cm x 78mu) BOBINA EMB IMP ...".
+            largJ: String(extrairLarguraColunaJ(f) || ""),
+            espFila: String(extrairEspessuraColunaJ(f) || ""),
           });
         }
 
@@ -4871,10 +4873,8 @@ var estObservacoes = {};
             familia: String(
               fl["FAMILIA"] || fl["FAMÍLIA"] || fl["__S"] || "",
             ).trim(),
-            posFila: String(fl["__A"] !== undefined ? fl["__A"] : "").trim(),
-            recurso: String(
-              fl["RECURSO"] || (fl["__C"] !== undefined ? fl["__C"] : "")
-            ).trim(),
+            posFila: getColunaFila(fl, 0, ["FILA", "POSICAO", "POSIÇÃO", "SEQ"]),
+            recurso: getColunaFila(fl, 2, ["RECURSO", "REC", "MAQUINA", "MÁQUINA"]),
           });
         }
 
@@ -4970,6 +4970,8 @@ var estObservacoes = {};
                 verOP: escL.versao || "",
                 posFila: escL.posFila || "",
                 recurso: escL.recurso || "",
+                largOPDestino: escL.largJ || String(escL.largura || ""),
+                espOPDestino: escL.espFila || String(escL.espessura || ""),
               });
 
               found = true;
@@ -5049,6 +5051,8 @@ var estObservacoes = {};
                     verOP: opUnica.versao || "",
                     posFila: opUnica.posFila || "",
                     recurso: opUnica.recurso || "",
+                    largOPDestino: opUnica.largJ || String(opUnica.largura || ""),
+                    espOPDestino: opUnica.espFila || String(opUnica.espessura || ""),
                   });
 
                   found = true;
@@ -5097,6 +5101,8 @@ var estObservacoes = {};
                         .map(function (o) { return o.posFila || "?"; })
                         .join(" + "),
                       recurso: opsJuntadas[0].recurso || "",
+                      largOPDestino: opsJuntadas[0].largJ || String(opsJuntadas[0].largura || ""),
+                      espOPDestino: opsJuntadas[0].espFila || String(opsJuntadas[0].espessura || ""),
                     });
 
                     found = true;
@@ -5129,6 +5135,8 @@ var estObservacoes = {};
             verOP: rs.verOP || "",
             posFila: rs.posFila || "",
             recurso: rs.recurso || "",
+            largOPDestino: rs.largOPDestino || "",
+            espOPDestino: rs.espOPDestino || "",
             foto: null,
             fotoNm: "",
             ok: false,
@@ -5314,6 +5322,8 @@ var estObservacoes = {};
                 verOP: b.verOP || "",
                 posFila: b.posFila || "",
                 recurso: b.recurso || "",
+                largOPDestino: b.largOPDestino || "",
+                espOPDestino: b.espOPDestino || "",
                 // Fotos ficam no IndexedDB para não estourar o localStorage.
                 foto: null,
                 fotoEtiqueta: null,
@@ -5429,7 +5439,18 @@ var estObservacoes = {};
             if (B[i].largOP === undefined) B[i].largOP = B[i].larg || "";
             if (B[i].apresentacao === undefined) B[i].apresentacao = "";
             if (B[i].formula === undefined) B[i].formula = "";
+            if (B[i].itemOP === undefined) B[i].itemOP = "";
+            if (B[i].verOP === undefined) B[i].verOP = "";
+            if (B[i].posFila === undefined) B[i].posFila = "";
+            if (B[i].recurso === undefined) B[i].recurso = "";
+            if (B[i].largOPDestino === undefined) B[i].largOPDestino = "";
+            if (B[i].espOPDestino === undefined) B[i].espOPDestino = "";
           }
+
+          // Bobinas antigas: reconstrói o destino a partir da fila
+          try {
+            if (completarDestinoDasBobinas() > 0) save();
+          } catch (eDest) {}
 
           grp();
           build();
@@ -5805,6 +5826,52 @@ var estObservacoes = {};
       // ================================================================
       //                    GROUP / BUILD
       // ================================================================
+      // Preenche o destino (item/versão da OP, fila e recurso) das bobinas que
+      // foram calculadas ANTES desta versão — elas ficaram salvas sem esses
+      // campos, e sem isto a linha azul só apareceria após recalcular tudo.
+      // Casa pela OP: a fila já diz qual item/versão/posição/recurso pertence a ela.
+      function completarDestinoDasBobinas() {
+        if (!B || !B.length) return 0;
+        if (!fila || !fila.length) return 0;
+
+        // Índice: OP -> dados do destino
+        var porOP = {};
+        for (var i = 0; i < fila.length; i++) {
+          var f = fila[i];
+          var op = String(f["OP_PRINCIPAL"] || f["OP"] || "").trim();
+          if (!op || porOP[op]) continue;
+          porOP[op] = {
+            itemOP: getItemFila(f),
+            verOP: limparVersao(f["VERSAO"]),
+            posFila: getColunaFila(f, 0, ["FILA", "POSICAO", "POSIÇÃO", "SEQ"]),
+            recurso: getColunaFila(f, 2, ["RECURSO", "REC", "MAQUINA", "MÁQUINA"]),
+            largOPDestino: String(extrairLarguraColunaJ(f) || ""),
+            espOPDestino: String(extrairEspessuraColunaJ(f) || ""),
+          };
+        }
+
+        var corrigidas = 0;
+        for (var b = 0; b < B.length; b++) {
+          var bob = B[b];
+          if (bob.itemOP && bob.posFila && bob.recurso && bob.largOPDestino) continue; // já completa
+
+          // A OP pode vir como "123" ou "123 + 456" (bobina que cobre várias)
+          var encRaw = String(bob.enc || "").trim().replace(/^OP\s*/i, "");
+          var primeiraOP = encRaw.split("+")[0].trim();
+          var d = porOP[encRaw] || porOP[primeiraOP];
+          if (!d) continue;
+
+          if (!bob.itemOP && d.itemOP) bob.itemOP = d.itemOP;
+          if (!bob.verOP && d.verOP) bob.verOP = d.verOP;
+          if (!bob.posFila && d.posFila) bob.posFila = d.posFila;
+          if (!bob.recurso && d.recurso) bob.recurso = d.recurso;
+          if (!bob.largOPDestino && d.largOPDestino) bob.largOPDestino = d.largOPDestino;
+          if (!bob.espOPDestino && d.espOPDestino) bob.espOPDestino = d.espOPDestino;
+          corrigidas++;
+        }
+        return corrigidas;
+      }
+
       function grp() {
         var m = {};
         G = [];
@@ -6781,6 +6848,73 @@ var estObservacoes = {};
         return h + "</div>";
       }
 
+      // Lê uma coluna da fila tolerando 3 origens:
+      //  1) __A/__C (posicional) — só existe em planilhas importadas pela versão nova
+      //  2) nome do cabeçalho (FILA, RECURSO...) — funciona em qualquer versão
+      //  3) posição real das chaves — resgata dados antigos vindos da nuvem,
+      //     salvos antes de o parser passar a guardar __C
+      function getColunaFila(linha, indice, nomes) {
+        if (!linha) return "";
+
+        // 1) posicional já normalizado
+        var letra = "__" + String.fromCharCode(65 + indice); // 0->__A, 2->__C
+        if (linha[letra] !== undefined && String(linha[letra]).trim() !== "") {
+          return String(linha[letra]).trim();
+        }
+
+        // 2) por nome de cabeçalho
+        for (var i = 0; i < nomes.length; i++) {
+          var v = linha[nomes[i]];
+          if (v !== undefined && String(v).trim() !== "") return String(v).trim();
+        }
+
+        // 3) pela ordem das colunas (ignora as chaves internas __X)
+        var chaves = [];
+        for (var k in linha) {
+          if (Object.prototype.hasOwnProperty.call(linha, k) && k.indexOf("__") !== 0) {
+            chaves.push(k);
+          }
+        }
+        if (chaves.length > indice) {
+          var val = linha[chaves[indice]];
+          if (val !== undefined) return String(val).trim();
+        }
+        return "";
+      }
+
+      // A versão pode vir com as medidas grudadas, ex.: "71 - 44.9 X 90".
+      // As medidas exibidas saem só da coluna J, então aqui ficamos apenas
+      // com o número da versão (o que vem antes do primeiro " - ").
+      function limparVersao(v) {
+        var s = String(v || "").trim();
+        if (!s) return "";
+        if (s.indexOf(" - ") > -1) s = s.split(" - ")[0];
+        // Remove um eventual resto de medida colado (ex.: "71 44.9 X 90")
+        s = s.replace(/\s*[0-9.,]+\s*[xX]\s*[0-9.,]+\s*$/, "");
+        return s.trim();
+      }
+
+      // A coluna J da fila traz a descrição do produto, e é dela que saem a
+      // largura e a espessura. Ex.: "(93cm x 78mu) BOBINA EMB IMP CAPA ..."
+      //                               ^^ largura   ^^ espessura
+      function getTextoColunaJ(linha) {
+        if (!linha) return "";
+        var txt = getColunaFila(linha, 9, ["DESCRICAO", "DESCRIÇÃO", "PRODUTO"]);
+        // Se a coluna J não tiver as medidas, tenta a descrição da linha
+        if (txt && /\(\s*[0-9.,]+\s*cm/i.test(txt)) return txt;
+        var alt = String(linha["DESCRICAO"] || linha["DESCRIÇÃO"] || "");
+        if (alt && /\(\s*[0-9.,]+\s*cm/i.test(alt)) return alt;
+        return txt || alt;
+      }
+
+      function extrairLarguraColunaJ(linha) {
+        return extrairLargura(getTextoColunaJ(linha));
+      }
+
+      function extrairEspessuraColunaJ(linha) {
+        return extrairEspessura(getTextoColunaJ(linha));
+      }
+
       // ================================================================
       //   ÍNDICE DE OPs DA FILA DE LAMINAÇÃO
       // ================================================================
@@ -6868,53 +7002,50 @@ var estObservacoes = {};
       //   LINHA DE DESTINO: item/versão da OP + posição na fila (col A)
       //   e recurso (col C). Ex.: ➜ 1130847-2 v03  fila 50  rec 119
       // ================================================================
-      function getDestinoOP(bob) {
+      // Linha azul do destino, como uma LINHA DA TABELA: cada valor cai na
+      // coluna correspondente do cabeçalho (Item / Ver / Larg / Esp / Pig),
+      // e fila/rec seguem depois. Sem "v" antes da versão e sem "x" entre
+      // largura e espessura — o cabeçalho acima já identifica cada coluna.
+      function getDestinoOPCelulas(bob) {
         if (!bob) return "";
         var itemOP = String(bob.itemOP || "").trim();
         var verOP = String(bob.verOP || "").trim();
+        var largOPd = String(bob.largOPDestino || "").trim();
+        var espOPd = String(bob.espOPDestino || "").trim();
         var pos = String(bob.posFila || "").trim();
         var rec = String(bob.recurso || "").trim();
 
         // Nada a mostrar (ex.: bobina adicionada manualmente)
         if (!itemOP && !pos && !rec) return "";
 
-        // padding-left 4px = mesmo recuo do <td> da tabela acima,
-        // para o item da OP cair alinhado sob o item do estoque.
-        var h =
-          '<div style="margin-top:3px;padding-left:4px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;">';
+        var td = 'style="color:#2563eb;padding:0 4px;font-family:monospace;font-weight:700;"';
+        var h = '<tr>';
+        h += "<td " + td + ">" + (itemOP ? htmlSafe(itemOP) : "-") + "</td>";
+        h += "<td " + td + ">" + (verOP ? htmlSafe(verOP) : "-") + "</td>";
+        h += "<td " + td + ">" + (largOPd ? htmlSafe(largOPd) : "-") + "</td>";
+        h += "<td " + td + ">" + (espOPd ? htmlSafe(espOPd) : "-") + "</td>";
+        // Coluna Pig fica vazia no destino; fila/rec entram a partir dali
+        h += '<td style="padding:0 4px;"></td>';
 
-        if (itemOP) {
-          h +=
-            '<span style="font-size:0.68em;color:#2563eb;font-weight:700;font-family:monospace;">' +
-            htmlSafe(itemOP) +
-            "</span>";
-          if (verOP) {
-            h +=
-              '<span style="font-size:0.64em;color:#2563eb;font-weight:600;background:#eff6ff;padding:1px 6px;border-radius:5px;">v' +
-              htmlSafe(verOP) +
-              "</span>";
-          }
+        var tags = "";
+        if (pos) {
+          tags +=
+            '<span style="font-size:0.92em;font-weight:700;padding:2px 7px;border-radius:6px;background:#eff6ff;color:#2563eb;white-space:nowrap;">fila ' +
+            htmlSafe(pos) + "</span>";
         }
-
-        if (pos || rec) {
-          if (pos) {
-            h +=
-              '<span style="font-size:0.62em;font-weight:700;padding:2px 7px;border-radius:6px;background:#eff6ff;color:#2563eb;white-space:nowrap;">fila ' +
-              htmlSafe(pos) +
-              "</span>";
-          }
-          if (rec) {
-            h +=
-              '<span style="font-size:0.62em;font-weight:700;padding:2px 7px;border-radius:6px;background:#f3e8ff;color:#8b5cf6;white-space:nowrap;">rec ' +
-              htmlSafe(rec) +
-              "</span>";
-          }
-        } else if (itemOP) {
-          h +=
-            '<span style="font-size:0.62em;font-weight:600;padding:2px 7px;border-radius:6px;background:#f1f5f9;color:#94a3b8;">fila/rec —</span>';
+        if (rec) {
+          tags +=
+            (tags ? " " : "") +
+            '<span style="font-size:0.92em;font-weight:700;padding:2px 7px;border-radius:6px;background:#f3e8ff;color:#8b5cf6;white-space:nowrap;">rec ' +
+            htmlSafe(rec) + "</span>";
         }
+        if (!tags && itemOP) {
+          tags =
+            '<span style="font-size:0.92em;font-weight:600;padding:2px 7px;border-radius:6px;background:#f1f5f9;color:#94a3b8;">fila/rec —</span>';
+        }
+        h += '<td style="padding:0 4px;white-space:nowrap;">' + tags + "</td>";
 
-        return h + "</div>";
+        return h + "</tr>";
       }
 
       function mkCard(gi) {
@@ -6959,11 +7090,11 @@ var estObservacoes = {};
       (B[g.bs[0]].esp || "-") +
       '</td><td style="color:#555;padding:0 4px;font-family:monospace;">' +
       (B[g.bs[0]].pig || "-") +
-      "</td></tr></table>";
+      "</td></tr>" +
+      // Linha azul do destino, alinhada nas mesmas colunas do cabeçalho
+      getDestinoOPCelulas(B[g.bs[0]]) +
+      "</table>";
   }
-
-  // Destino do encaixe: item/versão da OP + fila (col A) e recurso (col C)
-  hd += getDestinoOP(B[g.bs[0]]);
 
   hd +=
     '</div><div class="op-head-right"><span class="badge ' +
@@ -11292,6 +11423,8 @@ var estObservacoes = {};
               verOP: b.verOP || "",
               posFila: b.posFila || "",
               recurso: b.recurso || "",
+              largOPDestino: b.largOPDestino || "",
+              espOPDestino: b.espOPDestino || "",
               ok: b.ok || false,
               manual: b.manual || false,
             };
@@ -11538,7 +11671,11 @@ var estObservacoes = {};
                 if (!B[n].verOP) B[n].verOP = "";
                 if (!B[n].posFila) B[n].posFila = "";
                 if (!B[n].recurso) B[n].recurso = "";
+                if (!B[n].largOPDestino) B[n].largOPDestino = "";
+                if (!B[n].espOPDestino) B[n].espOPDestino = "";
               }
+              // Bobinas vindas da nuvem sem destino: reconstrói pela fila
+              try { completarDestinoDasBobinas(); } catch (eDest2) {}
               grp();
               await restaurarFotosLocais(true);
             }
@@ -11591,6 +11728,8 @@ var estObservacoes = {};
                 verOP: b.verOP || "",
                 posFila: b.posFila || "",
                 recurso: b.recurso || "",
+                largOPDestino: b.largOPDestino || "",
+                espOPDestino: b.espOPDestino || "",
                 ok: b.ok || false,
                 manual: b.manual || false,
                 foto: null,
@@ -17587,6 +17726,8 @@ async function shareFotos() {
               b.verOP || "",
               b.posFila || "",
               b.recurso || "",
+              b.largOPDestino || "",
+              b.espOPDestino || "",
             ];
           }),
         };
@@ -18039,6 +18180,8 @@ async function shareFotos() {
               verOP: r[11] || "",
               posFila: r[12] || "",
               recurso: r[13] || "",
+              largOPDestino: r[14] || "",
+              espOPDestino: r[15] || "",
               foto: null,
               fotoNm: "",
               ok: false,
@@ -18599,5 +18742,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a22623519946f1c5',t:'MTc4NTI2NTM0NA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
