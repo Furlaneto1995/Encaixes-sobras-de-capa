@@ -1,4 +1,4 @@
-var CACHE_NAME = 'encaixes-v7'; // Subimos para v5 para forçar a atualização limpa
+var CACHE_NAME = 'encaixes-v8'; // Subir este número a cada publicação força a atualização
 
 var urlsToCache = [
     './',
@@ -60,7 +60,38 @@ self.addEventListener('fetch', function(event) {
         return;
     }
 
-    // Para arquivos locais: cache first
+    // O HTML (a "casca" do app) usa NETWORK FIRST.
+    // Com cache-first o celular continuava rodando a versão antiga mesmo depois
+    // de publicar uma nova — só atualizava se alguém trocasse o CACHE_NAME.
+    // Agora ele sempre tenta baixar a versão nova; o cache vira só o plano B
+    // para quando estiver sem internet.
+    var isHTML =
+        event.request.mode === 'navigate' ||
+        url.indexOf('index.html') > -1 ||
+        url.indexOf('historico.html') > -1 ||
+        url.endsWith('/');
+
+    if (isHTML) {
+        event.respondWith(
+            fetch(event.request).then(function(fetchResponse) {
+                if (fetchResponse && fetchResponse.status === 200) {
+                    var clone = fetchResponse.clone();
+                    caches.open(CACHE_NAME).then(function(cache) {
+                        cache.put(event.request, clone);
+                    });
+                }
+                return fetchResponse;
+            }).catch(function() {
+                // Sem internet: usa a última versão salva
+                return caches.match(event.request).then(function(r) {
+                    return r || caches.match('./index.html');
+                });
+            })
+        );
+        return;
+    }
+
+    // Demais arquivos locais (ícones, manifest): cache first
     event.respondWith(
         caches.match(event.request).then(function(response) {
             if (response) return response;
