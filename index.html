@@ -7363,6 +7363,7 @@ var estObservacoes = {};
         }
 
         openCamScanAtivo = true;
+        scanResetarIntervalo();
         var existente = document.getElementById("openCamScanModal");
         if (existente) existente.remove();
 
@@ -7402,7 +7403,10 @@ var estObservacoes = {};
             { facingMode: "environment" },
             configScanner(),
             function(decodedText) {
-              if (openCamScanAtivo) openCamScanProcessar(bi, decodedText);
+              if (!openCamScanAtivo) return;
+              if (!scanPodeLer(decodedText)) return;
+              scanPiscarPausa("openCamScanReader");
+              openCamScanProcessar(bi, decodedText);
             },
             function() {}
           ).then(function () {
@@ -7415,6 +7419,46 @@ var estObservacoes = {};
           toast("Erro scanner: " + err, "error");
           openCamScanFechar(bi);
         }
+      }
+
+      // ================================================================
+      //   INTERVALO ENTRE LEITURAS
+      // ================================================================
+      // A câmera dispara ~15x por segundo e reconhece o mesmo código várias
+      // vezes seguidas. Sem uma pausa, um único bipe virava várias leituras.
+      // Aqui exigimos 2s entre leituras; o mesmo código só é aceito de novo
+      // depois desse intervalo.
+      var SCAN_INTERVALO_MS = 2000;
+      var scanUltimoCodigo = "";
+      var scanUltimoTs = 0;
+
+      function scanPodeLer(codigo) {
+        var agora = Date.now();
+        var cod = String(codigo || "").trim();
+        if (agora - scanUltimoTs < SCAN_INTERVALO_MS) return false;
+        scanUltimoCodigo = cod;
+        scanUltimoTs = agora;
+        return true;
+      }
+
+      // Zera o bloqueio ao abrir/fechar um scanner, para a primeira leitura
+      // da sessão ser imediata.
+      function scanResetarIntervalo() {
+        scanUltimoCodigo = "";
+        scanUltimoTs = 0;
+      }
+
+      // Feedback visual da pausa: esmaece a mira por 2s
+      function scanPiscarPausa(containerId) {
+        var cont = document.getElementById(containerId);
+        if (!cont || !cont.parentNode) return;
+        var mira = cont.parentNode.querySelector(".scan-mira");
+        if (!mira) return;
+        mira.style.transition = "opacity .15s";
+        mira.style.opacity = "0.35";
+        setTimeout(function () {
+          if (mira) mira.style.opacity = "1";
+        }, SCAN_INTERVALO_MS);
       }
 
       // ================================================================
@@ -11540,6 +11584,13 @@ var estObservacoes = {};
                 material: b.material || "",
                 largOP: b.largOP || "",
                 apresentacao: b.apresentacao || "",
+                formula: b.formula || "",
+                // Destino do encaixe (linha azul) — sem isto o sync baixava os
+                // campos e logo em seguida os apagava ao regravar o local
+                itemOP: b.itemOP || "",
+                verOP: b.verOP || "",
+                posFila: b.posFila || "",
+                recurso: b.recurso || "",
                 ok: b.ok || false,
                 manual: b.manual || false,
                 foto: null,
@@ -12237,6 +12288,7 @@ var estObservacoes = {};
         if (existente) existente.remove();
 
         scanEncAtivo = true;
+        scanResetarIntervalo();
         var modal = document.createElement("div");
         modal.id = "scanEncModal";
         modal.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:5000;display:flex;flex-direction:column;";
@@ -12277,7 +12329,10 @@ var estObservacoes = {};
             { facingMode: "environment" },
             configScanner(),
             function (decodedText) {
-              if (scanEncAtivo) registrarCodBarras(decodedText);
+              if (!scanEncAtivo) return;
+              if (!scanPodeLer(decodedText)) return;
+              scanPiscarPausa("scanEncReader");
+              registrarCodBarras(decodedText);
             },
             function () {}
           ).then(function () {
@@ -13078,6 +13133,7 @@ var estObservacoes = {};
         if (existente) existente.remove();
 
         vincCodAtivo = true;
+        scanResetarIntervalo();
 
         var modal = document.createElement("div");
         modal.id = "vincCodScanModal";
@@ -13115,9 +13171,10 @@ var estObservacoes = {};
             { facingMode: "environment" },
             configScanner(),
             function(decodedText) {
-              if (vincCodAtivo) {
-                vincCodValidarESalvar(vincCodBobinaAlvo, decodedText);
-              }
+              if (!vincCodAtivo) return;
+              if (!scanPodeLer(decodedText)) return;
+              scanPiscarPausa("vincCodScanReader");
+              vincCodValidarESalvar(vincCodBobinaAlvo, decodedText);
             },
             function() {}
           ).then(function () {
@@ -14454,6 +14511,7 @@ var estObservacoes = {};
         if (existente) existente.remove();
 
         confEstScanAtivo = true;
+        scanResetarIntervalo();
 
         var modal = document.createElement("div");
         modal.id = "confEstScanModal";
@@ -14495,9 +14553,10 @@ var estObservacoes = {};
             { facingMode: "environment" },
             configScanner(),
             function(decodedText) {
-              if (confEstScanAtivo) {
-                confEstProcessarCodigo(decodedText);
-              }
+              if (!confEstScanAtivo) return;
+              if (!scanPodeLer(decodedText)) return;
+              scanPiscarPausa("confEstScanReader");
+              confEstProcessarCodigo(decodedText);
             },
             function() {}
           ).then(function () {
@@ -18540,5 +18599,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a225e7738afad7b2',t:'MTc4NTI2Mjg5Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
