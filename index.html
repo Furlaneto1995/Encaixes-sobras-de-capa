@@ -6727,6 +6727,52 @@ var estObservacoes = {};
         return h + "</div>";
       }
 
+      // ================================================================
+      //   ÍNDICE DE OPs DA FILA DE LAMINAÇÃO
+      // ================================================================
+      // A conferência precisa saber apenas se uma OP está na fila.
+      // Antes isso dependia de window.fpLam, que só existia depois de
+      // "Calcular encaixes" — quem abria a conferência direto via TODAS as
+      // bobinas marcadas como "OP NÃO encontrada", o que era falso.
+      // Aqui o índice é montado direto de filaLaminacao (que vem do
+      // localStorage/nuvem), sem depender do cálculo.
+      function montarIndiceOpsLaminacao() {
+        var idx = {};
+
+        // 1) Preferir fpLam quando já existe (cálculo feito nesta sessão)
+        var fpLamArr = window.fpLam || [];
+        for (var i = 0; i < fpLamArr.length; i++) {
+          var opA = String(fpLamArr[i].op || "").trim();
+          var opB = String(fpLamArr[i].opOriginal || "").trim();
+          if (opA) idx[opA] = true;
+          if (opB) idx[opB] = true;
+        }
+
+        // 2) Montar direto da planilha de laminação
+        var lam = filaLaminacao || [];
+        for (var j = 0; j < lam.length; j++) {
+          var opLam = String((lam[j] && lam[j]["OP"]) || "").trim();
+          if (!opLam) continue;
+          idx[opLam] = true;
+          // OP mãe = OP da laminação - 2 (mesma regra do cálculo)
+          var opNum = parseInt(opLam, 10);
+          if (!isNaN(opNum)) idx[String(opNum - 2)] = true;
+        }
+
+        return idx;
+      }
+
+      // Retorna: "na_fila" | "fora_da_fila" | "sem_fila"
+      function statusOpNaLaminacao(opConf) {
+        var op = String(opConf || "").trim().replace(/^OP\s*/i, "");
+        var temFonte =
+          (window.fpLam && window.fpLam.length > 0) ||
+          (filaLaminacao && filaLaminacao.length > 0);
+        if (!temFonte) return "sem_fila";
+        var idx = montarIndiceOpsLaminacao();
+        return idx[op] ? "na_fila" : "fora_da_fila";
+      }
+
       function getOpItemGroups(g) {
   var mapa = {};
   var ordem = [];
@@ -10259,11 +10305,22 @@ var estObservacoes = {};
           // ✅ Buscar códigos de barras das bobinas do estoque que foram encaixadas
           var codBarrasMapa = {};
           var codBarrasEncaixeMapa = {};
+          // O código é GRAVADO por UID (doc "cb_<uid>"), então a busca também
+          // precisa ser por UID. Buscar por item|versao|qtde trocava o código
+          // entre bobinas idênticas e perdia o vínculo quando o peso mudava.
+          var codBarrasUidMapa = {};
+          var codBarrasEncaixeUidMapa = {};
           try {
             var codSnap = await db.collection("datas_manuais").get();
             codSnap.forEach(function(doc) {
               var d = doc.data();
               if (d.tipo === "codigobarras") {
+                var uidDoc = String(d.uid || "").trim();
+                if (uidDoc) {
+                  if (d.codigo_barras) codBarrasUidMapa[uidDoc] = d.codigo_barras;
+                  if (d.codigo_barras_encaixe) codBarrasEncaixeUidMapa[uidDoc] = d.codigo_barras_encaixe;
+                }
+                // Fallback legado: registros antigos sem UID
                 var chave = d.item + "|" + d.versao + "|" + d.qtde;
                 if (d.codigo_barras) codBarrasMapa[chave] = d.codigo_barras;
                 if (d.codigo_barras_encaixe) codBarrasEncaixeMapa[chave] = d.codigo_barras_encaixe;
@@ -10274,12 +10331,15 @@ var estObservacoes = {};
           var batch = db.batch();
           for (var i = 0; i < B.length; i++) {
             var b = B[i];
-            // ✅ Buscar código de barras se a bobina já tinha no estoque
+            // ✅ Buscar código de barras: UID primeiro, item|versao|qtde só como legado
             var codBarrasEnc = "";
             var codBarrasEncaixeEnc = "";
+            var uidBob = getUidBobina(b);
             var chaveEnc = (b.item || "") + "|" + (b.ver || "") + "|" + (b.qtde || "");
-            if (codBarrasMapa[chaveEnc]) codBarrasEnc = codBarrasMapa[chaveEnc];
-            if (codBarrasEncaixeMapa[chaveEnc]) codBarrasEncaixeEnc = codBarrasEncaixeMapa[chaveEnc];
+            if (uidBob && codBarrasUidMapa[uidBob]) codBarrasEnc = codBarrasUidMapa[uidBob];
+            else if (codBarrasMapa[chaveEnc]) codBarrasEnc = codBarrasMapa[chaveEnc];
+            if (uidBob && codBarrasEncaixeUidMapa[uidBob]) codBarrasEncaixeEnc = codBarrasEncaixeUidMapa[uidBob];
+            else if (codBarrasEncaixeMapa[chaveEnc]) codBarrasEncaixeEnc = codBarrasEncaixeMapa[chaveEnc];
 
             batch.set(db.collection("encaixes").doc(), {
               data: ds,
@@ -11916,13 +11976,41 @@ var estObservacoes = {};
 
             for (var ri = 0; ri < grp.regs.length; ri++) {
               var item = grp.regs[ri];
+
+              // Etiquetas anexadas à bobina: amarela (sobra) e branca (encaixe).
+              // Mesmas cores da tela de encaixes.
+              var codAm = String(item.reg.codigo_barras_sobra || "").trim();
+              var codBr = String(item.reg.codigo_barras || "").trim();
+              var codsHtml = "";
+              if (codAm || codBr) {
+                codsHtml =
+                  '<div style="display:flex;flex-direction:column;gap:1px;margin-top:1px;">';
+                if (codAm) {
+                  codsHtml +=
+                    '<span style="font-size:0.88em;color:#f59e0b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="Etiqueta amarela (sobra)">🏷️ ' +
+                    htmlSafe(codAm) + '</span>';
+                }
+                if (codBr && codBr !== codAm) {
+                  codsHtml +=
+                    '<span style="font-size:0.88em;color:#2563eb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="Etiqueta branca (encaixe)">🏷️ ' +
+                    htmlSafe(codBr) + '</span>';
+                }
+                codsHtml += '</div>';
+              } else {
+                codsHtml =
+                  '<div style="font-size:0.85em;color:#cbd5e1;margin-top:1px;">🏷️ sem código anexado</div>';
+              }
+
               html +=
-                '<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:0.7em;' + (ri > 0 ? 'border-top:1px solid #e2e8f0;' : '') + '">' +
-                '<div style="color:' + (item.conferida ? "#10b981" : "#94a3b8") + ';font-size:1em;">' + (item.conferida ? "✔" : "○") + '</div>' +
+                '<div style="display:flex;align-items:flex-start;gap:6px;padding:4px 0;font-size:0.7em;' + (ri > 0 ? 'border-top:1px solid #e2e8f0;' : '') + '">' +
+                '<div style="color:' + (item.conferida ? "#10b981" : "#94a3b8") + ';font-size:1em;line-height:1.4;">' + (item.conferida ? "✔" : "○") + '</div>' +
                 '<div style="flex:1;min-width:0;">' +
+                '<div>' +
                 '<span style="font-weight:600;color:#334155;">' + htmlSafe(item.reg.item || "") + '</span>' +
                 ' <span style="color:#888;">v' + htmlSafe(item.reg.versao || "") + '</span>' +
                 ' <span style="color:#64748b;">' + Math.round(parseFloat(item.reg.qtde) || 0) + 'kg</span>' +
+                '</div>' +
+                codsHtml +
                 '</div>' +
                 '</div>';
               }
@@ -12084,19 +12172,15 @@ var estObservacoes = {};
           confEncCodBarras[key] = codigoLimpo;
           // Verificar se OP está na fila da laminação
           var opConf = String(registroEncontrado.encaixe || "").trim().replace(/^OP\s*/i, "");
-          var opNaFilaLam = false;
-          var fpLamArr = window.fpLam || [];
-          for (var fli = 0; fli < fpLamArr.length; fli++) {
-            if (String(fpLamArr[fli].op || "").trim() === opConf || String(fpLamArr[fli].opOriginal || "").trim() === opConf) {
-              opNaFilaLam = true;
-              break;
-            }
-          }
+          var statusLam = statusOpNaLaminacao(opConf);
           if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-          if (opNaFilaLam) {
+          if (statusLam === "na_fila") {
             toast("✔ " + registroEncontrado.item + " OP " + opConf + " — OP na fila laminação", "success", 1500);
-          } else {
+          } else if (statusLam === "fora_da_fila") {
             toast("✔ " + registroEncontrado.item + " OP " + opConf + " — OP NÃO encontrada na fila laminação", "warning", 2000);
+          } else {
+            // Sem planilha de laminação carregada: não dá para afirmar nada.
+            toast("✔ " + registroEncontrado.item + " OP " + opConf + " — fila de laminação não carregada", "info", 2000);
           }
         } else {
           if (navigator.vibrate) navigator.vibrate([50]);
@@ -16435,11 +16519,19 @@ async function shareFotos() {
         // Buscar códigos de barras
         var codBarrasMapa2 = {};
         var codBarrasEncaixeMapa2 = {};
+        var codBarrasUidMapa2 = {};
+        var codBarrasEncaixeUidMapa2 = {};
         try {
           var codSnap2 = await db.collection("datas_manuais").get();
           codSnap2.forEach(function(doc) {
             var d = doc.data();
             if (d.tipo === "codigobarras") {
+              var uidDoc2 = String(d.uid || "").trim();
+              if (uidDoc2) {
+                if (d.codigo_barras) codBarrasUidMapa2[uidDoc2] = d.codigo_barras;
+                if (d.codigo_barras_encaixe) codBarrasEncaixeUidMapa2[uidDoc2] = d.codigo_barras_encaixe;
+              }
+              // Fallback legado: registros antigos sem UID
               var chave = d.item + "|" + d.versao + "|" + d.qtde;
               if (d.codigo_barras) codBarrasMapa2[chave] = d.codigo_barras;
               if (d.codigo_barras_encaixe) codBarrasEncaixeMapa2[chave] = d.codigo_barras_encaixe;
@@ -16450,9 +16542,11 @@ async function shareFotos() {
           var batch = db.batch();
           for (var i = 0; i < B.length; i++) {
             var b = B[i];
+            // UID primeiro; item|versao|qtde só para registros antigos
+            var uidB2 = getUidBobina(b);
             var chaveB2 = (b.item || "") + "|" + (b.ver || "") + "|" + (b.qtde || "");
-            var codB2 = codBarrasMapa2[chaveB2] || "";
-            var codEnc2 = codBarrasEncaixeMapa2[chaveB2] || "";
+            var codB2 = (uidB2 && codBarrasUidMapa2[uidB2]) || codBarrasMapa2[chaveB2] || "";
+            var codEnc2 = (uidB2 && codBarrasEncaixeUidMapa2[uidB2]) || codBarrasEncaixeMapa2[chaveB2] || "";
             batch.set(db.collection("encaixes").doc(), {
               data: ds,
               timestamp: firebase.firestore.FieldValue.serverTimestamp(),
@@ -18248,5 +18342,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a224a4c5bd5002f3',t:'MTc4NTI0OTY3NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a22547e32e4c1ab2',t:'MTc4NTI1NjM1Ng=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
