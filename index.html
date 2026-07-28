@@ -4429,6 +4429,7 @@ var estObservacoes = {};
           for (var j = 0; j < cab.length; j++)
             obj[cab[j]] = row[j] !== undefined ? String(row[j]).trim() : "";
           obj.__A = row[0] !== undefined ? String(row[0]).trim() : "";
+          obj.__C = row[2] !== undefined ? String(row[2]).trim() : "";
           obj.__I = row[8] !== undefined ? String(row[8]).trim() : "";
           obj.__J = row[9] !== undefined ? String(row[9]).trim() : "";
           obj.__M = row[12] !== undefined ? String(row[12]).trim() : "";
@@ -4744,6 +4745,12 @@ var estObservacoes = {};
             pe = f["PREV ENTREGA"] || "",
             op = f["OP_PRINCIPAL"] || f["OP"] || "";
 
+          // Coluna A = posição na fila | Coluna C = recurso
+          var posFilaA = String(f["__A"] !== undefined ? f["__A"] : "").trim();
+          var recursoC = String(
+            f["RECURSO"] || (f["__C"] !== undefined ? f["__C"] : "")
+          ).trim();
+
           // Bloqueia OPs interrompidas em qualquer recurso
           if (opsInterrompidas[String(op).trim()]) continue;
 
@@ -4784,6 +4791,8 @@ var estObservacoes = {};
               return ef + "|" + c + "|" + pf;
             }),
             versao: f["VERSAO"] || "",
+            posFila: posFilaA,
+            recurso: recursoC,
           });
         }
 
@@ -4835,6 +4844,10 @@ var estObservacoes = {};
             data: prevEntrega,
             familia: String(
               fl["FAMILIA"] || fl["FAMÍLIA"] || fl["__S"] || "",
+            ).trim(),
+            posFila: String(fl["__A"] !== undefined ? fl["__A"] : "").trim(),
+            recurso: String(
+              fl["RECURSO"] || (fl["__C"] !== undefined ? fl["__C"] : "")
             ).trim(),
           });
         }
@@ -4927,6 +4940,10 @@ var estObservacoes = {};
                 material: bob.material || "",
                 largOP: String(escL.largura || bob.largura),
                 composicao: bob.composicao || "",
+                itemOP: escL.itemFila || "",
+                verOP: escL.versao || "",
+                posFila: escL.posFila || "",
+                recurso: escL.recurso || "",
               });
 
               found = true;
@@ -5002,6 +5019,10 @@ var estObservacoes = {};
                     largOP: String(opUnica.largura || bob.largura),
                     apresentacao: opUnica.apresentacao || "",
                     composicao: bob.composicao || "",
+                    itemOP: opUnica.itemFila || "",
+                    verOP: opUnica.versao || "",
+                    posFila: opUnica.posFila || "",
+                    recurso: opUnica.recurso || "",
                   });
 
                   found = true;
@@ -5044,6 +5065,12 @@ var estObservacoes = {};
                       largOP: String(opsJuntadas[0].largura || bob.largura),
                       apresentacao: opsJuntadas[0].apresentacao || "",
                       composicao: bob.composicao || "",
+                      itemOP: opsJuntadas[0].itemFila || "",
+                      verOP: opsJuntadas[0].versao || "",
+                      posFila: opsJuntadas
+                        .map(function (o) { return o.posFila || "?"; })
+                        .join(" + "),
+                      recurso: opsJuntadas[0].recurso || "",
                     });
 
                     found = true;
@@ -5072,6 +5099,10 @@ var estObservacoes = {};
             apresentacao: rs.apresentacao || "",
             formula: rs.composicao || buscarFormulaDoItem(rs.item) || "",
             fundo: !!rs.fundo,
+            itemOP: rs.itemOP || "",
+            verOP: rs.verOP || "",
+            posFila: rs.posFila || "",
+            recurso: rs.recurso || "",
             foto: null,
             fotoNm: "",
             ok: false,
@@ -5253,6 +5284,10 @@ var estObservacoes = {};
                 largOP: b.largOP || b.larg || "",
                 apresentacao: b.apresentacao || "",
                 formula: b.formula || "",
+                itemOP: b.itemOP || "",
+                verOP: b.verOP || "",
+                posFila: b.posFila || "",
+                recurso: b.recurso || "",
                 // Fotos ficam no IndexedDB para não estourar o localStorage.
                 foto: null,
                 fotoEtiqueta: null,
@@ -6692,6 +6727,58 @@ function getOpItemGroups(g) {
   return ordem;
 }
 
+      // ================================================================
+      //   LINHA DE DESTINO: item/versão da OP + posição na fila (col A)
+      //   e recurso (col C). Ex.: ➜ 1130847-2 v03  fila 50  rec 119
+      // ================================================================
+      function getDestinoOP(bob) {
+        if (!bob) return "";
+        var itemOP = String(bob.itemOP || "").trim();
+        var verOP = String(bob.verOP || "").trim();
+        var pos = String(bob.posFila || "").trim();
+        var rec = String(bob.recurso || "").trim();
+
+        // Nada a mostrar (ex.: bobina adicionada manualmente)
+        if (!itemOP && !pos && !rec) return "";
+
+        var h =
+          '<div style="margin-top:5px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;">';
+
+        if (itemOP) {
+          h +=
+            '<span style="font-size:0.7em;color:#2563eb;font-weight:700;">➜</span>' +
+            '<span style="font-size:0.74em;color:#2563eb;font-weight:700;font-family:monospace;letter-spacing:0.2px;">' +
+            htmlSafe(itemOP) +
+            "</span>";
+          if (verOP) {
+            h +=
+              '<span style="font-size:0.64em;color:#2563eb;font-weight:600;background:#eff6ff;padding:1px 6px;border-radius:5px;">v' +
+              htmlSafe(verOP) +
+              "</span>";
+          }
+        }
+
+        if (pos || rec) {
+          if (pos) {
+            h +=
+              '<span style="font-size:0.62em;font-weight:700;padding:2px 7px;border-radius:6px;background:#eff6ff;color:#2563eb;white-space:nowrap;">fila ' +
+              htmlSafe(pos) +
+              "</span>";
+          }
+          if (rec) {
+            h +=
+              '<span style="font-size:0.62em;font-weight:700;padding:2px 7px;border-radius:6px;background:#f3e8ff;color:#8b5cf6;white-space:nowrap;">rec ' +
+              htmlSafe(rec) +
+              "</span>";
+          }
+        } else if (itemOP) {
+          h +=
+            '<span style="font-size:0.62em;font-weight:600;padding:2px 7px;border-radius:6px;background:#f1f5f9;color:#94a3b8;">fila/rec —</span>';
+        }
+
+        return h + "</div>";
+      }
+
       function mkCard(gi) {
   var g = G[gi];
   if (!showG(gi)) return null;
@@ -6736,6 +6823,9 @@ function getOpItemGroups(g) {
       (B[g.bs[0]].pig || "-") +
       "</td></tr></table>";
   }
+
+  // Destino do encaixe: item/versão da OP + fila (col A) e recurso (col C)
+  hd += getDestinoOP(B[g.bs[0]]);
 
   hd +=
     '</div><div class="op-head-right"><span class="badge ' +
@@ -7743,6 +7833,10 @@ function getOpItemGroups(g) {
           pig: ref.pig,
           qtde: p,
           uid: gerarUidBobina(),
+          itemOP: ref.itemOP || "",
+          verOP: ref.verOP || "",
+          posFila: ref.posFila || "",
+          recurso: ref.recurso || "",
           foto: null,
           fotoNm: "",
           ok: false,
@@ -9477,6 +9571,10 @@ function getOpItemGroups(g) {
             pig: bob.pig,
             qtde: pesos[k],
             uid: novoUidDiv,
+            itemOP: bob.itemOP || "",
+            verOP: bob.verOP || "",
+            posFila: bob.posFila || "",
+            recurso: bob.recurso || "",
             foto: null,
             fotoNm: "",
             ok: false,
@@ -18114,5 +18212,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a22459edde2ea525',t:'MTc4NTI0NjYwOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
