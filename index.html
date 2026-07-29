@@ -4781,7 +4781,9 @@ var estObservacoes = {};
             op = f["OP_PRINCIPAL"] || f["OP"] || "";
 
           // Coluna A = posição na fila | Coluna C = recurso | Coluna AM = S/N
-          var posFilaA = getColunaFila(f, 0, ["FILA", "POSICAO", "POSIÇÃO", "SEQ"]);
+          var posFilaA = limparPosicaoFila(
+            getColunaFila(f, 0, ["FILA", "POSICAO", "POSIÇÃO", "SEQ"])
+          );
           var recursoC = getColunaFila(f, 2, ["RECURSO", "REC", "MAQUINA", "MÁQUINA"]);
           var flagAM = normalizarSN(getColunaFila(f, 38, []));
 
@@ -4884,7 +4886,7 @@ var estObservacoes = {};
             familia: String(
               fl["FAMILIA"] || fl["FAMÍLIA"] || fl["__S"] || "",
             ).trim(),
-            posFila: getColunaFila(fl, 0, ["FILA", "POSICAO", "POSIÇÃO", "SEQ"]),
+            posFila: limparPosicaoFila(getColunaFila(fl, 0, ["FILA", "POSICAO", "POSIÇÃO", "SEQ"])),
             recurso: getColunaFila(fl, 2, ["RECURSO", "REC", "MAQUINA", "MÁQUINA"]),
           });
         }
@@ -5860,7 +5862,7 @@ var estObservacoes = {};
           porOP[op] = {
             itemOP: getItemFila(f),
             verOP: limparVersao(f["VERSAO"]),
-            posFila: getColunaFila(f, 0, ["FILA", "POSICAO", "POSIÇÃO", "SEQ"]),
+            posFila: limparPosicaoFila(getColunaFila(f, 0, ["FILA", "POSICAO", "POSIÇÃO", "SEQ"])),
             recurso: getColunaFila(f, 2, ["RECURSO", "REC", "MAQUINA", "MÁQUINA"]),
             largOPDestino: String(extrairLarguraColunaJ(f) || ""),
             espOPDestino: String(extrairEspessuraColunaJ(f) || ""),
@@ -6872,6 +6874,15 @@ var estObservacoes = {};
       //  2) nome do cabeçalho (FILA, RECURSO...) — funciona em qualquer versão
       //  3) posição real das chaves — resgata dados antigos vindos da nuvem,
       //     salvos antes de o parser passar a guardar __C
+      // A coluna A pode vir com marcadores colados no número (ex.: "52 $").
+      // Só o número interessa — o indicador S/N vem da coluna AM.
+      function limparPosicaoFila(v) {
+        var s = String(v === undefined || v === null ? "" : v).trim();
+        if (!s) return "";
+        var m = s.match(/-?\d+(?:[.,]\d+)?/);
+        return m ? m[0] : "";
+      }
+
       // Coluna AM da fila de extrusão: indicador S/N mostrado ao lado de "fila".
       // Aceita as formas que aparecem na planilha (S, SIM, N, NAO, 1/0, true...).
       function normalizarSN(v) {
@@ -7280,7 +7291,11 @@ var estObservacoes = {};
         (ref.esp || "-") +
         '</td><td style="color:#555;padding:0 4px;font-family:monospace;">' +
         (ref.pig || "-") +
-        "</td></tr></table>" +
+        "</td></tr>" +
+        // Destino também nos cards com mais de um item — antes a linha azul
+        // só aparecia quando a OP tinha um item só.
+        getDestinoOPCelulas(B[grupo.bs[0]]) +
+        "</table>" +
         "</div>";
 
       for (var gb = 0; gb < grupo.bs.length; gb++) {
@@ -18814,5 +18829,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a22c4b727d73f243',t:'MTc4NTMyOTkwMg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
