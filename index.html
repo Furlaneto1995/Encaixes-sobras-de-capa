@@ -4468,6 +4468,7 @@ var estObservacoes = {};
           obj.__J = row[9] !== undefined ? String(row[9]).trim() : "";
           obj.__M = row[12] !== undefined ? String(row[12]).trim() : "";
           obj.__P = row[15] !== undefined ? String(row[15]).trim() : "";
+          obj.__AM = row[38] !== undefined ? String(row[38]).trim() : "";
           r.push(obj);
         }
         return r;
@@ -4779,9 +4780,10 @@ var estObservacoes = {};
             pe = f["PREV ENTREGA"] || "",
             op = f["OP_PRINCIPAL"] || f["OP"] || "";
 
-          // Coluna A = posição na fila | Coluna C = recurso
+          // Coluna A = posição na fila | Coluna C = recurso | Coluna AM = S/N
           var posFilaA = getColunaFila(f, 0, ["FILA", "POSICAO", "POSIÇÃO", "SEQ"]);
           var recursoC = getColunaFila(f, 2, ["RECURSO", "REC", "MAQUINA", "MÁQUINA"]);
+          var flagAM = normalizarSN(getColunaFila(f, 38, []));
 
           // Bloqueia OPs interrompidas em qualquer recurso
           if (opsInterrompidas[String(op).trim()]) continue;
@@ -4825,6 +4827,7 @@ var estObservacoes = {};
             versao: limparVersao(f["VERSAO"]),
             posFila: posFilaA,
             recurso: recursoC,
+            flagFila: flagAM,
             // Largura E espessura saem da coluna J, que traz a descrição
             // no formato "(93cm x 78mu) BOBINA EMB IMP ...".
             largJ: String(extrairLarguraColunaJ(f) || ""),
@@ -4978,6 +4981,7 @@ var estObservacoes = {};
                 verOP: escL.versao || "",
                 posFila: escL.posFila || "",
                 recurso: escL.recurso || "",
+                flagFila: escL.flagFila || "",
                 largOPDestino: escL.largJ || String(escL.largura || ""),
                 espOPDestino: escL.espFila || String(escL.espessura || ""),
               });
@@ -5059,6 +5063,7 @@ var estObservacoes = {};
                     verOP: opUnica.versao || "",
                     posFila: opUnica.posFila || "",
                     recurso: opUnica.recurso || "",
+                    flagFila: opUnica.flagFila || "",
                     largOPDestino: opUnica.largJ || String(opUnica.largura || ""),
                     espOPDestino: opUnica.espFila || String(opUnica.espessura || ""),
                   });
@@ -5109,6 +5114,7 @@ var estObservacoes = {};
                         .map(function (o) { return o.posFila || "?"; })
                         .join(" + "),
                       recurso: opsJuntadas[0].recurso || "",
+                      flagFila: opsJuntadas[0].flagFila || "",
                       largOPDestino: opsJuntadas[0].largJ || String(opsJuntadas[0].largura || ""),
                       espOPDestino: opsJuntadas[0].espFila || String(opsJuntadas[0].espessura || ""),
                     });
@@ -5143,6 +5149,7 @@ var estObservacoes = {};
             verOP: rs.verOP || "",
             posFila: rs.posFila || "",
             recurso: rs.recurso || "",
+            flagFila: rs.flagFila || "",
             largOPDestino: rs.largOPDestino || "",
             espOPDestino: rs.espOPDestino || "",
             foto: null,
@@ -5330,6 +5337,7 @@ var estObservacoes = {};
                 verOP: b.verOP || "",
                 posFila: b.posFila || "",
                 recurso: b.recurso || "",
+                flagFila: b.flagFila || "",
                 largOPDestino: b.largOPDestino || "",
                 espOPDestino: b.espOPDestino || "",
                 // Fotos ficam no IndexedDB para não estourar o localStorage.
@@ -5453,6 +5461,7 @@ var estObservacoes = {};
             if (B[i].recurso === undefined) B[i].recurso = "";
             if (B[i].largOPDestino === undefined) B[i].largOPDestino = "";
             if (B[i].espOPDestino === undefined) B[i].espOPDestino = "";
+            if (B[i].flagFila === undefined) B[i].flagFila = "";
           }
 
           // Bobinas antigas: reconstrói o destino a partir da fila
@@ -5855,6 +5864,7 @@ var estObservacoes = {};
             recurso: getColunaFila(f, 2, ["RECURSO", "REC", "MAQUINA", "MÁQUINA"]),
             largOPDestino: String(extrairLarguraColunaJ(f) || ""),
             espOPDestino: String(extrairEspessuraColunaJ(f) || ""),
+            flagFila: normalizarSN(getColunaFila(f, 38, [])),
           };
         }
 
@@ -5875,6 +5885,7 @@ var estObservacoes = {};
           if (!bob.recurso && d.recurso) bob.recurso = d.recurso;
           if (!bob.largOPDestino && d.largOPDestino) bob.largOPDestino = d.largOPDestino;
           if (!bob.espOPDestino && d.espOPDestino) bob.espOPDestino = d.espOPDestino;
+          if (!bob.flagFila && d.flagFila) bob.flagFila = d.flagFila;
           corrigidas++;
         }
         return corrigidas;
@@ -6861,11 +6872,39 @@ var estObservacoes = {};
       //  2) nome do cabeçalho (FILA, RECURSO...) — funciona em qualquer versão
       //  3) posição real das chaves — resgata dados antigos vindos da nuvem,
       //     salvos antes de o parser passar a guardar __C
+      // Coluna AM da fila de extrusão: indicador S/N mostrado ao lado de "fila".
+      // Aceita as formas que aparecem na planilha (S, SIM, N, NAO, 1/0, true...).
+      function normalizarSN(v) {
+        var s = String(v === undefined || v === null ? "" : v).trim().toUpperCase();
+        if (!s) return "";
+        if (s === "S" || s === "SIM" || s === "1" || s === "TRUE" || s === "X") return "S";
+        if (s === "N" || s === "NAO" || s === "NÃO" || s === "0" || s === "FALSE") return "N";
+        // Qualquer outro texto: usa a primeira letra se for S ou N
+        var c = s.charAt(0);
+        if (c === "S") return "S";
+        if (c === "N") return "N";
+        return "";
+      }
+
+      // 0 -> "A", 2 -> "C", 38 -> "AM" (planilhas passam de Z)
+      function indiceParaLetraColuna(indice) {
+        var n = Number(indice);
+        if (isNaN(n) || n < 0) return "";
+        var s = "";
+        n = n + 1;
+        while (n > 0) {
+          var resto = (n - 1) % 26;
+          s = String.fromCharCode(65 + resto) + s;
+          n = Math.floor((n - 1) / 26);
+        }
+        return s;
+      }
+
       function getColunaFila(linha, indice, nomes) {
         if (!linha) return "";
 
-        // 1) posicional já normalizado
-        var letra = "__" + String.fromCharCode(65 + indice); // 0->__A, 2->__C
+        // 1) posicional já normalizado (aceita colunas de 2 letras: AM = 38)
+        var letra = "__" + indiceParaLetraColuna(indice);
         if (linha[letra] !== undefined && String(linha[letra]).trim() !== "") {
           return String(linha[letra]).trim();
         }
@@ -7037,9 +7076,18 @@ var estObservacoes = {};
 
         var tags = "";
         if (pos) {
+          // Indicador S/N da coluna AM, logo após o número da fila.
+          // Vermelho para S, verde para N — leitura rápida no chão de fábrica.
+          var flag = String(bob.flagFila || "").trim().toUpperCase();
+          var flagHTML = "";
+          if (flag === "S" || flag === "N") {
+            var corFlag = flag === "S" ? "#ef4444" : "#10b981";
+            flagHTML =
+              ' <span style="font-weight:800;color:' + corFlag + ';">' + flag + "</span>";
+          }
           tags +=
             '<span style="font-size:0.92em;font-weight:700;padding:2px 7px;border-radius:6px;background:#eff6ff;color:#2563eb;white-space:nowrap;">fila ' +
-            htmlSafe(pos) + "</span>";
+            htmlSafe(pos) + flagHTML + "</span>";
         }
         if (rec) {
           tags +=
@@ -11442,6 +11490,7 @@ var estObservacoes = {};
               verOP: b.verOP || "",
               posFila: b.posFila || "",
               recurso: b.recurso || "",
+              flagFila: b.flagFila || "",
               largOPDestino: b.largOPDestino || "",
               espOPDestino: b.espOPDestino || "",
               ok: b.ok || false,
@@ -11692,6 +11741,7 @@ var estObservacoes = {};
                 if (!B[n].recurso) B[n].recurso = "";
                 if (!B[n].largOPDestino) B[n].largOPDestino = "";
                 if (!B[n].espOPDestino) B[n].espOPDestino = "";
+                if (!B[n].flagFila) B[n].flagFila = "";
               }
               // Bobinas vindas da nuvem sem destino: reconstrói pela fila
               try { completarDestinoDasBobinas(); } catch (eDest2) {}
@@ -11747,6 +11797,7 @@ var estObservacoes = {};
                 verOP: b.verOP || "",
                 posFila: b.posFila || "",
                 recurso: b.recurso || "",
+                flagFila: b.flagFila || "",
                 largOPDestino: b.largOPDestino || "",
                 espOPDestino: b.espOPDestino || "",
                 ok: b.ok || false,
@@ -17747,6 +17798,7 @@ async function shareFotos() {
               b.recurso || "",
               b.largOPDestino || "",
               b.espOPDestino || "",
+              b.flagFila || "",
             ];
           }),
         };
@@ -18201,6 +18253,7 @@ async function shareFotos() {
               recurso: r[13] || "",
               largOPDestino: r[14] || "",
               espOPDestino: r[15] || "",
+              flagFila: r[16] || "",
               foto: null,
               fotoNm: "",
               ok: false,
@@ -18761,5 +18814,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a22649b45f3aa51a',t:'MTc4NTI2NjkxNg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a22c4b727d73f243',t:'MTc4NTMyOTkwMg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
