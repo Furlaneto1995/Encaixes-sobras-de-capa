@@ -15755,12 +15755,40 @@ async function shareFotos() {
     var arquivos = [],
       contPorOp = {};
 
+    // As fotos vivem no banco local; bob.foto é só um cache em memória.
+    // Se o celular foi bloqueado ou a aba descartada, esse cache se perde e o
+    // compartilhamento saía só com o texto. Recarregamos antes de montar.
+    lt.textContent = "Recuperando fotos...";
+    try {
+      await restaurarFotosLocais(true);
+    } catch (eRest) {
+      console.warn("Falha ao restaurar fotos antes do compartilhamento:", eRest);
+    }
+
+    var semFoto = 0;
+
     for (var i = 0; i < G.length; i++) {
       var g = G[i];
 
       for (var b = 0; b < g.bs.length; b++) {
         var bob = B[g.bs[b]];
-        if (!bob.foto && !bob.fotoEtiqueta) continue;
+
+        // Última tentativa: buscar direto no banco por esta bobina
+        if (!bob.foto && !bob.fotoEtiqueta) {
+          try {
+            var rec = await carregarFotoRegistro(chaveFotoBobina(bob));
+            if (rec && (rec.foto || rec.fotoEtiqueta)) {
+              bob.foto = rec.foto || null;
+              bob.fotoEtiqueta = rec.fotoEtiqueta || null;
+              bob.fotoNm = rec.fotoNm || bob.fotoNm || "";
+            }
+          } catch (eRec) {}
+        }
+
+        if (!bob.foto && !bob.fotoEtiqueta) {
+          if (bob.ok) semFoto++; // marcada como pronta, mas sem imagem
+          continue;
+        }
 
         contPorOp[g.enc] = (contPorOp[g.enc] || 0) + 1;
         var n = contPorOp[g.enc];
@@ -15769,8 +15797,14 @@ async function shareFotos() {
         try {
           var arquivoCombinado = await gerarFotoCombinadaVertical(bob, nome);
           if (arquivoCombinado) arquivos.push(arquivoCombinado);
-        } catch (e) {}
+        } catch (e) {
+          console.warn("Falha ao montar foto de " + nome + ":", e);
+        }
       }
+    }
+
+    if (semFoto > 0) {
+      console.warn(semFoto + " bobina(s) marcada(s) como OK sem foto no banco");
     }
 
     lt.textContent = "Gerando relatório...";
@@ -15985,6 +16019,16 @@ async function shareFotos() {
               title: "📦 Encaixes " + new Date().toLocaleDateString("pt-BR"),
               text: textoRelatorioWpp,
             });
+            // Enviou só parte das fotos — avisa quantas ficaram de fora
+            if (batchFiles.length < arquivos.length) {
+              toast(
+                "⚠️ Só " + batchFiles.length + " de " + arquivos.length +
+                  " fotos foram enviadas. Toque para baixar o resto.",
+                "warning",
+                15000,
+                { texto: "📥 Baixar todas", fn: baixarArquivosRelatorio }
+              );
+            }
             return;
           } catch (e2) {
             if (e2.name === "AbortError") return;
@@ -15992,12 +16036,21 @@ async function shareFotos() {
         }
       }
       
-      // Fallback: share com texto apenas
+      // Fallback: share com texto apenas.
+      // As fotos NÃO vão junto — avisa e deixa o botão de baixar à mão,
+      // senão o operador acha que enviou tudo e as fotos se perdem.
       try {
         await navigator.share({
           title: "📦 Encaixes " + new Date().toLocaleDateString("pt-BR"),
           text: textoRelatorioWpp,
         });
+        toast(
+          "⚠️ Só o texto foi compartilhado — as " + arquivos.length +
+            " foto(s) NÃO foram enviadas. Toque para baixar.",
+          "warning",
+          15000,
+          { texto: "📥 Baixar fotos", fn: baixarArquivosRelatorio }
+        );
         return;
       } catch (e3) {
         if (e3.name === "AbortError") return;
@@ -18887,5 +18940,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a255e8b99bd389d1',t:'MTc4NTc2NjI2MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
