@@ -3367,6 +3367,49 @@
           window.salvarNovasNuvem();
         }
 
+        // Ao dividir uma bobina NEW, os pedaços continuam sendo a mesma bobina
+        // física. Como a marca é indexada por item+peso, o peso novo não existe
+        // no set e o NEW sumia — aqui replicamos a marca para cada peso gerado.
+        window.propagarNovaAoDividir = function(item, pesoOriginal, pesosNovos){
+          try {
+            var base = window.bobinasNovas || bobinasNovas || {};
+            var chaveOrig = chaveBobina(item, pesoOriginal);
+            var marca = base[chaveOrig];
+            if (!marca) return false;
+
+            for (var i = 0; i < pesosNovos.length; i++) {
+              var ch = chaveBobina(item, pesosNovos[i]);
+              if (ch === chaveOrig) continue;
+              // Copia o registro original, ajustando o peso do pedaço
+              if (typeof marca === "object" && marca !== null) {
+                var copia = {};
+                for (var k in marca) {
+                  if (Object.prototype.hasOwnProperty.call(marca, k)) copia[k] = marca[k];
+                }
+                copia.qtde = parseFloat(pesosNovos[i]) || 0;
+                base[ch] = copia;
+              } else {
+                base[ch] = marca;
+              }
+            }
+
+            // O peso original deixa de existir se nenhum pedaço o manteve
+            var manteve = false;
+            for (var j = 0; j < pesosNovos.length; j++) {
+              if (chaveBobina(item, pesosNovos[j]) === chaveOrig) { manteve = true; break; }
+            }
+            if (!manteve) delete base[chaveOrig];
+
+            bobinasNovas = base;
+            window.bobinasNovas = base;
+            salvarNovas();
+            return true;
+          } catch (e) {
+            console.error("Erro ao propagar NEW na divisão:", e);
+            return false;
+          }
+        };
+
         // NEW = está no set ?
         window.isBobinaNova = function(item, qtde){
           var base = window.bobinasNovas || bobinasNovas || {};
@@ -10011,6 +10054,14 @@ var estObservacoes = {};
           removerExcluidaPorChave(itemOriginal, verOriginal, pesoOriginal, encOriginal, uidOriginal);
         } catch(e2){}
 
+        // Mantém a marca NEW nos pedaços (a chave é item+peso, então o peso
+        // novo precisa herdar a marca do peso original antes da troca).
+        try {
+          if (window.propagarNovaAoDividir) {
+            window.propagarNovaAoDividir(itemOriginal, pesoOriginal, pesos);
+          }
+        } catch (eNew) {}
+
         apagarFotoBobinaLocal(bob);
         bob.qtde = pesos[0];
         bob.ok = false;
@@ -15215,6 +15266,13 @@ var estObservacoes = {};
           toast("A soma das bobinas deve bater com o peso total!", "error");
           return;
         }
+
+        // Mantém a marca NEW nos pedaços (chave é item+peso)
+        try {
+          if (window.propagarNovaAoDividir) {
+            window.propagarNovaAoDividir(ic, pesoOriginal, pesos);
+          }
+        } catch (eNew2) {}
 
         var uidOriginal = getUidEstoque(e);
         var splitGroup =
