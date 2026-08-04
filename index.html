@@ -3475,10 +3475,10 @@
           for(var i=0;i<estoque.length;i++){
             if(/-4$/.test(getItemEstoque(estoque[i]))) metalizados++; else total++;
           }
-          var txt = estoque.length ? "✅ Est: " + total : "1️⃣ Estoque";
-          if(metalizados>0) txt += " | ✨ Met: " + metalizados;
-          txt += " | " + (fila.length ? "✅ Fila Extrusão: " + fila.length : "2️⃣ Fila Extrusão");
-          txt += " | " + (filaLaminacao.length ? "✅ Fila Laminação: " + filaLaminacao.length : "3️⃣ Fila Laminação");
+          var txt = estoque.length ? "Est: " + total : "1. Estoque";
+          if(metalizados>0) txt += " | Met: " + metalizados;
+          txt += " | " + (fila.length ? "Fila Extrusão: " + fila.length : "2. Fila Extrusão");
+          txt += " | " + (filaLaminacao.length ? "Fila Laminação: " + filaLaminacao.length : "3. Fila Laminação");
           document.getElementById("fInfo").textContent = txt;
           save();
           try{ localStorage.setItem("enc_estoque", JSON.stringify(estoque)); }catch(e){}
@@ -4712,7 +4712,7 @@ var estObservacoes = {};
         }
 
         garantirUidEstoque();
-        document.getElementById("fInfo").textContent = "⚡ Calculando...";
+        document.getElementById("fInfo").textContent = "Calculando...";
         var problemasImportacao = validarEstoqueImportado();
         var problemas = [],
           est = [];
@@ -5341,16 +5341,16 @@ var estObservacoes = {};
         var semNormal = estNormal - encNormal;
         var semMetal = estMetal - encMetal;
 
-        var txt = "📦 " + estNormal + " normal";
-        if (estMetal > 0) txt += " | ✨ " + estMetal + " metal";
-        txt += " | ✅ " + encNormal + " enc.";
+        var txt = estNormal + " normal";
+        if (estMetal > 0) txt += " | " + estMetal + " metal";
+        txt += " | " + encNormal + " enc.";
         if (encMetal > 0) txt += " + " + encMetal + " metal";
-        if (semNormal > 0) txt += " | ⚠️ " + semNormal + " sem";
+        if (semNormal > 0) txt += " | " + semNormal + " sem";
         if (semMetal > 0) txt += " + " + semMetal + " metal sem";
-        if (ok > 0) txt += " | 📷 " + ok;
+        if (ok > 0) txt += " | " + ok;
         if (ultimosProblemasImportacaoEstoque.length > 0)
           txt +=
-            " | ⚠️ " + ultimosProblemasImportacaoEstoque.length + " aviso(s)";
+            " | " + ultimosProblemasImportacaoEstoque.length + " aviso(s)";
 
         document.getElementById("fInfo").textContent = txt;
       }
@@ -5520,7 +5520,7 @@ var estObservacoes = {};
 
           console.log("load(): " + B.length + " encaixes carregados");
 
-          var txt = "💾 " + B.length + " encaixes";
+          var txt = B.length + " encaixes";
           if (estoque.length) txt += " | Est: " + estoque.length;
           if (fila.length) txt += " | Fila: " + fila.length;
           document.getElementById("fInfo").textContent = txt;
@@ -5535,12 +5535,12 @@ var estObservacoes = {};
 
       function atualizarInfoEstoque() {
         var info = [];
-        if (estoque.length) info.push("✅ Est: " + estoque.length);
-        if (fila.length) info.push("✅ Fila: " + fila.length);
-        if (filaLaminacao.length) info.push("✅ Lam: " + filaLaminacao.length);
+        if (estoque.length) info.push("Est: " + estoque.length);
+        if (fila.length) info.push("Fila: " + fila.length);
+        if (filaLaminacao.length) info.push("Lam: " + filaLaminacao.length);
         if (info.length > 0) {
           document.getElementById("fInfo").textContent =
-            "💾 " + info.join(" | ");
+            info.join(" | ");
         }
       }
 
