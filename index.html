@@ -1975,7 +1975,7 @@
   <body>
     <div class="header">
       <div class="header-left">
-        <h1>📦 <span>Encaixes</span></h1>
+        <h1><span>Encaixes</span></h1>
       </div>
       <div class="header-right">
         <button
@@ -2297,24 +2297,24 @@
           onclick="document.getElementById('fileEstoque').click()"
           style="flex: 1; min-width: 0"
         >
-          📦 Estoque
+          Estoque
         </button>
         <button
           class="btn-import secondary"
           onclick="document.getElementById('fileFila').click()"
           style="flex: 1; min-width: 0"
         >
-          🏭 Fila Extrusão
+          Fila Extrusão
         </button>
         <button
           class="btn-import secondary"
           onclick="document.getElementById('fileFilaLaminacao').click()"
           style="flex: 1; min-width: 0; background: #fef3c7; color: #d97706"
         >
-          ✨ Fila Laminação
+          Fila Laminação
         </button>
         <button class="btn-calc" onclick="calcularEncaixes()">
-          ⚡ Calcular
+          Calcular
         </button>
       </div>
 
@@ -16004,7 +16004,7 @@ async function shareFotos() {
         try {
           await navigator.share({
             files: arquivos,
-            title: "📦 Encaixes " + new Date().toLocaleDateString("pt-BR"),
+            title: "Encaixes " + new Date().toLocaleDateString("pt-BR"),
             text: textoRelatorioWpp,
           });
           return;
@@ -16016,7 +16016,7 @@ async function shareFotos() {
             var batchFiles = arquivos.length > 6 ? arquivos.slice(-6) : arquivos;
             await navigator.share({
               files: batchFiles,
-              title: "📦 Encaixes " + new Date().toLocaleDateString("pt-BR"),
+              title: "Encaixes " + new Date().toLocaleDateString("pt-BR"),
               text: textoRelatorioWpp,
             });
             // Enviou só parte das fotos — avisa quantas ficaram de fora
@@ -16041,7 +16041,7 @@ async function shareFotos() {
       // senão o operador acha que enviou tudo e as fotos se perdem.
       try {
         await navigator.share({
-          title: "📦 Encaixes " + new Date().toLocaleDateString("pt-BR"),
+          title: "Encaixes " + new Date().toLocaleDateString("pt-BR"),
           text: textoRelatorioWpp,
         });
         toast(
