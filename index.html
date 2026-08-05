@@ -3632,7 +3632,15 @@
       }
       var confStatus = {};
       function normalizarCodigoGlobal(valor) {
-        return String(valor || "").trim().replace(/[\s-]/g, "");
+        // O "#N" é sufixo INTERNO usado para diferenciar bobinas que dividem o
+        // mesmo código de barras (etiqueta de sobra de item). Ele nunca existe
+        // na etiqueta impressa, então é descartado na comparação.
+        return String(valor || "").trim().split("#")[0].replace(/[\s-]/g, "");
+      }
+
+      // Remove o sufixo interno para exibir o código como está na etiqueta
+      function codigoSemSufixo(valor) {
+        return String(valor || "").trim().split("#")[0].trim();
       }
       var confHistorico = {};
       var confOcultos = {};
@@ -6922,8 +6930,9 @@ var estObservacoes = {};
         if (!valor) return "";
 
         var temPar = String(valor).indexOf(" → ") > -1;
-        var amarela = extrairAmarelaDeComposto(valor);
-        var branca = temPar ? extrairBrancaDeComposto(valor) : "";
+        // Exibe sem o sufixo interno "#N" — na etiqueta ele não existe
+        var amarela = codigoSemSufixo(extrairAmarelaDeComposto(valor));
+        var branca = temPar ? codigoSemSufixo(extrairBrancaDeComposto(valor)) : "";
 
         // Sem margin-top: o bloco é flex item do .bob-mid (align-items:center),
         // então fica centralizado na vertical ao lado do peso.
@@ -7839,6 +7848,68 @@ var estObservacoes = {};
       // A amarela é a sobra que SAI. Antes de aceitar, o código precisa
       // existir no estoque de sobras E pertencer à bobina daquele encaixe.
       // Retorna: {ok:true} | {ok:false, motivo:"outra_bobina"|"inexistente", ...}
+      // ================================================================
+      //   ETIQUETA DE "SOBRA DE ITEM" (código repetido entre bobinas)
+      // ================================================================
+      // Nessas etiquetas o código de barras é o do ITEM, então várias bobinas
+      // do mesmo item/versão têm o mesmo código. O código impresso NUNCA muda:
+      // o sufixo abaixo é só interno, para o app contar quantos rolos daquele
+      // código já foram lidos ("#1", "#2"...). Como o operador não precisa
+      // distinguir um rolo do outro, basta contar.
+
+      // O código lido é o próprio código do item da bobina?
+      function codigoEhDeItem(codigo, bob) {
+        if (!bob) return false;
+        var c = normalizarCodigoGlobal(codigo);
+        var item = normalizarCodigoGlobal(bob.item || "");
+        if (!c || !item) return false;
+        return c === item || c.indexOf(item) > -1 || item.indexOf(c) > -1;
+      }
+
+      // Quantas bobinas do estoque compartilham item+versão com esta
+      function contarIrmasNoEstoque(bob) {
+        if (!bob) return 0;
+        var item = normalizarCodigoGlobal(bob.item || "");
+        var ver = normalizarCodigoGlobal(bob.ver || "");
+        var n = 0;
+        for (var i = 0; i < estoque.length; i++) {
+          if (
+            normalizarCodigoGlobal(getItemEstoque(estoque[i])) === item &&
+            normalizarCodigoGlobal(estoque[i]["VERSAO"] || "") === ver
+          ) n++;
+        }
+        return n;
+      }
+
+      // Sufixo interno: "173471-2" -> "173471-2#2" quando já existe o #1.
+      // Serve só para o documento no Firestore não sobrescrever o anterior.
+      function sufixoInternoCodigo(codigo, bob) {
+        var base = codigoSemSufixo(codigo);
+        var uidAtual = getUidBobina(bob);
+        var usados = {};
+
+        for (var uid in codigosBobinasCache) {
+          if (!Object.prototype.hasOwnProperty.call(codigosBobinasCache, uid)) continue;
+          var cod = extrairAmarelaDeComposto(codigosBobinasCache[uid] || "");
+          if (!cod) continue;
+          if (normalizarCodigoGlobal(cod) !== normalizarCodigoGlobal(base)) continue;
+
+          // Releitura da MESMA bobina: mantém o sufixo que ela já tinha,
+          // senão cada nova leitura criaria #2, #3... para o mesmo rolo.
+          if (uidAtual && String(uid) === String(uidAtual)) return cod;
+
+          usados[cod] = true;
+        }
+
+        if (!usados[base]) return base;
+        // Procura o menor sufixo livre
+        for (var n = 2; n <= Object.keys(usados).length + 2; n++) {
+          var tentativa = base + "#" + n;
+          if (!usados[tentativa]) return tentativa;
+        }
+        return base + "#" + (Object.keys(usados).length + 1);
+      }
+
       function validarAmarelaNaSobra(bob, codigoLimpo) {
         var codigoNorm = normalizarCodigoGlobal(codigoLimpo);
         var uidEsperado = getUidBobina(bob);
@@ -7865,8 +7936,35 @@ var estObservacoes = {};
 
         if (uidDono) {
           if (uidEsperado && uidDono !== uidEsperado) {
-            // Código válido, mas é de OUTRA bobina — bloquear
+            // O código já pertence a OUTRA bobina.
+            //
+            // Etiqueta de "sobra de item" traz o código do ITEM, não do rolo:
+            // várias bobinas do mesmo item/versão carregam o MESMO código de
+            // barras. Nesse caso não é erro — é outro rolo da mesma peça, e
+            // tanto faz qual encaixar. O código impresso continua o mesmo;
+            // o app apenas conta internamente quantos rolos já foram lidos.
             var infoOutra = idxSobra > -1 ? estoque[idxSobra] : null;
+            var infoEsperada = null;
+            for (var ie = 0; ie < estoque.length; ie++) {
+              if (getUidEstoque(estoque[ie]) === uidEsperado) { infoEsperada = estoque[ie]; break; }
+            }
+
+            var mesmoItem =
+              infoOutra && infoEsperada &&
+              normalizarCodigoGlobal(getItemEstoque(infoOutra)) ===
+                normalizarCodigoGlobal(getItemEstoque(infoEsperada)) &&
+              normalizarCodigoGlobal(infoOutra["VERSAO"] || "") ===
+                normalizarCodigoGlobal(infoEsperada["VERSAO"] || "");
+
+            // Se não achou no estoque, compara pelos dados da própria bobina
+            if (!mesmoItem && !infoOutra) {
+              mesmoItem = codigoEhDeItem(codigoLimpo, bob);
+            }
+
+            if (mesmoItem) {
+              return { ok: true, uid: uidEsperado, codigoDeItem: true };
+            }
+
             return {
               ok: false,
               motivo: "outra_bobina",
@@ -7941,7 +8039,15 @@ var estObservacoes = {};
           }
 
 
-          openCamCodigoAmarela = codigoLimpo;
+          // Etiqueta de sobra de item: o mesmo código serve a várias bobinas.
+          // Guardamos com sufixo interno (#2, #3...) para um vínculo não
+          // sobrescrever o outro. O código impresso continua o mesmo.
+          var codigoGravar = codigoLimpo;
+          if (val.codigoDeItem || codigoEhDeItem(codigoLimpo, b)) {
+            codigoGravar = sufixoInternoCodigo(codigoLimpo, b);
+          }
+
+          openCamCodigoAmarela = codigoGravar;
           try {
             var uidCodigo = getUidBobina(b);
             if (!uidCodigo) throw new Error("Bobina sem UID");
@@ -7952,14 +8058,27 @@ var estObservacoes = {};
               item: b.item || "",
               versao: b.ver || "",
               qtde: b.qtde || "",
-              codigo_barras: codigoLimpo,
+              codigo_barras: codigoGravar,
+              codigo_barras_lido: codigoLimpo,
               timestamp: firebase.firestore.FieldValue.serverTimestamp(),
             });
             // Mantém o cache local em dia para a próxima validação
-            try { codigosBobinasCache[uidCodigo] = codigoLimpo; } catch (eCache) {}
+            try { codigosBobinasCache[uidCodigo] = codigoGravar; } catch (eCache) {}
             try { save(); salvarEstoqueNuvemAgora(); } catch (ePersist) {}
             if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-            toast("✔ Amarela baixada: " + codigoLimpo + " — agora escaneie a branca", "success", 2000);
+            if (codigoGravar !== codigoLimpo) {
+              // Código de item repetido: avisa qual rolo está sendo lido
+              var nRolo = (codigoGravar.split("#")[1] || "1");
+              var totalRolos = contarIrmasNoEstoque(b);
+              toast(
+                "✔ Amarela baixada: " + codigoLimpo +
+                  " (rolo " + nRolo + (totalRolos > 1 ? " de " + totalRolos : "") +
+                  ") — agora escaneie a branca",
+                "success", 2500
+              );
+            } else {
+              toast("✔ Amarela baixada: " + codigoLimpo + " — agora escaneie a branca", "success", 2000);
+            }
           } catch (err) {
             toast("Erro amarela: " + err.message, "error");
           }
@@ -14914,51 +15033,166 @@ var estObservacoes = {};
             4000,
           );
 
+          // Relatório da conferência: mantém APENAS o último em registro único.
+          // O histórico da coleção "conferencias" continua intacto.
+          try {
+            await db.collection("config").doc("relatorio_conferencia").set({
+              tipo: tipoSelecionado,
+              tipoLabel: tipoLabel,
+              data: dataStr,
+              lote: lote,
+              texto: relatorio,
+              csv: gerarCSVConferencia(listaTodas, dataStr, tipoLabel),
+              encontradas: encontradas,
+              adicionais: adicionais,
+              naoEncontradas: naoEncontradas,
+              total: listaTodas.length,
+              timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+          } catch (eRel) {
+            console.error("Erro ao salvar relatório da conferência:", eRel);
+          }
+
+          // Guarda em memória para o botão de download
+          window._relatorioConfAtual = {
+            texto: relatorio,
+            csv: gerarCSVConferencia(listaTodas, dataStr, tipoLabel),
+            tipoLabel: tipoLabel,
+            data: dataStr,
+          };
+
           var relatorioWpp = textoWhatsappSeguro(relatorio);
-          var compartilhouNativo = false;
-          if (navigator.share) {
-            try {
-              await navigator.share({ title: "Conferência", text: relatorioWpp });
-              compartilhouNativo = true;
-            } catch (e) {
-              if (e.name === "AbortError") compartilhouNativo = true;
-            }
-          }
-          if (compartilhouNativo) {
-            confRender();
-            atualizarInfo();
-            return;
-          }
-
-          var urlWpp = "https://wa.me/?text=" + encodeURIComponent(relatorioWpp);
-          var janela = window.open(urlWpp, "_blank");
-          if (
-            !janela ||
-            janela.closed ||
-            typeof janela.closed === "undefined"
-          ) {
-            criarModal(
-              "confWppModal",
-              '<div style="text-align:center;">' +
-                '<div style="font-size:2em;margin-bottom:8px;">📤</div>' +
-                '<h3 style="font-size:0.95em;color:#1a1a2e;margin-bottom:8px;">Compartilhar</h3>' +
-                '<div style="display:flex;flex-direction:column;gap:8px;">' +
-                '<a href="' +
-                urlWpp +
-                '" target="_blank" ' +
-                'style="display:block;padding:13px;border-radius:10px;background:#25D366;color:#fff;font-size:0.9em;font-weight:600;text-decoration:none;">💬 WhatsApp</a>' +
-                "<button onclick=\"fecharModal('confWppModal')\" " +
-                'style="padding:12px;border:none;border-radius:10px;background:#e0e0e0;color:#888;font-size:0.85em;cursor:pointer;">Fechar</button>' +
-                "</div></div>",
-            );
-          }
-
           confRender();
           atualizarInfo();
+          confMostrarOpcoesRelatorio(relatorioWpp);
         } catch (err) {
           lo.classList.remove("active");
           toast("Erro: " + err.message, "error");
         }
+      }
+
+      // ================================================================
+      //   RELATÓRIO DA CONFERÊNCIA: CSV + opções de entrega
+      // ================================================================
+      function gerarCSVConferencia(lista, dataStr, tipoLabel) {
+        var csv =
+          "DATA;TIPO;STATUS;ITEM;VERSAO;PESO;ENDERECO;OBSERVACAO;DESCRICAO;DIVISAO;UID\n";
+        for (var i = 0; i < lista.length; i++) {
+          var r = lista[i];
+          function limpa(v) {
+            return String(v === undefined || v === null ? "" : v)
+              .replace(/[;\r\n]/g, " ")
+              .trim();
+          }
+          csv +=
+            limpa(dataStr) + ";" +
+            limpa(tipoLabel) + ";" +
+            limpa(r.status) + ";" +
+            limpa(r.item) + ";" +
+            limpa(r.versao) + ";" +
+            limpa(Math.round(parseFloat(r.qtde) || 0)) + ";" +
+            limpa(r.endereco) + ";" +
+            limpa(r.observacao) + ";" +
+            limpa(r.descricao) + ";" +
+            limpa(r.divisao) + ";" +
+            limpa(r.uid) + "\n";
+        }
+        return csv;
+      }
+
+      function confBaixarCSV() {
+        var rel = window._relatorioConfAtual;
+        if (!rel || !rel.csv) {
+          toast("Nenhum relatório disponível", "warning");
+          return;
+        }
+        var nome =
+          "conferencia_" +
+          String(rel.tipoLabel || "")
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "_") +
+          "_" + new Date().toISOString().slice(0, 10) + ".csv";
+        var blob = new Blob(["\ufeff" + rel.csv], {
+          type: "text/csv;charset=utf-8;",
+        });
+        var link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = nome;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(function () { URL.revokeObjectURL(link.href); }, 1000);
+        toast("📥 " + nome, "success", 2500);
+      }
+
+      async function confCompartilharCSV() {
+        var rel = window._relatorioConfAtual;
+        if (!rel || !rel.csv) {
+          toast("Nenhum relatório disponível", "warning");
+          return;
+        }
+        var nome =
+          "conferencia_" +
+          String(rel.tipoLabel || "")
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "_") +
+          "_" + new Date().toISOString().slice(0, 10) + ".csv";
+        var blob = new Blob(["\ufeff" + rel.csv], {
+          type: "text/csv;charset=utf-8;",
+        });
+        var arquivo = new File([blob], nome, { type: "text/csv" });
+        var texto = textoWhatsappSeguro(rel.texto || "");
+
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+          try {
+            await navigator.share({
+              title: "Conferência " + (rel.tipoLabel || ""),
+              text: texto,
+              files: [arquivo],
+            });
+            return;
+          } catch (e) {
+            if (e.name === "AbortError") return;
+          }
+        }
+        // Sem suporte a arquivo: baixa e avisa
+        confBaixarCSV();
+        toast("Planilha baixada — anexe manualmente", "info", 3000);
+      }
+
+      function confMostrarOpcoesRelatorio(relatorioWpp) {
+        var urlWpp = "https://wa.me/?text=" + encodeURIComponent(relatorioWpp);
+        criarModal(
+          "confRelModal",
+          '<div style="text-align:center;margin-bottom:14px;">' +
+            '<div style="font-size:2em;">✅</div>' +
+            '<h3 style="font-size:0.95em;color:#1a1a2e;margin:6px 0 2px;">Conferência salva na nuvem</h3>' +
+            '<p style="font-size:0.75em;color:#888;">O relatório anterior foi substituído</p>' +
+            "</div>" +
+            '<div style="display:flex;flex-direction:column;gap:8px;">' +
+            '<button onclick="confEnviarWhatsApp()" style="padding:13px;border:none;border-radius:10px;background:#25D366;color:#fff;font-size:0.9em;font-weight:700;cursor:pointer;">💬 Enviar no WhatsApp</button>' +
+            '<button onclick="confCompartilharCSV()" style="padding:13px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">📊 Compartilhar planilha</button>' +
+            '<button onclick="confBaixarCSV()" style="padding:13px;border:none;border-radius:10px;background:#64748b;color:#fff;font-size:0.88em;font-weight:600;cursor:pointer;">📥 Baixar planilha (CSV)</button>' +
+            '<button onclick="fecharModal(\'confRelModal\')" style="padding:12px;border:none;border-radius:10px;background:#f1f5f9;color:#64748b;font-size:0.85em;cursor:pointer;">Fechar</button>' +
+            "</div>",
+          { maxWidth: "340px", z: 5400 }
+        );
+        window._relatorioConfWppUrl = urlWpp;
+      }
+
+      async function confEnviarWhatsApp() {
+        var rel = window._relatorioConfAtual || {};
+        var texto = textoWhatsappSeguro(rel.texto || "");
+        if (navigator.share) {
+          try {
+            await navigator.share({ title: "Conferência", text: texto });
+            return;
+          } catch (e) {
+            if (e.name === "AbortError") return;
+          }
+        }
+        window.open(window._relatorioConfWppUrl ||
+          ("https://wa.me/?text=" + encodeURIComponent(texto)), "_blank");
       }
 
       // ================================================================
@@ -19409,5 +19643,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a255e8b99bd389d1',t:'MTc4NTc2NjI2MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a267e91a6cdf3002',t:'MTc4NTk1NTAxOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a255e8b99bd389d1',t:'MTc4NTc2NjI2MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a26827c06acbdf6c',t:'MTc4NTk1NzU4NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
