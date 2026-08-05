@@ -14996,12 +14996,163 @@ var estObservacoes = {};
           return;
         }
 
-        // Realmente não encontrado
-        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-        toast("Código não vinculado — selecione a bobina primeiro", "warning", 3000);
-        var statusEl2 = document.getElementById("confEstScanStatus");
-        if (statusEl2) statusEl2.textContent = "Não encontrado: " + codigoLimpo + " — selecione bobina";
+        // Realmente não encontrado — oferecer vincular a uma bobina,
+        // igual ao fluxo da etiqueta amarela no encaixe.
+        if (navigator.vibrate) navigator.vibrate([150]);
+        confEstPararScan();
+        confEstAbrirEscolhaVinculo(codigoLimpo);
+      }
+
+      // ================================================================
+      //   VINCULAR CÓDIGO NOVO A UMA BOBINA (conferência de não encaixadas)
+      // ================================================================
+      // Antes o app só recusava com "selecione a bobina primeiro". Agora
+      // pergunta, mostrando as bobinas ainda não conferidas para escolher.
+      var confVincCodigoPendente = "";
+
+      function confEstAbrirEscolhaVinculo(codigo) {
+        confVincCodigoPendente = String(codigo || "").trim();
+        if (!confVincCodigoPendente) return;
+
+        criarModal(
+          "confVincModal",
+          '<div style="text-align:center;margin-bottom:12px;">' +
+            '<div style="font-size:2em;">🏷️</div>' +
+            '<h3 style="font-size:0.95em;color:#1a1a2e;margin:6px 0 2px;">Código não vinculado</h3>' +
+            '<div style="font-family:monospace;font-weight:700;color:#2563eb;font-size:0.95em;">' +
+            htmlSafe(confVincCodigoPendente) +
+            "</div>" +
+            '<p style="font-size:0.75em;color:#888;margin-top:6px;">Escolha a bobina para vincular</p>' +
+            "</div>" +
+            '<input id="confVincBusca" type="text" placeholder="🔍 Buscar item, versão ou peso..." ' +
+            'style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;font-size:0.85em;margin-bottom:8px;" ' +
+            'oninput="confVincRenderLista()">' +
+            '<div id="confVincLista" style="max-height:46vh;overflow-y:auto;"></div>' +
+            '<button onclick="confVincCancelar()" style="margin-top:10px;width:100%;padding:12px;border:none;border-radius:10px;background:#f1f5f9;color:#64748b;font-size:0.85em;font-weight:600;cursor:pointer;">Cancelar</button>',
+          { maxWidth: "380px", z: 5200 }
+        );
+        confVincRenderLista();
+        setTimeout(function () {
+          var el = document.getElementById("confVincBusca");
+          if (el) el.focus();
+        }, 150);
+      }
+
+      function confVincRenderLista() {
+        var cont = document.getElementById("confVincLista");
+        if (!cont) return;
+        var buscaEl = document.getElementById("confVincBusca");
+        var busca = buscaEl ? buscaEl.value.trim().toUpperCase() : "";
+
+        // Códigos já vinculados: sinalizar para não duplicar sem querer
+        var jaVinculadas = {};
+        for (var cb in confEstCodBarras) {
+          if (Object.prototype.hasOwnProperty.call(confEstCodBarras, cb)) {
+            jaVinculadas[confEstCodBarras[cb]] = true;
+          }
+        }
+
+        var html = "";
+        var mostradas = 0;
+        for (var i = 0; i < estoque.length; i++) {
+          var e = estoque[i];
+          var item = getItemEstoque(e);
+          if (!item) continue;
+          var ver = String(e["VERSAO"] || "").trim();
+          var qtde = parseFloat(e["QTDE_ESTOQUE"]) || 0;
+          var uid = getUidEstoque(e);
+          var key = makeConfKey(item, ver, qtde, uid);
+
+          // Pula as já conferidas
+          if (confStatus[key] && confStatus[key].status === "ok") continue;
+
+          if (busca) {
+            var alvo = (item + " " + ver + " " + qtde).toUpperCase();
+            if (alvo.indexOf(busca) === -1) continue;
+          }
+
+          var temCod = jaVinculadas[key];
+          html +=
+            '<div onclick="confVincConfirmar(\'' + key.replace(/'/g, "\\'") + '\')" ' +
+            'style="display:flex;align-items:center;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:6px;cursor:pointer;background:' +
+            (temCod ? "#fffbeb" : "#fff") + ';">' +
+            '<div style="flex:1;min-width:0;">' +
+            '<div style="font-size:0.82em;font-weight:700;color:#1a1a2e;font-family:monospace;">' +
+            htmlSafe(item) + '</div>' +
+            '<div style="font-size:0.7em;color:#64748b;">v' + htmlSafe(ver) +
+            " · " + Math.round(qtde) + " kg" +
+            (temCod ? ' · <span style="color:#f59e0b;font-weight:700;">já tem código</span>' : "") +
+            "</div></div>" +
+            '<div style="color:#2563eb;font-size:1.1em;">➜</div>' +
+            "</div>";
+          mostradas++;
+          if (mostradas >= 60) break;
+        }
+
+        if (!html) {
+          html =
+            '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:0.8em;">' +
+            (busca ? "Nenhuma bobina encontrada" : "Nenhuma bobina pendente") +
+            "</div>";
+        }
+        cont.innerHTML = html;
+      }
+
+      function confVincCancelar() {
+        fecharModal("confVincModal");
+        confVincCodigoPendente = "";
         confEstScanAtivo = true;
+        var inp = document.getElementById("confEstColetorInput");
+        if (inp) inp.focus({ preventScroll: true });
+      }
+
+      async function confVincConfirmar(key) {
+        var codigo = confVincCodigoPendente;
+        if (!codigo || !key) return;
+        fecharModal("confVincModal");
+        confVincCodigoPendente = "";
+
+        // Localiza a bobina no estoque para gravar o vínculo
+        var alvoEst = null;
+        for (var i = 0; i < estoque.length; i++) {
+          var e = estoque[i];
+          var item = getItemEstoque(e);
+          var ver = String(e["VERSAO"] || "").trim();
+          var qtde = parseFloat(e["QTDE_ESTOQUE"]) || 0;
+          var uid = getUidEstoque(e);
+          if (makeConfKey(item, ver, qtde, uid) === key) { alvoEst = e; break; }
+        }
+
+        confEstCodBarras[codigo] = key;
+        try {
+          localStorage.setItem("enc_conf_est_cod", JSON.stringify(confEstCodBarras));
+        } catch (e) {}
+
+        // Grava na nuvem para valer em qualquer aparelho
+        if (alvoEst) {
+          try {
+            var uidAlvo = getUidEstoque(alvoEst);
+            await db.collection("datas_manuais").doc("cb_" + uidAlvo).set({
+              tipo: "codigobarras",
+              uid: uidAlvo,
+              item: getItemEstoque(alvoEst),
+              versao: String(alvoEst["VERSAO"] || "").trim(),
+              qtde: String(parseFloat(alvoEst["QTDE_ESTOQUE"]) || 0),
+              codigo_barras: codigo,
+              timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+          } catch (err) {
+            toast("Vínculo salvo no aparelho, mas falhou na nuvem", "warning", 2500);
+          }
+        }
+
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        toast("✔ Código vinculado: " + codigo, "success", 1500);
+
+        // Segue o fluxo normal: pedir endereço / confirmar a bobina
+        confEstCodBarrasAlvo = null;
+        confTratarBobinaLida(key);
+        confRender();
       }
 
       function confDesmarcar(key) {
@@ -18940,5 +19091,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a255e8b99bd389d1',t:'MTc4NTc2NjI2MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a255e8b99bd389d1',t:'MTc4NTc2NjI2MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a267431deabf6234',t:'MTc4NTk0ODIyMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
