@@ -12453,7 +12453,7 @@ var estObservacoes = {};
           '</div></div>' +
 
           '<div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">' +
-          '<input id="confEncBuscaOP" type="text" inputmode="none" autocomplete="off" placeholder="🔍 Buscar OP..." ' +
+          '<input id="confEncBuscaOP" type="text" inputmode="search" autocomplete="off" placeholder="🔍 Buscar OP..." ' +
           'style="flex:1;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;color:#1a1a2e;font-size:0.85em;font-weight:600;" ' +
           'oninput="confEncRender()">' +
           '<button onclick="document.getElementById(\'confEncBuscaOP\').value=\'\';confEncRender();" style="width:36px;height:36px;border:none;border-radius:10px;background:#fee2e2;color:#ef4444;font-size:0.9em;cursor:pointer;flex-shrink:0;">✖</button>' +
@@ -12461,6 +12461,10 @@ var estObservacoes = {};
           '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
           '<button onclick="compartilharCSVEncaixadas()" style="flex:1;padding:12px;border:none;border-radius:10px;background:#25d366;color:#fff;font-size:0.82em;font-weight:600;cursor:pointer;">💬 WhatsApp</button>' +
           '<button onclick="baixarCSVEncaixadas()" style="padding:12px 14px;border:none;border-radius:10px;background:#64748b;color:#fff;font-size:0.82em;font-weight:600;cursor:pointer;">💾</button>' +
+          (Object.keys(confEncForaFila).length > 0
+            ? '<button onclick="abrirRelatorioForaFila()" style="padding:12px 14px;border:none;border-radius:10px;background:#f59e0b;color:#fff;font-size:0.82em;font-weight:700;cursor:pointer;white-space:nowrap;" title="Bobinas cujas OPs não estão na fila de laminação">⚠️ ' +
+              Object.keys(confEncForaFila).length + "</button>"
+            : "") +
           '</div>';
 
         // Filtro de busca por OP
@@ -12635,6 +12639,243 @@ var estObservacoes = {};
         if (m) m.remove();
       }
 
+      // ================================================================
+      //   BOBINAS ENCAIXADAS FORA DA FILA DE LAMINAÇÃO
+      // ================================================================
+      // Se a OP não está na fila, a bobina não vai ser laminada agora — ela
+      // fica parada e precisa de endereço para ser localizada depois.
+      var confEncForaFila = {};
+      try {
+        var _ff = localStorage.getItem("enc_conf_fora_fila");
+        if (_ff) confEncForaFila = JSON.parse(_ff);
+      } catch (e) {}
+
+      function salvarForaFila() {
+        try {
+          localStorage.setItem("enc_conf_fora_fila", JSON.stringify(confEncForaFila));
+        } catch (e) {}
+        try {
+          if (typeof db !== "undefined" && db) {
+            db.collection("config").doc("conf_fora_fila").set({
+              dados: JSON.stringify(confEncForaFila),
+              timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+          }
+        } catch (e) {}
+      }
+
+      function confEncPedirEndereco(reg, key, opConf) {
+        var enderecoAtual = (confEncForaFila[key] && confEncForaFila[key].endereco) || ultimoEndereco || "";
+        criarModal(
+          "confEncEndModal",
+          '<div style="text-align:center;margin-bottom:12px;">' +
+            '<div style="font-size:2em;">⚠️</div>' +
+            '<h3 style="font-size:0.95em;color:#1a1a2e;margin:6px 0 2px;">OP fora da fila de laminação</h3>' +
+            '<div style="font-size:0.8em;color:#64748b;margin-top:4px;">' +
+            htmlSafe(reg.item || "") + " v" + htmlSafe(reg.versao || "") +
+            " · " + Math.round(parseFloat(reg.qtde) || 0) + " kg</div>" +
+            '<div style="font-size:0.78em;color:#f59e0b;font-weight:700;margin-top:2px;">OP ' +
+            htmlSafe(opConf) + "</div>" +
+            '<p style="font-size:0.74em;color:#888;margin-top:8px;">Esta bobina vai ficar parada. Onde ela foi guardada?</p>' +
+            "</div>" +
+            '<input id="confEncEndInput" type="text" autocomplete="off" placeholder="Ex.: Rua 3, Bloco B" value="' +
+            htmlSafe(enderecoAtual) + '" ' +
+            'style="width:100%;padding:12px;border:1px solid #e2e8f0;border-radius:10px;font-size:0.9em;text-transform:uppercase;">' +
+            '<div style="display:flex;gap:8px;margin-top:12px;">' +
+            '<button onclick="confEncPularEndereco()" style="padding:12px 16px;border:none;border-radius:10px;background:#f1f5f9;color:#64748b;font-size:0.85em;font-weight:600;cursor:pointer;">Pular</button>' +
+            '<button onclick="confEncSalvarEndereco(\'' + String(key).replace(/'/g, "\\'") + '\')" ' +
+            'style="flex:1;padding:12px;border:none;border-radius:10px;background:#10b981;color:#fff;font-size:0.88em;font-weight:700;cursor:pointer;">Salvar endereço</button>' +
+            "</div>",
+          { maxWidth: "340px", z: 5300 }
+        );
+        // Guarda o contexto para o salvamento
+        window._confEncEndCtx = { reg: reg, key: key, op: opConf };
+        setTimeout(function () {
+          var el = document.getElementById("confEncEndInput");
+          if (el) { el.focus(); el.select(); }
+        }, 150);
+      }
+
+      function confEncPularEndereco() {
+        fecharModal("confEncEndModal");
+        window._confEncEndCtx = null;
+        scanEncAtivo = true;
+        var inp = document.getElementById("encColetorInput");
+        if (inp) inp.focus({ preventScroll: true });
+      }
+
+      function confEncSalvarEndereco(key) {
+        var el = document.getElementById("confEncEndInput");
+        var endereco = el ? el.value.trim().toUpperCase() : "";
+        var ctx = window._confEncEndCtx || {};
+        var reg = ctx.reg || {};
+
+        if (!endereco) {
+          if (el) { el.style.borderColor = "#ef4444"; el.focus(); }
+          return;
+        }
+
+        confEncForaFila[key] = {
+          item: reg.item || "",
+          versao: reg.versao || "",
+          qtde: reg.qtde || "",
+          encaixe: reg.encaixe || "",
+          uid: reg.uid || "",
+          endereco: endereco,
+          data: new Date().toLocaleString("pt-BR"),
+        };
+        ultimoEndereco = endereco;
+        salvarForaFila();
+
+        fecharModal("confEncEndModal");
+        window._confEncEndCtx = null;
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        toast("📌 Endereço salvo: " + endereco, "success", 1500);
+        confEncRender();
+        scanEncAtivo = true;
+        var inp = document.getElementById("encColetorInput");
+        if (inp) inp.focus({ preventScroll: true });
+      }
+
+      // Relatório das bobinas encaixadas cujas OPs não estão na fila
+      function gerarTextoForaFila() {
+        var chaves = Object.keys(confEncForaFila);
+        if (!chaves.length) return "";
+        var porOP = {};
+        for (var i = 0; i < chaves.length; i++) {
+          var r = confEncForaFila[chaves[i]];
+          var op = String(r.encaixe || "SEM OP").trim().replace(/^OP\s*/i, "");
+          if (!porOP[op]) porOP[op] = [];
+          porOP[op].push(r);
+        }
+        var totalBob = chaves.length;
+        var totalKg = 0;
+        for (var s = 0; s < chaves.length; s++) {
+          totalKg += parseFloat(confEncForaFila[chaves[s]].qtde) || 0;
+        }
+
+        var txt =
+          "\n*BOBINAS FORA DA FILA DE LAMINACAO*\n" +
+          totalBob + " bobina(s) | " + Math.round(totalKg) + " kg\n" +
+          "-------------------\n";
+
+        var ops = Object.keys(porOP);
+        for (var o = 0; o < ops.length; o++) {
+          var somaOP = 0;
+          for (var q = 0; q < porOP[ops[o]].length; q++) {
+            somaOP += parseFloat(porOP[ops[o]][q].qtde) || 0;
+          }
+          txt += "OP " + ops[o] + "  (" + Math.round(somaOP) + "kg)\n";
+          for (var b = 0; b < porOP[ops[o]].length; b++) {
+            var reg = porOP[ops[o]][b];
+            txt +=
+              "  Item: " + (reg.item || "-") +
+              "  Ver: " + (reg.versao || "-") +
+              "  Peso: " + Math.round(parseFloat(reg.qtde) || 0) + "kg\n" +
+              "  Local: " + (reg.endereco || "NAO INFORMADO") + "\n";
+            if (b < porOP[ops[o]].length - 1) txt += "  - - -\n";
+          }
+          txt += "-------------------\n";
+        }
+        return txt;
+      }
+
+      function abrirRelatorioForaFila() {
+        var chaves = Object.keys(confEncForaFila);
+        if (!chaves.length) {
+          toast("Nenhuma bobina fora da fila registrada", "info", 2000);
+          return;
+        }
+        var porOP = {};
+        for (var i = 0; i < chaves.length; i++) {
+          var r = confEncForaFila[chaves[i]];
+          var op = String(r.encaixe || "SEM OP").trim().replace(/^OP\s*/i, "");
+          if (!porOP[op]) porOP[op] = [];
+          porOP[op].push({ reg: r, key: chaves[i] });
+        }
+
+        var html =
+          '<div style="text-align:center;margin-bottom:10px;">' +
+          '<div style="font-size:2em;">⚠️</div>' +
+          '<h3 style="font-size:0.95em;color:#1a1a2e;margin:6px 0 2px;">Fora da fila de laminação</h3>' +
+          '<p style="font-size:0.74em;color:#888;">' + chaves.length + " bobina(s) parada(s)</p></div>" +
+          '<div style="max-height:50vh;overflow-y:auto;">';
+
+        var ops = Object.keys(porOP);
+        for (var o = 0; o < ops.length; o++) {
+          html +=
+            '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:8px 10px;margin-bottom:6px;">' +
+            '<div style="font-size:0.8em;font-weight:700;color:#92400e;">OP ' + htmlSafe(ops[o]) + "</div>";
+          for (var b = 0; b < porOP[ops[o]].length; b++) {
+            var it = porOP[ops[o]][b];
+            html +=
+              '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:0.72em;' +
+              (b > 0 ? "border-top:1px solid #fde68a;" : "") + '">' +
+              '<div style="flex:1;min-width:0;">' +
+              '<span style="font-weight:600;color:#334155;font-family:monospace;">' + htmlSafe(it.reg.item || "") + "</span>" +
+              ' <span style="color:#888;">v' + htmlSafe(it.reg.versao || "") + "</span>" +
+              ' <span style="color:#64748b;">' + Math.round(parseFloat(it.reg.qtde) || 0) + "kg</span>" +
+              '<div style="font-size:0.95em;color:' + (it.reg.endereco ? "#10b981" : "#ef4444") + ';font-weight:600;">📌 ' +
+              htmlSafe(it.reg.endereco || "sem endereço") + "</div></div>" +
+              '<button onclick="confEncRemoverForaFila(\'' + String(it.key).replace(/'/g, "\\'") +
+              '\')" style="width:26px;height:26px;border:1px solid #fca5a5;border-radius:6px;background:#fff;color:#ef4444;font-size:0.7em;cursor:pointer;">✖</button>' +
+              "</div>";
+          }
+          html += "</div>";
+        }
+        html +=
+          "</div>" +
+          '<div style="display:flex;gap:8px;margin-top:12px;">' +
+          '<button onclick="fecharModal(\'foraFilaModal\')" style="padding:12px 16px;border:none;border-radius:10px;background:#f1f5f9;color:#64748b;font-size:0.85em;font-weight:600;cursor:pointer;">Fechar</button>' +
+          '<button onclick="compartilharForaFila()" style="flex:1;padding:12px;border:none;border-radius:10px;background:#25d366;color:#fff;font-size:0.85em;font-weight:700;cursor:pointer;">💬 Compartilhar</button>' +
+          "</div>";
+
+        criarModal("foraFilaModal", html, { maxWidth: "400px", z: 5100 });
+      }
+
+      function confEncRemoverForaFila(key) {
+        delete confEncForaFila[key];
+        salvarForaFila();
+        fecharModal("foraFilaModal");
+        abrirRelatorioForaFila();
+        confEncRender();
+      }
+
+      function compartilharForaFila() {
+        var txt = gerarTextoForaFila();
+        if (!txt) return;
+        var texto = textoWhatsappSeguro(txt);
+        if (navigator.share) {
+          navigator.share({ title: "Fora da fila de laminação", text: texto })
+            .catch(function (e) {
+              if (e.name !== "AbortError") {
+                window.open("https://wa.me/?text=" + encodeURIComponent(texto), "_blank");
+              }
+            });
+        } else {
+          window.open("https://wa.me/?text=" + encodeURIComponent(texto), "_blank");
+        }
+      }
+
+      // Chave de status de uma bobina encaixada
+      function chaveRegistroEncaixada(reg) {
+        if (!reg) return "";
+        return reg.uid
+          ? "enc_" + reg.uid
+          : reg.item + "|" + reg.versao + "|" + reg.qtde;
+      }
+
+      // Entre várias bobinas que casam com o mesmo código, devolve a primeira
+      // que ainda NÃO foi conferida. Se todas já foram, devolve a primeira
+      // (para a mensagem de "já conferida" continuar fazendo sentido).
+      function escolherRegistroPendente(lista) {
+        if (!lista || !lista.length) return null;
+        for (var i = 0; i < lista.length; i++) {
+          if (!confEncCodBarras[chaveRegistroEncaixada(lista[i])]) return lista[i];
+        }
+        return lista[0];
+      }
+
       function registrarCodBarras(codigo) {
         var codigoLimpo = String(codigo || "").trim();
         if (!codigoLimpo) return;
@@ -12649,19 +12890,29 @@ var estObservacoes = {};
 
         // Prioridade: encontra pela etiqueta/código vinculado no Firebase.
         // Aceita tanto etiqueta branca (encaixe) quanto amarela (sobra).
+        //
+        // Quando a MESMA OP tem várias bobinas com o mesmo código (etiqueta de
+        // formato antigo, que traz o código do item), o laço parava sempre na
+        // primeira e a segunda leitura acusava "já conferida". Agora juntamos
+        // todas as candidatas e escolhemos a primeira AINDA NÃO conferida.
+        var candidatasCodigo = [];
         for (var i = 0; i < confEncRegistros.length; i++) {
           var regComCodigo = confEncRegistros[i];
           var matchBranca = regComCodigo.codigo_barras && normalizarCodigo(regComCodigo.codigo_barras) === codigoNormalizado;
           var matchAmarela = regComCodigo.codigo_barras_sobra && normalizarCodigo(regComCodigo.codigo_barras_sobra) === codigoNormalizado;
           if (matchBranca || matchAmarela) {
-            registroEncontrado = regComCodigo;
-            break;
+            candidatasCodigo.push(regComCodigo);
           }
+        }
+        if (candidatasCodigo.length > 0) {
+          registroEncontrado = escolherRegistroPendente(candidatasCodigo);
         }
 
         // Compatibilidade: se um registro antigo ainda não tiver código vinculado,
         // conserva a busca anterior pelo código do item.
+        // Também aqui podem existir várias bobinas do mesmo item: pega a pendente.
         if (!registroEncontrado) {
+          var candidatasItem = [];
           for (var j = 0; j < confEncRegistros.length; j++) {
             var regPorItem = confEncRegistros[j];
             var itemCode = String(regPorItem.item || "").trim();
@@ -12675,9 +12926,11 @@ var estObservacoes = {};
               itemSemTraco.indexOf(codigoNormalizado) > -1 ||
               codigoNormalizado.indexOf(itemSemTraco) > -1
             ) {
-              registroEncontrado = regPorItem;
-              break;
+              candidatasItem.push(regPorItem);
             }
+          }
+          if (candidatasItem.length > 0) {
+            registroEncontrado = escolherRegistroPendente(candidatasItem);
           }
         }
 
@@ -12687,9 +12940,19 @@ var estObservacoes = {};
           return;
         }
 
-        var key = registroEncontrado.uid
-          ? "enc_" + registroEncontrado.uid
-          : registroEncontrado.item + "|" + registroEncontrado.versao + "|" + registroEncontrado.qtde;
+        var key = chaveRegistroEncaixada(registroEncontrado);
+
+        // Quantas bobinas dessa OP ainda faltam? Ajuda quando a OP tem várias.
+        var totalMesmaOP = 0, faltamMesmaOP = 0;
+        for (var mo = 0; mo < confEncRegistros.length; mo++) {
+          if (String(confEncRegistros[mo].encaixe || "") === String(registroEncontrado.encaixe || "")) {
+            totalMesmaOP++;
+            if (!confEncCodBarras[chaveRegistroEncaixada(confEncRegistros[mo])]) faltamMesmaOP++;
+          }
+        }
+        var sufixoOP = totalMesmaOP > 1
+          ? " (" + (totalMesmaOP - faltamMesmaOP + 1) + "/" + totalMesmaOP + " da OP)"
+          : "";
 
         if (!confEncCodBarras[key]) {
           // Este mapa é o status da conferência, separado do código vinculado.
@@ -12699,12 +12962,15 @@ var estObservacoes = {};
           var statusLam = statusOpNaLaminacao(opConf);
           if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
           if (statusLam === "na_fila") {
-            toast("✔ " + registroEncontrado.item + " OP " + opConf + " — OP na fila laminação", "success", 1500);
+            toast("✔ " + registroEncontrado.item + " OP " + opConf + " — OP na fila laminação" + sufixoOP, "success", 1500);
           } else if (statusLam === "fora_da_fila") {
-            toast("✔ " + registroEncontrado.item + " OP " + opConf + " — OP NÃO encontrada na fila laminação", "warning", 2000);
+            // Fora da fila: a bobina vai ficar parada, então precisa de endereço.
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            toast("⚠️ " + registroEncontrado.item + " OP " + opConf + " — OP NÃO está na fila laminação" + sufixoOP, "warning", 3000);
+            confEncPedirEndereco(registroEncontrado, key, opConf);
           } else {
             // Sem planilha de laminação carregada: não dá para afirmar nada.
-            toast("✔ " + registroEncontrado.item + " OP " + opConf + " — fila de laminação não carregada", "info", 2000);
+            toast("✔ " + registroEncontrado.item + " OP " + opConf + " — fila de laminação não carregada" + sufixoOP, "info", 2000);
           }
         } else {
           if (navigator.vibrate) navigator.vibrate([50]);
@@ -12765,22 +13031,33 @@ var estObservacoes = {};
         var blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
         var arquivo = new File([blob], nomeArquivo, { type: "text/csv" });
 
+        // Resumo + bobinas fora da fila (OP, item, versão, peso e local)
+        var conferidas = 0;
+        for (var k in confEncCodBarras) {
+          if (Object.prototype.hasOwnProperty.call(confEncCodBarras, k)) conferidas++;
+        }
+        var texto = "*Conferência Encaixadas* - " + agora + "\n" +
+          conferidas + "/" + confEncRegistros.length + " conferidas\n";
+        try { texto += gerarTextoForaFila(); } catch (eFF) {}
+        var textoSeguro = textoWhatsappSeguro(texto);
+
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [arquivo] })) {
           navigator.share({
             title: "Conferência Encaixadas " + agora,
-            text: "Conferência de bobinas encaixadas - " + agora,
+            text: textoSeguro,
             files: [arquivo],
           }).catch(function (e) {
             if (e.name !== "AbortError") toast("Erro ao compartilhar: " + e.message, "error");
           });
+        } else if (navigator.share) {
+          navigator.share({ title: "Conferência Encaixadas " + agora, text: textoSeguro })
+            .catch(function (e) {
+              if (e.name !== "AbortError") {
+                window.open("https://wa.me/?text=" + encodeURIComponent(textoSeguro), "_blank");
+              }
+            });
         } else {
-          // Fallback: WhatsApp com texto
-          var texto = "📋 Conferência Encaixadas - " + agora + "\n";
-          var conferidas = 0;
-          for (var k in confEncCodBarras) conferidas++;
-          texto += "✅ " + conferidas + "/" + confEncRegistros.length + " conferidas\n";
-          var url = "https://wa.me/?text=" + encodeURIComponent(texto);
-          window.open(url, "_blank");
+          window.open("https://wa.me/?text=" + encodeURIComponent(textoSeguro), "_blank");
         }
       }
 
@@ -15996,6 +16273,7 @@ async function shareFotos() {
     }
 
     textoRelatorio += gerarTextoExcluidasEncaixe();
+    try { textoRelatorio += gerarTextoForaFila(); } catch (eFF) {}
     var textoRelatorioWpp = textoWhatsappSeguro(textoRelatorio);
 
     var canvas = document.createElement("canvas"),
@@ -19091,5 +19369,5 @@ async function shareFotos() {
       </div>
     </div>
 
-    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a255e8b99bd389d1',t:'MTc4NTc2NjI2MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a267431deabf6234',t:'MTc4NTk0ODIyMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a21dee386ecd52ee',t:'MTc4NTE3OTI4Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a255e8b99bd389d1',t:'MTc4NTc2NjI2MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a267d2aecb281a91',t:'MTc4NTk1NDEwMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
