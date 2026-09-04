@@ -3341,6 +3341,7 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-check-compat.js"></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <!-- Vincular Códigos de Barras -->
@@ -17264,6 +17265,37 @@ async function shareFotos() {
         messagingSenderId: "664379035552",
         appId: "1:664379035552:web:5f13a79285409096e4dec5",
       });
+      // ================================================================
+      //   APP CHECK — o cadeado do banco de dados
+      //   O Google só entrega a "prova de autenticidade" para os endereços
+      //   cadastrados na chave. Uma cópia salva no computador ou hospedada
+      //   em outro site não consegue essa prova, e o Firestore recusa o
+      //   acesso antes de ler qualquer coisa.
+      //
+      //   Cole abaixo a chave criada no Google Cloud
+      //   (Segurança > reCAPTCHA > chave do tipo Site).
+      //   Enquanto estiver "COLE_AQUI", o App Check fica desligado e o app
+      //   funciona como antes.
+      // ================================================================
+      var RECAPTCHA_SITE_KEY = "COLE_AQUI";
+
+      if (RECAPTCHA_SITE_KEY && RECAPTCHA_SITE_KEY !== "COLE_AQUI") {
+        try {
+          // O reCAPTCHA clássico foi descontinuado; agora a chave é do
+          // reCAPTCHA Enterprise. Gratuito até 10.000 verificações por mês —
+          // este app usa umas 150.
+          var Provedor =
+            firebase.appCheck.ReCaptchaEnterpriseProvider ||
+            firebase.appCheck.ReCaptchaV3Provider;
+          firebase.appCheck().activate(new Provedor(RECAPTCHA_SITE_KEY), true);
+          console.log("App Check ligado");
+        } catch (eAC) {
+          // Não derruba o app: sem a prova, o Firestore só recusa depois que
+          // você ligar a exigência no painel do Firebase.
+          console.warn("App Check não iniciou:", eAC && eAC.message);
+        }
+      }
+
       var db = firebase.firestore();
       // Cache visual dos códigos vinculados às bobinas por UID.
       var codigosBobinasCache = {};
@@ -18505,5 +18537,5 @@ async function shareFotos() {
       </div>
     </div>
     <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a35d0f93cbb5725a',t:'MTc4ODUyNTYwNw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","spa":2}' crossorigin="anonymous"></script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a35d73e84f70f1fe',t:'MTc4ODUyOTcxNg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
