@@ -6163,6 +6163,12 @@ B = [];
           }
         } catch(eApplySplit){}
         garantirUidEstoque();
+
+        // Bobina encaixada sai do estoque e some da planilha. O endereço dela
+        // não vale mais — mas só apagamos depois de 3 importações sem ela
+        // aparecer, porque às vezes você não acha a bobina num dia e acha no
+        // outro.
+        try { limparMemoriaObsoleta(); } catch (eLimpa) {}
       }
 
       function getUidEstoque(e) {
@@ -6581,11 +6587,30 @@ B = [];
         return ks;
       }
 
+      // A chave genérica (item|versão, sem o peso) emprestava o endereço de
+      // uma bobina para outra completamente diferente: uma de 57kg passava o
+      // endereço para outra de 232kg do mesmo item.
+      // Agora o peso tem de ser o MESMO. Endereço errado é pior que endereço
+      // nenhum — faz o operador andar até o lugar errado.
+      function pesosIguais(pesoA, pesoB) {
+        var a = parseFloat(String(pesoA == null ? "" : pesoA).replace(",", "."));
+        var b = parseFloat(String(pesoB == null ? "" : pesoB).replace(",", "."));
+        if (isNaN(a) || isNaN(b)) return false; // sem peso, não arrisca
+        // margem de 1 grama só para "57" x "57.0" x "57,00" não divergirem
+        return Math.abs(a - b) < 0.01;
+      }
+
       function lerMemoria(item, ver, qtde, uid, campo) {
         var ks = chavesMemoria(item, ver, qtde, uid);
         for (var i = 0; i < ks.length; i++) {
-          var reg = memoriaLocal[ks[i]];
-          if (reg && reg[campo]) return reg[campo];
+          var chave = ks[i];
+          var reg = memoriaLocal[chave];
+          if (!reg || !reg[campo]) continue;
+
+          // Só a chave "iv:" (item|versão) é genérica; nela conferimos o peso.
+          if (chave.indexOf("iv:") === 0 && !pesosIguais(qtde, reg.qtde)) continue;
+
+          return reg[campo];
         }
         return "";
       }
@@ -6607,6 +6632,69 @@ B = [];
           memoriaLocal[ks[i]] = reg;
         }
         salvarMemoriaBobina();
+      }
+
+      // ================================================================
+      //   LIMPEZA DA MEMÓRIA DE ENDEREÇOS
+      //
+      //   Quando a bobina é encaixada, ela sai do estoque e some da próxima
+      //   planilha. O endereço dela morreu junto — mas ficava guardado para
+      //   sempre, e reaparecia numa bobina nova do mesmo item.
+      //
+      //   Agora, a cada importação de estoque, o app compara a memória com
+      //   a planilha. O que não está mais lá é marcado como "sumido".
+      //   Só depois de 3 importações seguidas sem aparecer é que o endereço
+      //   é apagado — assim uma bobina que você não achou hoje mas achou
+      //   depois de amanhã não perde o endereço.
+      // ================================================================
+
+      var LIMPEZA_CARENCIA = 3; // importações sem aparecer antes de apagar
+
+      function limparMemoriaObsoleta() {
+        if (!estoque || estoque.length === 0) return { marcadas: 0, apagadas: 0 };
+
+        // 1) Monta as chaves de tudo que ESTÁ na planilha de agora
+        var vivas = {};
+        for (var i = 0; i < estoque.length; i++) {
+          var e = estoque[i];
+          var item = getItemEstoque(e);
+          if (!item) continue;
+          var ver = String(e["VERSAO"] || "").trim();
+          var qtde = e["QTDE_ESTOQUE"] || "";
+          var uid = getUidEstoque(e);
+          var ks = chavesMemoria(item, ver, qtde, uid);
+          for (var k = 0; k < ks.length; k++) vivas[ks[k]] = true;
+        }
+
+        // 2) Percorre a memória: o que não está na planilha ganha um ponto
+        var marcadas = 0, apagadas = 0;
+        for (var chave in memoriaLocal) {
+          if (!Object.prototype.hasOwnProperty.call(memoriaLocal, chave)) continue;
+          var reg = memoriaLocal[chave];
+          if (!reg) continue;
+
+          if (vivas[chave]) {
+            // Apareceu na planilha: zera a contagem
+            if (reg.sumiu) { delete reg.sumiu; }
+            continue;
+          }
+
+          reg.sumiu = (reg.sumiu || 0) + 1;
+
+          if (reg.sumiu >= LIMPEZA_CARENCIA) {
+            delete memoriaLocal[chave];
+            apagadas++;
+          } else {
+            marcadas++;
+          }
+        }
+
+        if (marcadas > 0 || apagadas > 0) salvarMemoriaBobina();
+        console.log(
+          "[MEMORIA] " + marcadas + " sumidas (aguardando), " +
+          apagadas + " apagadas, " + Object.keys(memoriaLocal).length + " restantes"
+        );
+        return { marcadas: marcadas, apagadas: apagadas };
       }
 
       var memoriaTimer = null;
@@ -8520,6 +8608,16 @@ B = [];
         }
       }
 
+      // O peso da segunda bobina era sempre mostrado com uma casa decimal
+      // (132 virava "132.0"). Além de feio, isso atrapalha a comparação de
+      // peso na memória de endereços. Agora só mostra decimal quando existe.
+      function pesoLimpo(valor) {
+        var n = parseFloat(valor);
+        if (isNaN(n)) return "";
+        var txt = (Math.round(n * 100) / 100).toFixed(2);
+        return txt.replace(/\.?0+$/, "");
+      }
+
       function splitGerarCampos(bi) {
         var bob = B[bi];
         var qtd = parseInt(document.getElementById("splitQtd").value) || 2;
@@ -8552,7 +8650,7 @@ B = [];
 
               // Preenche automaticamente o segundo campo
               if (inputs[1] && restante >= 0) {
-                inputs[1].value = restante.toFixed(1);
+                inputs[1].value = pesoLimpo(restante);
               }
             }
 
@@ -15084,7 +15182,7 @@ B = [];
               var valor1 = parseFloat(this.value) || 0;
               var restante = pesoTotal - valor1;
               if (inputs[1] && restante >= 0)
-                inputs[1].value = restante.toFixed(1);
+                inputs[1].value = pesoLimpo(restante);
             }
             confSplitAtualizarInfo(pesoTotal);
           });
