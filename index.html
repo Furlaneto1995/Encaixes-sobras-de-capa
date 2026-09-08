@@ -4802,10 +4802,15 @@ var estObservacoes = {};
             lt.textContent = "Acordando o servidor... (só na primeira vez)";
           }, 4000);
 
+          // Prova de que o pedido saiu do site oficial.
+          var cracha = await obterCrachaAppCheck();
+          var cabecalhos = { "Content-Type": "application/json" };
+          if (cracha) cabecalhos["X-Firebase-AppCheck"] = cracha;
+
           var resposta = await fetch(MOTOR_URL + "/calcular", {
             method: "POST",
             mode: "cors",
-            headers: { "Content-Type": "application/json" },
+            headers: cabecalhos,
             body: JSON.stringify(envio),
             signal: controle.signal,
           });
@@ -17205,9 +17210,13 @@ async function shareFotos() {
             filaLaminacao: filaLaminacao.map(function (l) { return enxugarLinha(l, COLS_FILA); }),
             tolerancia: { filme: toleranciaFilme, saco: toleranciaSaco },
           };
+          var crachaD = await obterCrachaAppCheck();
+          var cabecalhosD = { "Content-Type": "application/json" };
+          if (crachaD) cabecalhosD["X-Firebase-AppCheck"] = crachaD;
+
           var resp = await fetch(MOTOR_URL + "/diagnosticar", {
             method: "POST", mode: "cors",
-            headers: { "Content-Type": "application/json" },
+            headers: cabecalhosD,
             body: JSON.stringify(envio),
           });
           if (!resp.ok) throw new Error("O servidor recusou (" + resp.status + ")");
@@ -17599,6 +17608,30 @@ async function shareFotos() {
           // Não derruba o app: sem a prova, o Firestore só recusa depois que
           // você ligar a exigência no painel do Firebase.
           console.warn("App Check não iniciou:", eAC && eAC.message);
+        }
+      }
+
+      // ----------------------------------------------------------------
+      // O CRACHÁ DO APP CHECK PARA O MOTOR
+      //
+      // O mesmo crachá que o Firestore já confere também serve para provar
+      // ao motor que o pedido saiu do site oficial. Um programa fora do
+      // navegador (curl, Python) não consegue esse crachá, porque o Google
+      // só emite para os endereços cadastrados na chave.
+      //
+      // Se por qualquer motivo o crachá não sair (Google fora do ar, rede
+      // ruim), devolvemos vazio e o pedido segue sem ele. Quem decide
+      // recusar é o servidor — assim dá para ligar a exigência lá com
+      // calma, sem derrubar o app aqui.
+      // ----------------------------------------------------------------
+      async function obterCrachaAppCheck() {
+        try {
+          if (!window.firebase || !firebase.appCheck) return "";
+          var r = await firebase.appCheck().getToken(/* forceRefresh */ false);
+          return (r && r.token) ? r.token : "";
+        } catch (e) {
+          console.warn("App Check: não consegui o crachá —", e && e.message);
+          return "";
         }
       }
 
@@ -18843,5 +18876,5 @@ async function shareFotos() {
       </div>
     </div>
     <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a35d0f93cbb5725a',t:'MTc4ODUyNTYwNw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","spa":2}' crossorigin="anonymous"></script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a35d97dd79b20108',t:'MTc4ODUzMTE4OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a35d97dd79b20108',t:'MTc4ODUzMTE4OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a37e750c2d43248c',t:'MTc4ODg3NTc5Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
