@@ -114,6 +114,16 @@
         font-weight: 700;
       }
 
+      /* Versão instalada. Serve para saber de bate-pronto se o aparelho
+         pegou a atualização ou está rodando uma cópia velha do cache. */
+      .header h1 small {
+        font-size: 0.62em;
+        color: #64748b;
+        font-weight: 600;
+        letter-spacing: 0;
+        margin-left: 2px;
+      }
+
       .header-right {
         display: flex;
         align-items: center;
@@ -2071,7 +2081,7 @@
   <body>
     <div class="header">
       <div class="header-left">
-        <h1><span>Encaixes</span></h1>
+        <h1><span>Encaixes</span> <small id="versaoApp" title="Versão instalada neste aparelho">v–</small></h1>
       </div>
       <div class="header-right">
         <button
@@ -18453,6 +18463,40 @@ async function shareFotos() {
       }
 
       // ================================================================
+      //   A VERSÃO NO TOPO DA PÁGINA
+      //
+      //   Lê o número direto do sw.js, sem cache. Assim não existe o risco
+      //   de a tela dizer uma versão e o aparelho estar rodando outra —
+      //   se o número na tela mudou, a atualização chegou de verdade.
+      // ================================================================
+      function mostrarVersaoApp() {
+        var alvo = document.getElementById("versaoApp");
+        if (!alvo) return;
+
+        fetch("./sw.js?" + Date.now(), { cache: "no-store" })
+          .then(function (r) { return r.ok ? r.text() : ""; })
+          .then(function (texto) {
+            var m = texto.match(/encaixes-v(\d+)/);
+            if (m) {
+              alvo.textContent = "v" + m[1];
+              alvo.title = "Versão instalada neste aparelho: v" + m[1];
+            } else {
+              alvo.textContent = "";
+            }
+          })
+          .catch(function () {
+            // Sem internet: melhor não mostrar nada do que mostrar errado.
+            alvo.textContent = "";
+          });
+      }
+
+      try {
+        mostrarVersaoApp();
+      } catch (e) {
+        console.warn("versão no topo:", e && e.message);
+      }
+
+      // ================================================================
       //                    INIT
       // ================================================================
       try {
@@ -18876,5 +18920,5 @@ async function shareFotos() {
       </div>
     </div>
     <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a35d0f93cbb5725a',t:'MTc4ODUyNTYwNw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","spa":2}' crossorigin="anonymous"></script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a35d97dd79b20108',t:'MTc4ODUzMTE4OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a37e750c2d43248c',t:'MTc4ODg3NTc5Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a35d97dd79b20108',t:'MTc4ODUzMTE4OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a37eaab14e7aa44e',t:'MTc4ODg3Nzk5MA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
