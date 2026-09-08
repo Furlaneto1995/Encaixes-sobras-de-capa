@@ -4918,6 +4918,9 @@ B = [];
             // motor já na ordem de preferência dele. Alimenta o botão de
             // trocar a sugestão.
             alternativas: Array.isArray(rs.alternativas) ? rs.alternativas : [],
+            // OP interrompida: a etiqueta mostra "int" em vermelho no lugar
+            // do número da fila.
+            opInterrompida: !!rs.opInterrompida,
             // A sugestão original do motor, para poder voltar atrás.
             encOriginal: rs.enc,
             // Onde estamos na lista: 0 = sugestão do motor, 1 = 1a troca...
@@ -5125,6 +5128,7 @@ B = [];
                 // Troca de sugestão de OP: guarda a lista e onde paramos,
                 // senão o botão perde a memória ao recarregar a página.
                 alternativas: b.alternativas || [],
+                opInterrompida: !!b.opInterrompida,
                 encOriginal: b.encOriginal || b.enc,
                 altIdx: b.altIdx || 0,
                 dadosOriginais: b.dadosOriginais || null,
@@ -7207,7 +7211,9 @@ B = [];
         h += '<td style="padding:0 4px;"></td>';
 
         var tags = "";
-        if (pos) {
+        var ehInterrompida = !!bob.opInterrompida;
+
+        if (pos || ehInterrompida) {
           // Indicador S/N da coluna AM, logo após o número da fila.
           // Vermelho para S, verde para N — leitura rápida no chão de fábrica.
           var flag = String(bob.flagFila || "").trim().toUpperCase();
@@ -7217,9 +7223,20 @@ B = [];
             flagHTML =
               ' <span style="font-weight:800;color:' + corFlag + ';">' + flag + "</span>";
           }
-          tags +=
-            '<span style="font-size:0.92em;font-weight:700;padding:2px 7px;border-radius:6px;background:#eef2ff;color:#1e40af;white-space:nowrap;">fila ' +
-            htmlSafe(pos) + flagHTML + "</span>";
+
+          // OP interrompida: no lugar da palavra "fila" aparece "int", em
+          // vermelho — mas o número da posição continua, porque a OP
+          // interrompida também tem lugar na fila (coluna A).
+          if (ehInterrompida) {
+            tags +=
+              '<span style="font-size:0.92em;font-weight:800;padding:2px 7px;' +
+              'border-radius:6px;background:#fee2e2;color:#b91c1c;white-space:nowrap;">int ' +
+              htmlSafe(pos) + flagHTML + "</span>";
+          } else {
+            tags +=
+              '<span style="font-size:0.92em;font-weight:700;padding:2px 7px;border-radius:6px;background:#eef2ff;color:#1e40af;white-space:nowrap;">fila ' +
+              htmlSafe(pos) + flagHTML + "</span>";
+          }
         }
         if (rec) {
           tags +=
@@ -17409,6 +17426,7 @@ async function shareFotos() {
             apresentacao: bob.apresentacao, posFila: bob.posFila,
             recurso: bob.recurso, flagFila: bob.flagFila,
             largOPDestino: bob.largOPDestino, espOPDestino: bob.espOPDestino,
+            opInterrompida: !!bob.opInterrompida,
           };
 
           var alt = alts[achou];
@@ -17423,6 +17441,7 @@ async function shareFotos() {
           bob.flagFila = alt.flagFila || "";
           bob.largOPDestino = alt.largOPDestino || "";
           bob.espOPDestino = alt.espOPDestino || "";
+          bob.opInterrompida = !!alt.interrompida;
           n++;
         }
 
@@ -17463,6 +17482,7 @@ async function shareFotos() {
             bob.flagFila = bob.dadosOriginais.flagFila;
             bob.largOPDestino = bob.dadosOriginais.largOPDestino;
             bob.espOPDestino = bob.dadosOriginais.espOPDestino;
+            bob.opInterrompida = !!bob.dadosOriginais.opInterrompida;
           }
           toast("Voltou para a sugestão do sistema: OP " + bob.enc, "info", 3000);
         } else {
@@ -17473,6 +17493,7 @@ async function shareFotos() {
               apresentacao: bob.apresentacao, posFila: bob.posFila,
               recurso: bob.recurso, flagFila: bob.flagFila,
               largOPDestino: bob.largOPDestino, espOPDestino: bob.espOPDestino,
+              opInterrompida: !!bob.opInterrompida,
             };
           }
 
@@ -17487,6 +17508,7 @@ async function shareFotos() {
           bob.flagFila = alt.flagFila || "";
           bob.largOPDestino = alt.largOPDestino || "";
           bob.espOPDestino = alt.espOPDestino || "";
+          bob.opInterrompida = !!alt.interrompida;
 
           toast(
             "OP " + alt.op + "  (" + bob.altIdx + " de " + alts.length + ")",
@@ -18924,5 +18946,5 @@ async function shareFotos() {
       </div>
     </div>
     <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a35d0f93cbb5725a',t:'MTc4ODUyNTYwNw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","spa":2}' crossorigin="anonymous"></script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a35d97dd79b20108',t:'MTc4ODUzMTE4OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a35d97dd79b20108',t:'MTc4ODUzMTE4OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a37fb1bd5e32c700',t:'MTc4ODg4ODc2NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
