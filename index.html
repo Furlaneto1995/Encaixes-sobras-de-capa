@@ -1422,6 +1422,25 @@
         border-color: #eef2ff;
       }
 
+      /* Botão de trocar a sugestão de OP */
+      .bob-act-troca {
+        color: #1e40af;
+        border-color: #eef2ff;
+      }
+
+      .bob-act-troca svg {
+        width: 13px;
+        height: 13px;
+        fill: currentColor;
+      }
+
+      /* Marca a bobina cuja OP foi trocada na mão */
+      .bob-act-troca.trocada {
+        background: #1e40af;
+        color: #fff;
+        border-color: #1e40af;
+      }
+
       body.dark {
         background: #1a1a2e;
         color: #e0e0e0;
@@ -4842,6 +4861,15 @@ var estObservacoes = {};
 
         lo.classList.remove("active");
 
+        // As trocas de OP feitas na mão precisam sobreviver ao recálculo.
+        // Guardamos por bobina (uid, ou item+versão+peso quando não há uid).
+        var trocasManuais = {};
+        for (var tm2 = 0; tm2 < B.length; tm2++) {
+          var bAnt = B[tm2];
+          if (!bAnt || !bAnt.altIdx) continue;
+          trocasManuais[chaveTrocaBobina(bAnt)] = bAnt.enc;
+        }
+
 B = [];
         for (var r2 = 0; r2 < res.length; r2++) {
           var rs = res[r2];
@@ -4867,6 +4895,14 @@ B = [];
             flagFila: rs.flagFila || "",
             largOPDestino: rs.largOPDestino || "",
             espOPDestino: rs.espOPDestino || "",
+            // Outras OPs que também serviriam para esta bobina. Vem do
+            // motor já na ordem de preferência dele. Alimenta o botão de
+            // trocar a sugestão.
+            alternativas: Array.isArray(rs.alternativas) ? rs.alternativas : [],
+            // A sugestão original do motor, para poder voltar atrás.
+            encOriginal: rs.enc,
+            // Onde estamos na lista: 0 = sugestão do motor, 1 = 1a troca...
+            altIdx: 0,
             foto: null,
             fotoNm: "",
             ok: false,
@@ -4874,10 +4910,21 @@ B = [];
           });
         }
 
+        // Devolve as trocas manuais que o operador tinha feito.
+        var reaplicadas = reaplicarTrocasManuais(trocasManuais);
+
         grp();
         build();
         save();
         atualizarInfo();
+
+        if (reaplicadas > 0) {
+          toast(
+            "Mantive " + reaplicadas + " troca" + (reaplicadas > 1 ? "s" : "") +
+              " de OP que você fez na mão",
+            "info", 5000
+          );
+        }
 
         if (B.length > 0) toast(B.length + " encaixes encontrados", "success");
         else toast("Nenhum encaixe encontrado", "error");
@@ -5056,6 +5103,12 @@ B = [];
                 flagFila: b.flagFila || "",
                 largOPDestino: b.largOPDestino || "",
                 espOPDestino: b.espOPDestino || "",
+                // Troca de sugestão de OP: guarda a lista e onde paramos,
+                // senão o botão perde a memória ao recarregar a página.
+                alternativas: b.alternativas || [],
+                encOriginal: b.encOriginal || b.enc,
+                altIdx: b.altIdx || 0,
+                dadosOriginais: b.dadosOriginais || null,
                 // Fotos ficam no IndexedDB para não estourar o localStorage.
                 foto: null,
                 fotoEtiqueta: null,
@@ -7299,6 +7352,20 @@ B = [];
         ? '<img src="' + bob.foto + '" class="bob-mini" data-b="' + bi + '">'
         : "") +
       '<div class="bob-actions">' +
+      // Botão de trocar a sugestão de OP. Só aparece quando existe
+      // outra OP possível para esta bobina.
+      (bob.alternativas && bob.alternativas.length
+        ? '<button class="bob-act bob-act-troca' +
+          (bob.altIdx ? ' trocada' : '') +
+          '" data-b="' + bi + '" data-g="' + gi +
+          '" title="Trocar sugestão de OP (' +
+          bob.alternativas.length + ' outra' +
+          (bob.alternativas.length > 1 ? 's' : '') + ')">' +
+          '<svg viewBox="0 0 512 512" aria-hidden="true">' +
+          '<path d="M256 48C154 48 66 108 24 194c-10 21 2 45 25 50 17 4 34-5 41-21 30-63 94-107 166-107 45 0 86 17 117 45l-40 9c-14 3-19 21-8 30l124 56c13 6 27-4 27-18V96c0-15-18-23-29-13l-30 33C374 76 318 48 256 48z"/>' +
+          '<path d="M256 464c102 0 190-60 232-146 10-21-2-45-25-50-17-4-34 5-41 21-30 63-94 107-166 107-45 0-86-17-117-45l40-9c14-3 19-21 8-30L63 256c-13-6-27 4-27 18v142c0 15 18 23 29 13l30-33c43 39 99 68 161 68z"/>' +
+          '</svg></button>'
+        : '') +
       '<button class="bob-act bob-act-edit" data-b="' +
       bi +
       '" data-g="' +
@@ -7422,6 +7489,13 @@ B = [];
   card.querySelectorAll(".btn-del-bob").forEach(function (el) {
     el.addEventListener("click", function () {
       delBob(parseInt(this.getAttribute("data-b")));
+    });
+  });
+
+  card.querySelectorAll(".bob-act-troca").forEach(function (el) {
+    el.addEventListener("click", function (ev) {
+      ev.stopPropagation();
+      trocarSugestaoOP(parseInt(this.getAttribute("data-b")));
     });
   });
 
@@ -17271,6 +17345,140 @@ async function shareFotos() {
 
         return "";
       }
+      // ================================================================
+      //           TROCAR A SUGESTÃO DE OP DE UMA BOBINA
+      // ================================================================
+      // O motor manda, junto de cada bobina, as outras OPs que também
+      // serviriam (campo "alternativas"). Cada clique anda uma casa nessa
+      // lista; ao chegar no fim, volta para a sugestão original do motor.
+      //
+      // Só a sugestão muda — a bobina, o peso e as medidas continuam iguais.
+      // Identifica a bobina entre um cálculo e outro. O uid é o melhor
+      // caminho; quando não existe, cai para item + versão + peso.
+      function chaveTrocaBobina(b) {
+        var uid = getUidBobina(b);
+        if (uid) return "uid:" + uid;
+        return "iv:" + (b.item || "") + "|" + (b.ver || "") + "|" + (b.qtde || "");
+      }
+
+      // Depois de recalcular, devolve as trocas de OP feitas na mão.
+      // Só reaplica se a OP escolhida continuar sendo possível para aquela
+      // bobina — se a OP saiu da fila ou encheu, a sugestão do motor vale.
+      function reaplicarTrocasManuais(trocas) {
+        if (!trocas) return 0;
+        var n = 0;
+
+        for (var i = 0; i < B.length; i++) {
+          var bob = B[i];
+          var desejada = trocas[chaveTrocaBobina(bob)];
+          if (!desejada) continue;
+          if (String(desejada) === String(bob.enc)) continue; // o motor já sugeriu essa
+
+          var alts = Array.isArray(bob.alternativas) ? bob.alternativas : [];
+          var achou = -1;
+          for (var k = 0; k < alts.length; k++) {
+            if (String(alts[k].op) === String(desejada)) { achou = k; break; }
+          }
+          if (achou === -1) continue; // não é mais possível: fica a do motor
+
+          bob.dadosOriginais = {
+            itemOP: bob.itemOP, verOP: bob.verOP, largOP: bob.largOP,
+            apresentacao: bob.apresentacao, posFila: bob.posFila,
+            recurso: bob.recurso, flagFila: bob.flagFila,
+            largOPDestino: bob.largOPDestino, espOPDestino: bob.espOPDestino,
+          };
+
+          var alt = alts[achou];
+          bob.altIdx = achou + 1;
+          bob.enc = alt.op;
+          bob.itemOP = alt.itemOP || "";
+          bob.verOP = alt.verOP || "";
+          bob.largOP = alt.largOP || bob.larg;
+          bob.apresentacao = alt.apresentacao || "";
+          bob.posFila = alt.posFila || "";
+          bob.recurso = alt.recurso || "";
+          bob.flagFila = alt.flagFila || "";
+          bob.largOPDestino = alt.largOPDestino || "";
+          bob.espOPDestino = alt.espOPDestino || "";
+          n++;
+        }
+
+        return n;
+      }
+
+      function trocarSugestaoOP(bi) {
+        var bob = B[bi];
+        if (!bob) return;
+
+        var alts = Array.isArray(bob.alternativas) ? bob.alternativas : [];
+        if (alts.length === 0) {
+          toast("Não há outra OP possível para esta bobina", "warning", 3000);
+          return;
+        }
+
+        // Bobina já conferida: trocar de OP invalidaria a foto tirada.
+        if (bob.ok) {
+          toast("Esta bobina já foi conferida. Desmarque antes de trocar.", "warning", 4000);
+          return;
+        }
+
+        // Anda uma casa. A posição 0 é a sugestão original do motor,
+        // as posições 1..N são as alternativas.
+        var total = alts.length + 1;
+        bob.altIdx = ((bob.altIdx || 0) + 1) % total;
+
+        if (bob.altIdx === 0) {
+          // Voltou para a sugestão do motor: restaura tudo do original.
+          bob.enc = bob.encOriginal;
+          if (bob.dadosOriginais) {
+            bob.itemOP = bob.dadosOriginais.itemOP;
+            bob.verOP = bob.dadosOriginais.verOP;
+            bob.largOP = bob.dadosOriginais.largOP;
+            bob.apresentacao = bob.dadosOriginais.apresentacao;
+            bob.posFila = bob.dadosOriginais.posFila;
+            bob.recurso = bob.dadosOriginais.recurso;
+            bob.flagFila = bob.dadosOriginais.flagFila;
+            bob.largOPDestino = bob.dadosOriginais.largOPDestino;
+            bob.espOPDestino = bob.dadosOriginais.espOPDestino;
+          }
+          toast("Voltou para a sugestão do sistema: OP " + bob.enc, "info", 3000);
+        } else {
+          // Guarda o original na primeira troca, para poder voltar depois.
+          if (!bob.dadosOriginais) {
+            bob.dadosOriginais = {
+              itemOP: bob.itemOP, verOP: bob.verOP, largOP: bob.largOP,
+              apresentacao: bob.apresentacao, posFila: bob.posFila,
+              recurso: bob.recurso, flagFila: bob.flagFila,
+              largOPDestino: bob.largOPDestino, espOPDestino: bob.espOPDestino,
+            };
+          }
+
+          var alt = alts[bob.altIdx - 1];
+          bob.enc = alt.op;
+          bob.itemOP = alt.itemOP || "";
+          bob.verOP = alt.verOP || "";
+          bob.largOP = alt.largOP || bob.larg;
+          bob.apresentacao = alt.apresentacao || "";
+          bob.posFila = alt.posFila || "";
+          bob.recurso = alt.recurso || "";
+          bob.flagFila = alt.flagFila || "";
+          bob.largOPDestino = alt.largOPDestino || "";
+          bob.espOPDestino = alt.espOPDestino || "";
+
+          toast(
+            "OP " + alt.op + "  (" + bob.altIdx + " de " + alts.length + ")",
+            "success", 3000
+          );
+        }
+
+        // Redesenha: a bobina passa para o cartão da nova OP sozinha,
+        // porque os cartões são agrupados justamente por OP.
+        grp();
+        build();
+        save();
+        atualizarInfo();
+      }
+
       function mkChave(b) {
         return (
           (b.item || "") +
