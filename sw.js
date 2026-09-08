@@ -1,4 +1,4 @@
-var CACHE_NAME = 'encaixes-v29'; // Subir este número a cada publicação força a atualização
+var CACHE_NAME = 'encaixes-v31'; // Subir este número a cada publicação força a atualização
 
 var urlsToCache = [
     './',
