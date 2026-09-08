@@ -2278,21 +2278,6 @@
                 <div class="mi-desc">Problemas do último cálculo</div>
               </div>
             </div>
-            <div
-              class="menu-item"
-              onclick="
-                toggleMenu();
-                gerarRelatorioSemEncaixe();
-              "
-            >
-              <div class="mi-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-              </div>
-              <div class="mi-text">
-                <div class="mi-title">Sem Encaixe</div>
-                <div class="mi-desc">Por que ficaram de fora</div>
-              </div>
-            </div>
 
           </div>
         </div>
@@ -3333,25 +3318,6 @@
           <p>Clique em Buscar</p>
         </div>
       </div>
-    </div>
-
-    <div class="modal modal-full" id="dbgModal" style="background: var(--fundo)">
-      <div class="modal-head">
-        <div class="modal-head-info">
-          <h3>🔍 Debug</h3>
-          <p id="dbgSubtitle">Investigando item</p>
-        </div>
-        <button class="btn-close" onclick="xM('dbgModal')">✖</button>
-      </div>
-      <div
-        style="
-          flex: 1;
-          overflow-y: auto;
-          padding: 10px 12px 20px;
-          -webkit-overflow-scrolling: touch;
-        "
-        id="dbgBody"
-      ></div>
     </div>
 
     <div class="fullscreen" id="fsView">
@@ -4784,7 +4750,7 @@ var estObservacoes = {};
       }
 
       async function calcularEncaixes() {
-        ["estModal", "confModal", "histModal", "probModal", "dbgModal"].forEach(
+        ["estModal", "confModal", "histModal", "probModal"].forEach(
           function (id) { xM(id); }
         );
         if (estoque.length === 0) { toast("Importe o Estoque primeiro!", "error"); return; }
@@ -4841,11 +4807,6 @@ var estObservacoes = {};
           if (dados.erro) throw new Error(dados.erro);
 
           res = dados.encaixes || [];
-          ultimaAnaliseSemEncaixe = {
-            lista: dados.semEncaixe || [],
-            porMotivo: dados.semEncaixePorMotivo || {},
-            peso: dados.semEncaixePeso || 0,
-          };
           problemas = dados.problemas || [];
           problemasImportacao = dados.problemasImportacao || [];
           ultimosProblemasImportacaoEstoque = problemasImportacao;
@@ -7323,10 +7284,7 @@ B = [];
     '<button class="btn-del-op" data-g="' +
     gi +
     '" style="margin-left:2px;">🗑️</button>' +
-    '<button class="btn-del-op" data-g="' +
-    gi +
-    '" data-dbg="1" style="border-color:#475569;color:#475569;margin-left:2px;" title="Debug">🔍</button>' +
-    '<button data-g="' +
+        '<button data-g="' +
     gi +
     '" data-foco="1" style="width:30px;height:30px;border-radius:6px;border:1px solid #eef2ff;background:#fff;color:#1e40af;cursor:pointer;font-size:0.8em;display:inline-flex;align-items:center;justify-content:center;margin-left:2px;" title="Focar nesta OP">🎯</button></div></div>';
 
@@ -7500,20 +7458,12 @@ B = [];
   });
 
   card
-    .querySelectorAll(".btn-del-op:not([data-dbg])")
+    .querySelectorAll(".btn-del-op")
     .forEach(function (el) {
       el.addEventListener("click", function () {
         delOP(parseInt(this.getAttribute("data-g")));
       });
     });
-
-  card.querySelectorAll("[data-dbg]").forEach(function (el) {
-    el.addEventListener("click", function (ev) {
-      ev.stopPropagation();
-      var g2 = G[parseInt(this.getAttribute("data-g"))];
-      debugarItem(B[g2.bs[0]].item);
-    });
-  });
 
   card.querySelectorAll("[data-foco]").forEach(function (el) {
     el.addEventListener("click", function (ev) {
@@ -9383,10 +9333,8 @@ B = [];
               break;
             }
           }
-          debugarItem(alvo);
           return;
         }
-        debugar();
       }
       async function idadeRemoverData(item) {
         var manualDatas = {};
@@ -11698,14 +11646,6 @@ B = [];
           ';font-size:0.88em;font-weight:600;cursor:pointer;">' +
           (isOculto ? "👁️ Mostrar bobina" : "👁️‍🗨️ Ocultar bobina") +
           "</button>";
-
-        // Debug
-        if (!isOculto) {
-          html +=
-            "<button onclick=\"fecharModal('estOpcoesModal');xM('estModal');setTimeout(function(){debugarItem('" +
-            item.replace(/'/g, "\\'") +
-            '\');},300);" style="width:100%;padding:12px;border:none;border-radius:10px;background:#eef2ff;color:#475569;font-size:0.88em;font-weight:600;cursor:pointer;">🔍 Investigar (Debug)</button>';
-        }
 
         // Dividir bobina
         html +=
@@ -17034,323 +16974,13 @@ async function shareFotos() {
       // ================================================================
       // A análise de quem ficou de fora é feita no servidor, junto com o
       // cálculo. Aqui só desenhamos o resultado.
-      var ultimaAnaliseSemEncaixe = null;
 
-      function gerarRelatorioSemEncaixe() {
-        if (!ultimaAnaliseSemEncaixe) {
-          toast("Calcule os encaixes primeiro", "warning");
-          return;
-        }
-        var semEncaixe = ultimaAnaliseSemEncaixe.lista || [];
-        var porMotivo = ultimaAnaliseSemEncaixe.porMotivo || {};
-        var pesoTotal = ultimaAnaliseSemEncaixe.peso || 0;
-
-        if (semEncaixe.length === 0) {
-          toast("Todas as bobinas têm encaixe! 🎉", "success");
-          return;
-        }
-
-        // Agrupa por motivo
-        var porMotivo = {};
-        semEncaixe.forEach(function (se) {
-          if (!porMotivo[se.motivo]) porMotivo[se.motivo] = [];
-          porMotivo[se.motivo].push(se);
-        });
-
-        var pesoTotal = 0;
-        semEncaixe.forEach(function (se) {
-          pesoTotal += se.qtde;
-        });
-
-        // Monta HTML
-        var html = '<div style="margin-bottom:12px;">';
-        html +=
-          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">';
-        html +=
-          '<div style="background:#fff;border-radius:8px;border:1px solid #e2e8f0;padding:8px;text-align:center;">';
-        html +=
-          '<div style="font-size:1.1em;font-weight:700;color:#1e40af;">' +
-          semEncaixe.length +
-          "</div>";
-        html +=
-          '<div style="font-size:0.55em;color:#64748b;">Sem encaixe</div></div>';
-        html +=
-          '<div style="background:#fff;border-radius:8px;border:1px solid #e2e8f0;padding:8px;text-align:center;">';
-        html +=
-          '<div style="font-size:1.1em;font-weight:700;color:#475569;">' +
-          Math.round(pesoTotal) +
-          "kg</div>";
-        html +=
-          '<div style="font-size:0.55em;color:#64748b;">Peso parado</div></div>';
-        html += "</div></div>";
-
-        var cores = {
-          "Nenhuma OP com mesma fórmula": "#1e40af",
-          "Saldo insuficiente": "#475569",
-          "Tipo errado (capa/base)": "#1e40af",
-          "Saldo + tipo errado": "#475569",
-          "OPs sem prioridade": "#94a3b8",
-          "Largura fora da tolerância": "#1e40af",
-          "Consumida por outra bobina": "#1e40af",
-          "Fila vazia": "#64748b",
-        };
-
-        Object.keys(porMotivo).forEach(function (motivo) {
-          var lista = porMotivo[motivo];
-          var cor = cores[motivo] || "#64748b";
-          var pesoGrupo = 0;
-          lista.forEach(function (se) {
-            pesoGrupo += se.qtde;
-          });
-
-          html +=
-            '<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:8px;overflow:hidden;">';
-          html +=
-            '<div style="padding:10px 14px;background:#f1f5f9;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;">';
-          html +=
-            '<div style="width:8px;height:8px;border-radius:50%;background:' +
-            cor +
-            ';flex-shrink:0;"></div>';
-          html +=
-            '<div style="flex:1;font-size:0.82em;font-weight:700;color:' +
-            cor +
-            ';">' +
-            motivo +
-            "</div>";
-          html +=
-            '<div style="font-size:0.7em;color:#64748b;">' +
-            lista.length +
-            " bob | " +
-            Math.round(pesoGrupo) +
-            "kg</div>";
-          html += "</div>";
-
-          lista.forEach(function (se) {
-            var icone = se.tipo === "CAPA" ? "🔴" : "🟢";
-
-            html +=
-              '<div style="padding:8px 14px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;">';
-            html += '<div style="font-size:0.9em;">' + icone + "</div>";
-            html += '<div style="flex:1;min-width:0;">';
-            html +=
-              '<div style="font-size:0.82em;font-weight:600;font-family:monospace;">' +
-              se.item +
-              ' <span style="font-size:0.8em;color:#94a3b8;">v' +
-              se.ver +
-              "</span></div>";
-            html += '<div style="font-size:0.62em;color:#64748b;margin-top:2px;">';
-            html +=
-              "📐" + se.larg + "x" + se.esp + " 🎨" + se.pig + " 📦" + se.comp;
-            html += "</div>";
-
-            // Quase serviu
-            if (se.quaseServiu.length > 0) {
-              html +=
-                '<div style="font-size:0.6em;color:#475569;margin-top:3px;">';
-              var maxMostrar = Math.min(se.quaseServiu.length, 3);
-              for (var q = 0; q < maxMostrar; q++) {
-                var qs = se.quaseServiu[q];
-                html += "⚡ OP " + qs.op;
-                if (qs.motivo === "SALDO")
-                  html += " (saldo: " + qs.saldo + "kg)";
-                else if (qs.motivo === "TIPO")
-                  html += " (" + qs.tipoFila + "→" + qs.tipoEst + ")";
-                else html += " (" + qs.motivo + ")";
-                if (q < maxMostrar - 1) html += " | ";
-              }
-              if (se.quaseServiu.length > 3)
-                html += " +" + (se.quaseServiu.length - 3) + " mais";
-              html += "</div>";
-            }
-
-            html += "</div>";
-            html += '<div style="text-align:right;flex-shrink:0;">';
-            html +=
-              '<div style="font-size:0.88em;font-weight:700;">' +
-              Math.round(se.qtde) +
-              "kg</div>";
-            html +=
-              "<button onclick=\"xM('semEncModal');debugarItem('" +
-              se.item.replace(/'/g, "\\'") +
-              '\')" style="margin-top:2px;padding:2px 6px;border:1px solid #e2e8f0;border-radius:6px;background:#fff;color:#1e40af;font-size:0.55em;cursor:pointer;">🔍</button>';
-            html += "</div></div>";
-          });
-
-          html += "</div>";
-        });
-
-        // Abre num modal
-        var existente = document.getElementById("semEncModal");
-        if (existente) existente.remove();
-
-        var modal = document.createElement("div");
-        modal.id = "semEncModal";
-        modal.className = "modal modal-full active";
-        modal.style.cssText =
-          "position:fixed;top:0;left:0;width:100%;height:100%;background:#f1f5f9;z-index:500;display:flex;flex-direction:column;";
-
-        modal.innerHTML =
-          '<div class="modal-head">' +
-          '<div class="modal-head-info">' +
-          "<h3>❌ Sem Encaixe</h3>" +
-          "<p>" +
-          semEncaixe.length +
-          " bobinas | " +
-          Math.round(pesoTotal) +
-          "kg</p>" +
-          "</div>" +
-          '<button class="btn-close" onclick="document.getElementById(\'semEncModal\').remove()">✖</button>' +
-          "</div>" +
-          '<div style="flex:1;overflow-y:auto;padding:10px 12px 20px;-webkit-overflow-scrolling:touch;">' +
-          html +
-          "</div>";
-
-        document.body.appendChild(modal);
-      }
-
-
-      // ================================================================
+            // ================================================================
       //                    DEBUG
       // ================================================================
-      function debugar() {
-        var it = prompt("ITEM:");
-        if (it) debugarItem(it);
-      }
-      // A lupa: o diagnóstico é feito no servidor (usa as mesmas regras do
+            // A lupa: o diagnóstico é feito no servidor (usa as mesmas regras do
       // motor). Aqui só desenhamos o que ele responde.
-      async function debugarItem(itemBusca) {
-        if (!itemBusca) return;
-        itemBusca = String(itemBusca).trim();
-
-        if (estoque.length === 0 || fila.length === 0) {
-          toast("Importe estoque e fila!", "warning");
-          return;
-        }
-
-        var lo = document.getElementById("lo"),
-          lt = document.getElementById("lt");
-        lo.classList.add("active");
-        lt.textContent = "Analisando " + itemBusca + "...";
-
-        var dados;
-        try {
-          var envio = {
-            item: itemBusca,
-            estoque: estoque.map(function (e) { return enxugarLinha(e, COLS_EST); }),
-            fila: fila.map(function (f) { return enxugarLinha(f, COLS_FILA); }),
-            filaLaminacao: filaLaminacao.map(function (l) { return enxugarLinha(l, COLS_FILA); }),
-            tolerancia: { filme: toleranciaFilme, saco: toleranciaSaco },
-          };
-          var crachaD = await obterCrachaAppCheck();
-          var cabecalhosD = { "Content-Type": "application/json" };
-          if (crachaD) cabecalhosD["X-Firebase-AppCheck"] = crachaD;
-
-          var resp = await fetch(MOTOR_URL + "/diagnosticar", {
-            method: "POST", mode: "cors",
-            headers: cabecalhosD,
-            body: JSON.stringify(envio),
-          });
-          if (!resp.ok) throw new Error("O servidor recusou (" + resp.status + ")");
-          dados = await resp.json();
-          if (dados.erro) throw new Error(dados.erro);
-        } catch (err) {
-          lo.classList.remove("active");
-          toast((err && err.message) || "Não consegui analisar", "error", 6000);
-          return;
-        }
-        lo.classList.remove("active");
-
-        document.getElementById("dbgSubtitle").textContent = "Item: " + itemBusca;
-
-        var html = "";
-        if (!dados.encontrou) {
-          html =
-            '<div style="background:#fff;border-radius:12px;padding:20px;text-align:center;color:#64748b;">' +
-            '<div style="font-size:0.9em;">Item <strong>' + htmlSafe(itemBusca) +
-            "</strong> não está no estoque.</div></div>";
-        } else {
-          dados.achados.forEach(function (a) {
-            html +=
-              '<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:14px;margin-bottom:10px;">';
-            html +=
-              '<div style="font-size:0.85em;font-weight:700;color:#1e40af;margin-bottom:8px;">Bobina</div>';
-            html +=
-              '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:0.78em;margin-bottom:10px;">';
-            html += '<div><span style="color:#64748b;">Item:</span> <strong>' + htmlSafe(a.item) + "</strong></div>";
-            html += '<div><span style="color:#64748b;">Versão:</span> ' + htmlSafe(a.ver) + "</div>";
-            html += '<div><span style="color:#64748b;">Largura:</span> ' + a.larg + "cm</div>";
-            html += '<div><span style="color:#64748b;">Espessura:</span> ' + a.esp + "mu</div>";
-            html += '<div><span style="color:#64748b;">Composição:</span> ' + htmlSafe(a.comp) + "</div>";
-            html += '<div><span style="color:#64748b;">Pigmentado:</span> ' + htmlSafe(a.pig) + "</div>";
-            html += '<div><span style="color:#64748b;">Peso:</span> <strong>' + a.qtde + "kg</strong></div>";
-            html += '<div><span style="color:#64748b;">Tipo:</span> ' + htmlSafe(a.tipo) + "</div>";
-            html += "</div>";
-
-            if (a.escolhida) {
-              html +=
-                '<div style="background:#eef2ff;padding:8px 10px;border-radius:8px;margin-bottom:8px;font-size:0.82em;color:#1e40af;font-weight:700;">' +
-                "Encaixou na OP " + htmlSafe(a.escolhida) + "</div>";
-            } else {
-              html +=
-                '<div style="background:#f1f5f9;padding:8px 10px;border-radius:8px;margin-bottom:8px;font-size:0.82em;color:#b91c1c;font-weight:700;">' +
-                "Nenhuma OP serviu</div>";
-            }
-
-            if (a.candidatas.length) {
-              html += '<div style="font-size:0.75em;color:#64748b;margin-bottom:6px;">OPs que serviram:</div>';
-              a.candidatas.forEach(function (cd, idx) {
-                var primeira = idx === 0;
-                html +=
-                  '<div style="background:' + (primeira ? "#eef2ff" : "#f1f5f9") +
-                  ";border:1px solid " + (primeira ? "#1e40af" : "#e2e8f0") +
-                  ';border-radius:8px;padding:8px 10px;margin-bottom:4px;font-size:0.76em;">';
-                html += '<div style="font-weight:700;color:#1e40af;">OP ' + htmlSafe(cd.op) + "</div>";
-                html +=
-                  '<div style="color:#64748b;margin-top:2px;">' +
-                  cd.largura + "cm × " + cd.espessura + "mu · " + cd.peso + "kg · " +
-                  htmlSafe(cd.apresentacao || "-") +
-                  (cd.medidaExata ? " · medida exata" :
-                    " · " + cd.diferencaLargura + "cm a mais (tolera " + cd.tolerancia + ")") +
-                  "</div>";
-                html +=
-                  '<div style="color:#94a3b8;margin-top:2px;">fila ' + cd.fila +
-                  " · prioridade " + cd.prioridade +
-                  (cd.data ? " · entrega " + htmlSafe(cd.data) : "") + "</div>";
-                html += "</div>";
-              });
-              if (a.totalCandidatas > a.candidatas.length) {
-                html += '<div style="font-size:0.72em;color:#94a3b8;">+' +
-                  (a.totalCandidatas - a.candidatas.length) + " outras</div>";
-              }
-            }
-
-            var r = a.rejeicoes || {};
-            var motivos = [
-              ["tipo", "tipo diferente (capa/base)"],
-              ["chave", "medida ou composição diferente"],
-              ["larguraMenor", "bobina mais estreita que a OP"],
-              ["foraTolerancia", "largura acima da tolerância"],
-              ["prioridade", "OP não programada"],
-              ["saldo", "peso não cabe na OP"],
-              ["interrompida", "OP interrompida"],
-            ].filter(function (p) { return r[p[0]] > 0; });
-
-            if (motivos.length) {
-              html += '<div style="font-size:0.74em;color:#64748b;margin-top:8px;">Recusadas por:</div>';
-              html += '<div style="font-size:0.72em;color:#94a3b8;">';
-              html += motivos.map(function (p) { return r[p[0]] + " " + p[1]; }).join(" · ");
-              html += "</div>";
-            }
-            html += "</div>";
-          });
-        }
-
-        document.getElementById("dbgBody").innerHTML = html;
-        document.getElementById("dbgModal").classList.add("active");
-      }
-
-
-      // ================================================================
+            // ================================================================
       //                    CHAVES
       // ================================================================
       function buscarFormulaDoItem(item) {
@@ -17572,7 +17202,6 @@ async function shareFotos() {
           xM("estModal");
           xM("histModal");
           xM("confModal");
-          xM("dbgModal");
           xM("histConfModal");
           xM("dashModal");
           xM("idadeModal");
@@ -18946,5 +18575,5 @@ async function shareFotos() {
       </div>
     </div>
     <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a35d0f93cbb5725a',t:'MTc4ODUyNTYwNw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","spa":2}' crossorigin="anonymous"></script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a35d97dd79b20108',t:'MTc4ODUzMTE4OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a37fb1bd5e32c700',t:'MTc4ODg4ODc2NQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a35d97dd79b20108',t:'MTc4ODUzMTE4OQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3806c619e6cd7eb',t:'MTc4ODg5NjQwOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
