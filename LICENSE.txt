@@ -1,0 +1,53 @@
+TODOS OS DIREITOS RESERVADOS
+
+Copyright (c) 2026 Anderson Furlaneto
+
+Aplicativo "Encaixes — Sobras de Capa"
+https://github.com/Furlaneto1995/Encaixes-sobras-de-capa
+
+
+ESTE SOFTWARE NÃO É LIVRE NEM DE CÓDIGO ABERTO.
+
+O código-fonte está publicado no GitHub apenas por exigência técnica da
+hospedagem (GitHub Pages), que requer que os arquivos do site sejam
+acessíveis. Publicação não é autorização de uso.
+
+É PROIBIDO, sem autorização prévia e por escrito do autor:
+
+  1. Copiar, no todo ou em parte, o código-fonte, a estrutura, o layout
+     ou a lógica de funcionamento deste aplicativo.
+
+  2. Hospedar este aplicativo, ou obra derivada dele, em qualquer outro
+     endereço.
+
+  3. Utilizar este aplicativo, ou parte dele, em ambiente comercial,
+     industrial ou produtivo alheio.
+
+  4. Reimplementar as regras de negócio deste aplicativo a partir da
+     observação de seu funcionamento, de suas telas, de suas mensagens
+     ou do formato dos dados que ele troca com o servidor — prática
+     conhecida como engenharia reversa.
+
+  5. Remover, alterar ou ocultar este aviso de direitos autorais.
+
+O que é PERMITIDO:
+
+  - Acessar e usar o aplicativo no endereço oficial, para as finalidades
+    autorizadas pelo autor.
+
+O motor de cálculo de encaixes — o conjunto de regras que decide qual
+bobina de sobra vai para qual ordem de produção — é executado
+exclusivamente em servidor privado, não é distribuído com este código e
+constitui segredo de negócio protegido pelo art. 195, incisos XI e XIV,
+da Lei nº 9.279/1996 (Lei da Propriedade Industrial).
+
+Este software é protegido pela Lei nº 9.610/1998 (Direitos Autorais) e
+pela Lei nº 9.609/1998 (Proteção da Propriedade Intelectual de Programa
+de Computador). A violação sujeita o infrator às sanções civis e penais
+previstas em lei.
+
+ESTE SOFTWARE É FORNECIDO "COMO ESTÁ", SEM GARANTIA DE QUALQUER
+NATUREZA. O AUTOR NÃO SE RESPONSABILIZA POR QUAISQUER DANOS DECORRENTES
+DE SEU USO.
+
+Contato para autorização: através do repositório indicado acima.
