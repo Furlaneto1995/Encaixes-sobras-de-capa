@@ -1,9 +1,9 @@
-var CACHE_NAME = 'encaixes-v54'; // Subir este número a cada publicação força a atualização
+var CACHE_NAME = 'encaixes-v56'; // Subir este número a cada publicação força a atualização
 
 var urlsToCache = [
     './',
     './index.html',
-    './manifest.json', 
+    './manifest.json',
     './icon-192.png',
     './icon-512.png'
 ];
