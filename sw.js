@@ -3,7 +3,7 @@ var CACHE_NAME = 'encaixes-v54'; // Subir este número a cada publicação forç
 var urlsToCache = [
     './',
     './index.html',
-    './manifest.json',
+    './manifest.json', 
     './icon-192.png',
     './icon-512.png'
 ];
